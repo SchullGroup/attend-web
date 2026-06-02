@@ -9,7 +9,7 @@ export interface Event {
   format: "virtual" | "hybrid" | "in-person"; venue?: string;
   status: EventStatus; capacity?: number; rsvpCount: number;
   rsvpStatus: RSVPStatus; tags: string[]; thumbnailColor: string;
-  challengeId?: string; pressKitReleased?: boolean;
+  challengeId?: string; pressKitReleased?: boolean; onRegister?: boolean;
   speakers: { id: string; name: string; title: string; company: string }[];
   agenda: { id: string; title: string; startTime: string; duration: number; isCurrent?: boolean }[];
 }
@@ -30,7 +30,7 @@ export const MOCK_EVENTS: Event[] = [
     organiser: "Zenith Bank Plc", description: "The 2026 Annual General Meeting of Zenith Bank Plc, open to all registered shareholders. Agenda includes financial report approval, dividend declaration, director elections, and auditor appointments.",
     date: "2026-05-28", startTime: "10:00", endTime: "14:00", format: "hybrid",
     venue: "Civic Centre, Victoria Island, Lagos", status: "upcoming", capacity: 5000,
-    rsvpCount: 2847, rsvpStatus: "confirmed", thumbnailColor: "#1a6b3c",
+    rsvpCount: 2847, rsvpStatus: "confirmed", thumbnailColor: "#1a6b3c", onRegister: true,
     tags: ["Banking", "Finance", "Regulatory"],
     speakers: [{ id: "spk_001", name: "Dr. Ebenezer Onyeagwu", title: "Group MD & CEO", company: "Zenith Bank Plc" }],
     agenda: [
@@ -49,7 +49,7 @@ export const MOCK_EVENTS: Event[] = [
     organiser: "GTCo Holdings", description: "Extraordinary General Meeting to approve the proposed rights issue and capital raise initiative.",
     date: "2026-06-10", startTime: "11:00", endTime: "13:00", format: "virtual",
     status: "upcoming", capacity: 10000, rsvpCount: 6102, rsvpStatus: null,
-    thumbnailColor: "#f97316", tags: ["Banking", "Capital Markets"],
+    thumbnailColor: "#f97316", onRegister: true, tags: ["Banking", "Capital Markets"],
     speakers: [{ id: "spk_003", name: "Mr. Segun Agbaje", title: "Group CEO", company: "GTCo Holdings" }],
     agenda: [
       { id: "b1", title: "Opening & Attendance", startTime: "11:00", duration: 10 },
@@ -63,7 +63,7 @@ export const MOCK_EVENTS: Event[] = [
     organiser: "Dangote Cement Plc", description: "The 35th Annual General Meeting of Dangote Cement Plc.",
     date: "2026-07-05", startTime: "10:00", endTime: "13:00", format: "hybrid",
     venue: "Transcorp Hilton Hotel, Abuja", status: "upcoming", capacity: 3000,
-    rsvpCount: 1200, rsvpStatus: null, thumbnailColor: "#6366f1", tags: ["Manufacturing"],
+    rsvpCount: 1200, rsvpStatus: null, thumbnailColor: "#6366f1", onRegister: false, tags: ["Manufacturing"],
     speakers: [{ id: "spk_004", name: "Mr. Arvind Pathak", title: "MD & CEO", company: "Dangote Cement Plc" }],
     agenda: [
       { id: "c1", title: "Chairman's Address", startTime: "10:00", duration: 20 },
