@@ -1,0 +1,71 @@
+"use client";
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, ChevronDown, Mail, MessageCircle } from "lucide-react";
+import { MOCK_FAQ } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
+
+export default function HelpPage() {
+  const [open, setOpen] = useState<number | null>(0);
+
+  return (
+    <div className="space-y-6">
+      <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back
+      </Link>
+
+      <header>
+        <h1 className="text-2xl font-bold text-foreground">Help & FAQ</h1>
+        <p className="text-sm text-muted-foreground">
+          Answers to the most common questions.
+        </p>
+      </header>
+
+      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white">
+        {MOCK_FAQ.map((f, i) => {
+          const expanded = open === i;
+          return (
+            <li key={i}>
+              <button
+                onClick={() => setOpen(expanded ? null : i)}
+                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+              >
+                <span className="text-sm font-semibold text-foreground">{f.q}</span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                    expanded && "rotate-180",
+                  )}
+                />
+              </button>
+              {expanded && (
+                <div className="px-5 pb-4 text-sm text-muted-foreground">{f.a}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <section className="grid gap-3 md:grid-cols-2">
+        <a href="mailto:support@attend.io" className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4 hover:bg-muted/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Mail className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Email support</p>
+            <p className="text-xs text-muted-foreground">support@attend.io</p>
+          </div>
+        </a>
+        <a href="#" className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4 hover:bg-muted/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+            <MessageCircle className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Live chat</p>
+            <p className="text-xs text-muted-foreground">Mon–Fri, 9:00 – 17:00 WAT</p>
+          </div>
+        </a>
+      </section>
+    </div>
+  );
+}

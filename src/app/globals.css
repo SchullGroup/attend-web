@@ -1,0 +1,45 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+:root {
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 215 14% 47%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 221 83% 53%;
+  --destructive: 0 72% 51%;
+  --radius: 0.5rem;
+}
+
+@theme {
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-destructive: hsl(var(--destructive));
+  --color-ring: hsl(var(--ring));
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+}
+
+* { border-color: hsl(var(--border)); box-sizing: border-box; }
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: "Outfit", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
