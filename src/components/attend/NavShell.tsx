@@ -28,13 +28,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar (desktop) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-white md:flex">
         <div className="border-b border-border px-6 py-5">
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold tracking-tight text-primary">attend</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          </div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            Enterprise Events
-          </p>
+          <img src="/attend-logo.png" alt="Attend" style={{ height: 28 }} />
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
           {NAV.map((item) => {
@@ -81,7 +75,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-20 border-b border-border bg-white/85 backdrop-blur md:pl-64">
         <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-8">
           <div className="flex items-center gap-3 md:hidden">
-            <div className="text-xl font-extrabold tracking-tight text-primary">attend</div>
+            <img src="/attend-logo.png" alt="Attend" style={{ height: 24 }} />
           </div>
           <div className="hidden flex-1 max-w-md md:block">
             <div className="relative">

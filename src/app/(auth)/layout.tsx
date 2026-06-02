@@ -9,11 +9,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute bottom-12 right-12 h-72 w-72 rounded-full bg-white/5" />
 
         <div className="relative">
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-extrabold tracking-tight">attend</span>
-            <span className="h-2 w-2 rounded-full bg-white" />
-          </div>
-          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-white/70">
+          <img src="/attend-logo.png" alt="Attend" style={{ height: 36 }} className="brightness-0 invert" />
+          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/70">
             Enterprise Events Platform
           </p>
         </div>
