@@ -1,7 +1,10 @@
 import { cn } from "@/lib/utils";
 import { EventModule } from "@/lib/mock-data";
 
-const config: Record<EventModule, { label: string; bg: string; color: string }> = {
+const config: Record<
+  EventModule,
+  { label: string; bg: string; color: string }
+> = {
   AGM: { label: "AGM", bg: "#eff6ff", color: "#1e40af" },
   LAUNCH: { label: "Launch", bg: "#fff4eb", color: "#ea6c00" },
   HACKATHON: { label: "Innovation Challenge", bg: "#f8f0ff", color: "#7c22c9" },

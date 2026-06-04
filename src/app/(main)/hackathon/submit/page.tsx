@@ -31,7 +31,10 @@ export default function SubmitPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/hackathon"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
@@ -39,13 +42,18 @@ export default function SubmitPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
           MeriHack 2026 — Submission
         </p>
-        <h1 className="mt-1 text-2xl font-bold text-foreground">Submit your project</h1>
+        <h1 className="mt-1 text-2xl font-bold text-foreground">
+          Submit your project
+        </h1>
         <p className="text-sm text-muted-foreground">
           Upload your pitch deck and share the demo & repo links.
         </p>
       </header>
 
-      <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <form
+        onSubmit={submit}
+        className="space-y-5 rounded-2xl border border-border bg-white p-6 shadow-sm"
+      >
         <Input
           name="title"
           label="Project title"
@@ -72,7 +80,9 @@ export default function SubmitPage() {
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Project description</label>
+          <label className="text-sm font-medium text-foreground">
+            Project description
+          </label>
           <textarea
             value={form.description}
             onChange={(e) => update("description", e.target.value)}
@@ -83,7 +93,9 @@ export default function SubmitPage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Pitch deck (PDF)</label>
+          <label className="text-sm font-medium text-foreground">
+            Pitch deck (PDF)
+          </label>
           <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50">
             <Upload className="h-6 w-6 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">

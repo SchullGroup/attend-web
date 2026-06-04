@@ -23,10 +23,12 @@ export default function ChnPage() {
         <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
           <Lock className="h-5 w-5 text-primary" />
         </div>
-        <h1 className="text-xl font-bold text-foreground">CHN — CSCS Clearing House Number</h1>
+        <h1 className="text-xl font-bold text-foreground">
+          CHN — CSCS Clearing House Number
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter the CHN issued by the Central Securities Clearing System. You can
-          find this on your stockbroker statement.
+          Enter the CHN issued by the Central Securities Clearing System. You
+          can find this on your stockbroker statement.
         </p>
       </div>
 
@@ -36,7 +38,9 @@ export default function ChnPage() {
         maxLength={20}
         placeholder="e.g. CHN1234567"
         value={chn}
-        onChange={(e) => setChn(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+        onChange={(e) =>
+          setChn(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+        }
         hint="Alphanumeric, at least 10 characters."
       />
 

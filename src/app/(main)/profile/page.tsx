@@ -11,9 +11,8 @@ import {
   ShieldCheck,
   FileText,
   Mail,
-  Phone,
 } from "lucide-react";
-import { MOCK_USER } from "@/lib/mock-data";
+import { useGetMe, useLogout } from "@/api/auth/hooks";
 import { useUserStore } from "@/lib/user-store";
 import { Badge } from "@/components/ui/Badge";
 import { initialsFor, formatDate } from "@/lib/utils";
@@ -28,14 +27,22 @@ const SECTIONS: { title: string; items: RowItem[] }[] = [
   {
     title: "Account",
     items: [
-      { icon: Lock, label: "Change password", href: "/profile/change-password" },
+      {
+        icon: Lock,
+        label: "Change password",
+        href: "/profile/change-password",
+      },
       { icon: FileText, label: "My documents", href: "/profile/documents" },
     ],
   },
   {
     title: "Preferences",
     items: [
-      { icon: Bell, label: "Notification preferences", href: "/profile/notification-preferences" },
+      {
+        icon: Bell,
+        label: "Notification preferences",
+        href: "/profile/notification-preferences",
+      },
     ],
   },
   {
@@ -53,7 +60,14 @@ const SECTIONS: { title: string; items: RowItem[] }[] = [
 
 export default function ProfilePage() {
   const { kycStatus } = useUserStore();
+  const { data: userResponse, isLoading } = useGetMe();
+  const currentUser = userResponse?.data;
+  const { mutate: logout } = useLogout();
   const verified = kycStatus === "full";
+
+  if (isLoading || !currentUser) {
+    return <div>Loading profile...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -67,32 +81,34 @@ export default function ProfilePage() {
       <section className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
         <div className="border-b border-border bg-gradient-to-br from-primary/5 to-primary/10 p-6">
           <div className="flex items-start gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white">
-              {initialsFor(MOCK_USER.fullName)}
-            </div>
-            <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-bold text-foreground">{MOCK_USER.fullName}</h2>
-                {verified ? (
-                  <Badge variant="success">
-                    <ShieldCheck className="h-3 w-3" /> Verified
-                  </Badge>
-                ) : (
-                  <Badge variant="warning">KYC pending</Badge>
-                )}
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white">
+                {currentUser.initials || initialsFor(currentUser.fullName)}
               </div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {MOCK_USER.role}
-              </p>
-              <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
-                <p className="flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5" /> {MOCK_USER.email}
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-bold text-foreground">
+                    {currentUser.fullName}
+                  </h2>
+                  {verified ? (
+                    <Badge variant="success">
+                      <ShieldCheck className="h-3 w-3" /> Verified
+                    </Badge>
+                  ) : (
+                    <Badge variant="warning">KYC pending</Badge>
+                  )}
+                </div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {currentUser.role}
                 </p>
-                <p className="flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5" /> {MOCK_USER.phone}
-                </p>
-                <p>Member since {formatDate(MOCK_USER.createdAt)}</p>
-              </div>
+                <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" /> {currentUser.email}
+                  </p>
+                  {/* <p className="flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5" /> {currentUser.phone}
+                  </p>
+                  {currentUser.createdAt && <p>Member since {formatDate(currentUser.createdAt)}</p>} */}
+                </div>
             </div>
           </div>
         </div>
@@ -116,7 +132,10 @@ export default function ProfilePage() {
             {s.items.map((item, i) => {
               const Icon = item.icon;
               return (
-                <li key={item.href} className={i > 0 ? "border-t border-border" : ""}>
+                <li
+                  key={item.href}
+                  className={i > 0 ? "border-t border-border" : ""}
+                >
                   <Link
                     href={item.href}
                     className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40"
@@ -125,7 +144,9 @@ export default function ProfilePage() {
                       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Icon className="h-4 w-4" />
                       </div>
-                      <span className="text-sm font-medium text-foreground">{item.label}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {item.label}
+                      </span>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Link>
@@ -140,9 +161,9 @@ export default function ProfilePage() {
         <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Danger
         </h3>
-        <Link
-          href="/login"
-          className="flex items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-100"
+        <button
+          onClick={() => logout()}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-100"
         >
           <span className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white">
@@ -151,7 +172,7 @@ export default function ProfilePage() {
             Sign out
           </span>
           <ChevronRight className="h-4 w-4" />
-        </Link>
+        </button>
       </section>
     </div>
   );

@@ -37,16 +37,21 @@ export default function VerifyPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-center md:hidden">
-        <div className="text-2xl font-extrabold tracking-tight text-primary">attend</div>
+        <div className="text-2xl font-extrabold tracking-tight text-primary">
+          attend
+        </div>
       </div>
 
       <div className="text-center">
         <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
           <ShieldCheck className="h-6 w-6 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground">Verify your email</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          Verify your email
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          We sent a 6-digit code to <span className="font-medium text-foreground">you@email.com</span>.
+          We sent a 6-digit code to{" "}
+          <span className="font-medium text-foreground">you@email.com</span>.
         </p>
       </div>
 
@@ -71,20 +76,31 @@ export default function VerifyPage() {
           ))}
         </div>
 
-        <Button type="submit" fullWidth size="lg" loading={loading} disabled={!filled}>
+        <Button
+          type="submit"
+          fullWidth
+          size="lg"
+          loading={loading}
+          disabled={!filled}
+        >
           {loading ? "Verifying" : "Verify email"}
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">
           Didn&apos;t receive a code?{" "}
-          <button type="button" className="font-semibold text-primary hover:underline">
+          <button
+            type="button"
+            className="font-semibold text-primary hover:underline"
+          >
             Resend
           </button>
         </p>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
-        <Link href="/login" className="hover:underline">Back to sign in</Link>
+        <Link href="/login" className="hover:underline">
+          Back to sign in
+        </Link>
       </p>
     </div>
   );

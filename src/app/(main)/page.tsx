@@ -10,7 +10,8 @@ import {
   ShieldCheck,
   Radio,
 } from "lucide-react";
-import { MOCK_USER, MOCK_EVENTS } from "@/lib/mock-data";
+import { MOCK_EVENTS } from "@/lib/mock-data";
+import { useGetMe } from "@/api/auth/hooks";
 import { useUserStore } from "@/lib/user-store";
 import { Badge } from "@/components/ui/Badge";
 import { cn, formatDate, greetingByHour, initialsFor } from "@/lib/utils";
@@ -66,10 +67,15 @@ const ANNOUNCEMENTS = [
 
 export default function HomePage() {
   const { kycStatus } = useUserStore();
+  const { data: userResponse, isLoading } = useGetMe();
+  const currentUser = userResponse?.data;
   const verified = kycStatus === "full";
 
   const liveEvent = MOCK_EVENTS.find((e) => e.status === "live");
-  const upcoming = MOCK_EVENTS.filter((e) => e.status === "upcoming").slice(0, 4);
+  const upcoming = MOCK_EVENTS.filter((e) => e.status === "upcoming").slice(
+    0,
+    4,
+  );
 
   return (
     <div className="space-y-8">
@@ -77,35 +83,35 @@ export default function HomePage() {
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1d4ed8] via-[#2563eb] to-[#3b82f6] p-6 text-white md:p-8">
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/5" />
-        <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-xl font-bold backdrop-blur">
-              {initialsFor(MOCK_USER.fullName)}
+        {isLoading || !currentUser ? (
+          <div>Loading...</div>
+        ) : (
+          <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-xl font-bold backdrop-blur">
+                {currentUser.initials || initialsFor(currentUser.fullName)}
+              </div>
+              <div>
+                <p className="text-sm text-white/80">{greetingByHour()},</p>
+                <h1 className="text-2xl font-bold leading-tight md:text-3xl">
+                  {currentUser.fullName.split(" ")[0]}
+                </h1>
+                <p className="mt-0.5 text-xs text-white/70">Shareholder</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-white/80">
-                {greetingByHour()},
-              </p>
-              <h1 className="text-2xl font-bold leading-tight md:text-3xl">
-                {MOCK_USER.fullName.split(" ")[0]}
-              </h1>
-              <p className="mt-0.5 text-xs text-white/70">
-                Member since {formatDate(MOCK_USER.createdAt)} · Shareholder
-              </p>
+            <div className="flex flex-col items-start gap-2 md:items-end">
+              {verified ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur">
+                  <ShieldCheck className="h-3.5 w-3.5" /> KYC verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 backdrop-blur">
+                  <AlertCircle className="h-3.5 w-3.5" /> KYC pending
+                </span>
+              )}
             </div>
           </div>
-          <div className="flex flex-col items-start gap-2 md:items-end">
-            {verified ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur">
-                <ShieldCheck className="h-3.5 w-3.5" /> KYC verified
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 backdrop-blur">
-                <AlertCircle className="h-3.5 w-3.5" /> KYC pending
-              </span>
-            )}
-          </div>
-        </div>
+        )}
 
         {!verified && (
           <Link
@@ -199,7 +205,10 @@ export default function HomePage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Upcoming events
           </h2>
-          <Link href="/events" className="text-xs font-semibold text-primary hover:underline">
+          <Link
+            href="/events"
+            className="text-xs font-semibold text-primary hover:underline"
+          >
             View all
           </Link>
         </div>

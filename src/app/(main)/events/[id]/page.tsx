@@ -62,8 +62,12 @@ export default function EventDetailPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <Chip icon={CalendarDays}>{formatDate(event.date)}</Chip>
-            <Chip icon={Clock}>{event.startTime} – {event.endTime}</Chip>
-            <Chip icon={Users}>{event.rsvpCount.toLocaleString()} attending</Chip>
+            <Chip icon={Clock}>
+              {event.startTime} – {event.endTime}
+            </Chip>
+            <Chip icon={Users}>
+              {event.rsvpCount.toLocaleString()} attending
+            </Chip>
             {event.venue && <Chip icon={MapPin}>{event.venue}</Chip>}
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
@@ -102,7 +106,9 @@ export default function EventDetailPage({
             onClick={() => setTab(t)}
             className={cn(
               "relative px-4 py-3 text-sm font-medium capitalize",
-              tab === t ? "text-primary" : "text-muted-foreground hover:text-foreground",
+              tab === t
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {t}
@@ -120,7 +126,9 @@ export default function EventDetailPage({
           </p>
           <div className="flex flex-wrap gap-2">
             {event.tags.map((t) => (
-              <Badge key={t} variant="muted">{t}</Badge>
+              <Badge key={t} variant="muted">
+                {t}
+              </Badge>
             ))}
           </div>
         </section>
@@ -136,7 +144,9 @@ export default function EventDetailPage({
                   <p className="text-xs text-muted-foreground">
                     {a.startTime} · {a.duration} min
                   </p>
-                  <p className="text-sm font-medium text-foreground">{a.title}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {a.title}
+                  </p>
                 </div>
               </li>
             ))}
@@ -155,7 +165,9 @@ export default function EventDetailPage({
                 {initialsFor(s.name)}
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">{s.name}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {s.name}
+                </p>
                 <p className="text-xs text-muted-foreground">{s.title}</p>
                 <p className="text-xs text-muted-foreground">{s.company}</p>
               </div>
@@ -167,7 +179,13 @@ export default function EventDetailPage({
   );
 }
 
-function Chip({ icon: Icon, children }: { icon: typeof CalendarDays; children: React.ReactNode }) {
+function Chip({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof CalendarDays;
+  children: React.ReactNode;
+}) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-xs font-medium backdrop-blur">
       <Icon className="h-3.5 w-3.5" /> {children}

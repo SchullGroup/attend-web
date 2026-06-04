@@ -21,7 +21,10 @@ const STATUS_LABEL: Record<string, string> = {
 export default function MyApplicationsPage() {
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/hackathon"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to challenges
       </Link>
 
@@ -47,12 +50,20 @@ export default function MyApplicationsPage() {
           <tbody className="divide-y divide-border">
             {MOCK_APPLICATIONS.map((a) => (
               <tr key={a.id} className="hover:bg-muted/30">
-                <td className="px-4 py-3 font-medium text-foreground">{a.challengeTitle}</td>
-                <td className="px-4 py-3 text-muted-foreground">{a.teamName}</td>
+                <td className="px-4 py-3 font-medium text-foreground">
+                  {a.challengeTitle}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {a.teamName}
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">{a.track}</td>
-                <td className="px-4 py-3 text-muted-foreground">{formatDate(a.submittedAt)}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {formatDate(a.submittedAt)}
+                </td>
                 <td className="px-4 py-3">
-                  <Badge variant={STATUS_TONE[a.status]}>{STATUS_LABEL[a.status]}</Badge>
+                  <Badge variant={STATUS_TONE[a.status]}>
+                    {STATUS_LABEL[a.status]}
+                  </Badge>
                 </td>
               </tr>
             ))}
@@ -64,7 +75,9 @@ export default function MyApplicationsPage() {
           {MOCK_APPLICATIONS.map((a) => (
             <li key={a.id} className="flex items-start gap-3 p-4">
               <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{a.challengeTitle}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {a.challengeTitle}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {a.teamName} · {a.track}
                 </p>
@@ -73,7 +86,9 @@ export default function MyApplicationsPage() {
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <Badge variant={STATUS_TONE[a.status]}>{STATUS_LABEL[a.status]}</Badge>
+                <Badge variant={STATUS_TONE[a.status]}>
+                  {STATUS_LABEL[a.status]}
+                </Badge>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             </li>

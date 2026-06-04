@@ -30,7 +30,10 @@ export default function PreVotePage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/agm"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to AGMs
       </Link>
 
@@ -38,10 +41,12 @@ export default function PreVotePage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           Zenith Bank Plc — 2026 AGM
         </p>
-        <h1 className="mt-1 text-2xl font-bold text-foreground">Pre-vote on resolutions</h1>
+        <h1 className="mt-1 text-2xl font-bold text-foreground">
+          Pre-vote on resolutions
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Submit your vote on each open resolution before the meeting starts. You
-          can change your vote until voting closes.
+          Submit your vote on each open resolution before the meeting starts.
+          You can change your vote until voting closes.
         </p>
       </header>
 
@@ -63,26 +68,29 @@ export default function PreVotePage() {
                   <h3 className="mt-0.5 text-lg font-semibold text-foreground">
                     {r.title}
                   </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{r.description}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {r.description}
+                  </p>
                 </div>
                 <Badge variant="default">Open</Badge>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {(["for", "against", "abstain"] as Vote[]).map((opt) => {
                   const selected = votes[r.id] === opt;
-                  const Icon = opt === "for" ? Check : opt === "against" ? X : Minus;
+                  const Icon =
+                    opt === "for" ? Check : opt === "against" ? X : Minus;
                   const tone =
                     opt === "for"
                       ? "border-emerald-200 hover:bg-emerald-50 text-emerald-700"
                       : opt === "against"
-                      ? "border-red-200 hover:bg-red-50 text-red-700"
-                      : "border-border hover:bg-muted text-muted-foreground";
+                        ? "border-red-200 hover:bg-red-50 text-red-700"
+                        : "border-border hover:bg-muted text-muted-foreground";
                   const selectedTone =
                     opt === "for"
                       ? "border-emerald-600 bg-emerald-600 text-white"
                       : opt === "against"
-                      ? "border-red-600 bg-red-600 text-white"
-                      : "border-slate-700 bg-slate-700 text-white";
+                        ? "border-red-600 bg-red-600 text-white"
+                        : "border-slate-700 bg-slate-700 text-white";
                   return (
                     <button
                       key={opt}
@@ -112,14 +120,21 @@ export default function PreVotePage() {
             const v = r.votes;
             if (!v) {
               return (
-                <article key={r.id} className="rounded-2xl border border-border bg-white p-5 opacity-75">
+                <article
+                  key={r.id}
+                  className="rounded-2xl border border-border bg-white p-5 opacity-75"
+                >
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         Resolution {r.number}
                       </p>
-                      <h3 className="mt-0.5 text-base font-semibold text-foreground">{r.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{r.description}</p>
+                      <h3 className="mt-0.5 text-base font-semibold text-foreground">
+                        {r.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {r.description}
+                      </p>
                     </div>
                     <Badge variant="muted">Awaiting</Badge>
                   </div>
@@ -131,20 +146,42 @@ export default function PreVotePage() {
             const againstPct = Math.round((v.against / total) * 100);
             const abstainPct = 100 - forPct - againstPct;
             return (
-              <article key={r.id} className="rounded-2xl border border-border bg-white p-5">
+              <article
+                key={r.id}
+                className="rounded-2xl border border-border bg-white p-5"
+              >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Resolution {r.number}
                     </p>
-                    <h3 className="mt-0.5 text-base font-semibold text-foreground">{r.title}</h3>
+                    <h3 className="mt-0.5 text-base font-semibold text-foreground">
+                      {r.title}
+                    </h3>
                   </div>
-                  {r.userVote === "for" && <Badge variant="success">You voted for</Badge>}
+                  {r.userVote === "for" && (
+                    <Badge variant="success">You voted for</Badge>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Bar label="For" value={forPct} color="bg-emerald-500" count={v.for} />
-                  <Bar label="Against" value={againstPct} color="bg-red-500" count={v.against} />
-                  <Bar label="Abstain" value={abstainPct} color="bg-slate-400" count={v.abstain} />
+                  <Bar
+                    label="For"
+                    value={forPct}
+                    color="bg-emerald-500"
+                    count={v.for}
+                  />
+                  <Bar
+                    label="Against"
+                    value={againstPct}
+                    color="bg-red-500"
+                    count={v.against}
+                  />
+                  <Bar
+                    label="Abstain"
+                    value={abstainPct}
+                    color="bg-slate-400"
+                    count={v.abstain}
+                  />
                 </div>
               </article>
             );
@@ -173,7 +210,17 @@ export default function PreVotePage() {
   );
 }
 
-function Bar({ label, value, color, count }: { label: string; value: number; color: string; count: number }) {
+function Bar({
+  label,
+  value,
+  color,
+  count,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  count: number;
+}) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
@@ -183,7 +230,10 @@ function Bar({ label, value, color, count }: { label: string; value: number; col
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className={`${color} h-full rounded-full`} style={{ width: `${value}%` }} />
+        <div
+          className={`${color} h-full rounded-full`}
+          style={{ width: `${value}%` }}
+        />
       </div>
     </div>
   );

@@ -27,8 +27,8 @@ export default function NinPage() {
           National Identification Number
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your 11-digit NIN. You can retrieve this by dialing *346# on your
-          registered mobile line.
+          Enter your 11-digit NIN. You can retrieve this by dialing *346# on
+          your registered mobile line.
         </p>
       </div>
 

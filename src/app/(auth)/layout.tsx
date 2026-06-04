@@ -1,6 +1,10 @@
 import { CalendarCheck2, Vote, Trophy } from "lucide-react";
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex min-h-screen">
       {/* Left brand panel — hidden on small screens */}
@@ -9,7 +13,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute bottom-12 right-12 h-72 w-72 rounded-full bg-white/5" />
 
         <div className="relative">
-          <img src="/attend-logo.png" alt="Attend" style={{ height: 36 }} className="brightness-0 invert" />
+          <img
+            src="/attend-logo.png"
+            alt="Attend"
+            style={{ height: 36 }}
+            className="brightness-0 invert"
+          />
           <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/70">
             Enterprise Events Platform
           </p>
@@ -21,8 +30,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               Run AGMs, launches and innovation challenges in one place.
             </h2>
             <p className="mt-3 max-w-md text-white/75">
-              From shareholder votes to product reveals — Attend delivers the calm,
-              modern experience your community deserves.
+              From shareholder votes to product reveals — Attend delivers the 
+              calm, modern experience your community deserves.
             </p>
           </div>
 

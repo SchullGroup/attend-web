@@ -23,7 +23,9 @@ export default function BvnPage() {
         <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
           <Fingerprint className="h-5 w-5 text-primary" />
         </div>
-        <h1 className="text-xl font-bold text-foreground">Bank Verification Number</h1>
+        <h1 className="text-xl font-bold text-foreground">
+          Bank Verification Number
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Enter your 11-digit BVN. You can find this by dialing *565*0# on your
           registered mobile line.

@@ -10,7 +10,10 @@ export default function MyEventsPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/profile"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
@@ -23,7 +26,8 @@ export default function MyEventsPage() {
 
       {events.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          You haven&apos;t RSVP&apos;d to anything yet. Browse events to get started.
+          You haven&apos;t RSVP&apos;d to anything yet. Browse events to get
+          started.
         </div>
       ) : (
         <ul className="overflow-hidden rounded-2xl border border-border bg-white">
@@ -40,7 +44,9 @@ export default function MyEventsPage() {
                   {initialsFor(e.organiser)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{e.title}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {e.title}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {formatDate(e.date)} · {e.format}
                   </p>

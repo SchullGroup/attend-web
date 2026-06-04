@@ -26,7 +26,10 @@ export default function ProxyPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/agm"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to AGMs
       </Link>
 
@@ -34,14 +37,19 @@ export default function ProxyPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           Zenith Bank Plc — 2026 AGM
         </p>
-        <h1 className="mt-1 text-2xl font-bold text-foreground">Appoint a proxy</h1>
+        <h1 className="mt-1 text-2xl font-bold text-foreground">
+          Appoint a proxy
+        </h1>
         <p className="text-sm text-muted-foreground">
           If you can&apos;t attend the meeting, appoint someone to vote on your
           behalf.
         </p>
       </header>
 
-      <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-white p-5 shadow-sm">
+      <form
+        onSubmit={submit}
+        className="space-y-5 rounded-2xl border border-border bg-white p-5 shadow-sm"
+      >
         <div className="grid gap-3 md:grid-cols-2">
           <Choice
             active={type === "chairman"}
@@ -85,7 +93,11 @@ export default function ProxyPage() {
         </div>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => router.push("/agm")}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/agm")}
+          >
             Cancel
           </Button>
           <Button type="submit" loading={loading} disabled={!valid}>

@@ -9,20 +9,51 @@ import {
   User as UserIcon,
   Bell,
   Search,
+  LogOut,
 } from "lucide-react";
 import { cn, initialsFor } from "@/lib/utils";
-import { MOCK_USER } from "@/lib/mock-data";
+import { useGetMe, useLogout } from "@/api/auth/hooks";
+import Cookies from "js-cookie";
 
 const NAV = [
   { label: "Home", href: "/", icon: House, match: (p: string) => p === "/" },
-  { label: "AGM", href: "/agm", icon: Building2, match: (p: string) => p.startsWith("/agm") },
-  { label: "Challenges", href: "/hackathon", icon: Lightbulb, match: (p: string) => p.startsWith("/hackathon") },
-  { label: "Launches", href: "/events", icon: Rocket, match: (p: string) => p.startsWith("/events") },
-  { label: "Profile", href: "/profile", icon: UserIcon, match: (p: string) => p.startsWith("/profile") },
+  {
+    label: "AGM",
+    href: "/agm",
+    icon: Building2,
+    match: (p: string) => p.startsWith("/agm"),
+  },
+  {
+    label: "Challenges",
+    href: "/hackathon",
+    icon: Lightbulb,
+    match: (p: string) => p.startsWith("/hackathon"),
+  },
+  {
+    label: "Launches",
+    href: "/events",
+    icon: Rocket,
+    match: (p: string) => p.startsWith("/events"),
+  },
+  {
+    label: "Profile",
+    href: "/profile",
+    icon: UserIcon,
+    match: (p: string) => p.startsWith("/profile"),
+  },
 ];
 
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
+  const { data: userResponse } = useGetMe();
+  const currentUser = userResponse?.data;
+  const { mutate: logout } = useLogout();
+
+  const hasToken = typeof window !== "undefined" && !!Cookies.get("accessToken");
+  const displayName = currentUser?.fullName || "User";
+  const displayEmail = currentUser?.email || "";
+  const displayInitials = currentUser?.initials || initialsFor(displayName);
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Sidebar (desktop) */}
@@ -52,22 +83,33 @@ export function NavShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="border-t border-border p-4">
-          <Link
-            href="/profile"
-            className="flex items-center gap-3 rounded-xl p-2 hover:bg-muted"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-              {initialsFor(MOCK_USER.fullName)}
+          {hasToken && (
+            <div className="flex items-center gap-3 rounded-xl p-2">
+              <Link
+                href="/profile"
+                className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-85"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary shrink-0">
+                  {displayInitials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {displayEmail}
+                  </p>
+                </div>
+              </Link>
+              <button
+                onClick={() => logout()}
+                className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors shrink-0"
+                title="Sign out"
+              >
+                <LogOut className="h-4.5 w-4.5" />
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-foreground">
-                {MOCK_USER.fullName}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {MOCK_USER.email}
-              </p>
-            </div>
-          </Link>
+          )}
         </div>
       </aside>
 
@@ -94,12 +136,14 @@ export function NavShell({ children }: { children: React.ReactNode }) {
               <Bell className="h-4.5 w-4.5" />
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
             </Link>
-            <Link
-              href="/profile"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-sm font-semibold text-primary md:hidden"
-            >
-              {initialsFor(MOCK_USER.fullName)}
-            </Link>
+            {hasToken && (
+              <Link
+                href="/profile"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-sm font-semibold text-primary md:hidden"
+              >
+                {displayInitials}
+              </Link>
+            )}
           </div>
         </div>
       </header>
