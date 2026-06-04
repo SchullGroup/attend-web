@@ -15,11 +15,17 @@ export default function EventsPage() {
   const [fmt, setFmt] = useState<Format>("All");
 
   const visible = useMemo(() => {
-    return MOCK_EVENTS.filter((e) => e.module === "LAUNCH" || e.module === "GENERAL")
-      .filter((e) => (fmt === "All" ? true : e.format.toLowerCase() === fmt.toLowerCase()))
+    return MOCK_EVENTS.filter(
+      (e) => e.module === "LAUNCH" || e.module === "GENERAL",
+    )
+      .filter((e) =>
+        fmt === "All" ? true : e.format.toLowerCase() === fmt.toLowerCase(),
+      )
       .filter((e) =>
         query.trim()
-          ? `${e.title} ${e.organiser}`.toLowerCase().includes(query.toLowerCase())
+          ? `${e.title} ${e.organiser}`
+              .toLowerCase()
+              .includes(query.toLowerCase())
           : true,
       );
   }, [query, fmt]);
@@ -28,7 +34,9 @@ export default function EventsPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Launches & Events</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Launches & Events
+          </h1>
           <p className="text-sm text-muted-foreground">
             Product reveals, conferences and roundtables.
           </p>

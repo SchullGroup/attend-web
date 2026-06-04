@@ -7,7 +7,14 @@ import { initialsFor } from "@/lib/utils";
 const GALLERY_TAGS = ["Stage", "Audience", "Backstage", "Networking", "Press"];
 
 const PALETTE = [
-  "#1d4ed8", "#9333ea", "#0891b2", "#1a6b3c", "#f97316", "#dc2626", "#6366f1", "#0ea5e9",
+  "#1d4ed8",
+  "#9333ea",
+  "#0891b2",
+  "#1a6b3c",
+  "#f97316",
+  "#dc2626",
+  "#6366f1",
+  "#0ea5e9",
 ];
 
 export default function GalleryPage() {
@@ -22,7 +29,10 @@ export default function GalleryPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/events" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/events"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to events
       </Link>
 

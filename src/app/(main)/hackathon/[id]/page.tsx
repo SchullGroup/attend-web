@@ -1,7 +1,15 @@
 "use client";
 import { use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Trophy, Users, CalendarClock, Target, BookOpen, Award } from "lucide-react";
+import {
+  ArrowLeft,
+  Trophy,
+  Users,
+  CalendarClock,
+  Target,
+  BookOpen,
+  Award,
+} from "lucide-react";
 import { MOCK_CHALLENGE } from "@/lib/mock-data";
 import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/lib/utils";
@@ -18,7 +26,10 @@ export default function HackathonDetailPage({
 
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/hackathon"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to challenges
       </Link>
 
@@ -31,7 +42,9 @@ export default function HackathonDetailPage({
           <h1 className="text-2xl font-bold leading-tight md:text-3xl">
             {challenge.title}
           </h1>
-          <p className="max-w-2xl text-sm text-white/85">{challenge.problemStatement}</p>
+          <p className="max-w-2xl text-sm text-white/85">
+            {challenge.problemStatement}
+          </p>
           <div className="flex flex-wrap gap-2 pt-2">
             <Link href="/hackathon/apply">
               <button className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
@@ -49,12 +62,19 @@ export default function HackathonDetailPage({
 
       <section className="grid gap-4 md:grid-cols-3">
         {challenge.prizes.map((p) => (
-          <div key={p.place} className="rounded-2xl border border-border bg-white p-5">
+          <div
+            key={p.place}
+            className="rounded-2xl border border-border bg-white p-5"
+          >
             <div className="flex items-center gap-2 text-purple-700">
               <Trophy className="h-4.5 w-4.5" />
-              <p className="text-xs font-semibold uppercase tracking-wide">{p.place}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide">
+                {p.place}
+              </p>
             </div>
-            <p className="mt-2 text-2xl font-bold text-foreground">{p.amount}</p>
+            <p className="mt-2 text-2xl font-bold text-foreground">
+              {p.amount}
+            </p>
           </div>
         ))}
       </section>
@@ -63,7 +83,10 @@ export default function HackathonDetailPage({
         <InfoBlock icon={Target} title="Tracks">
           <div className="flex flex-wrap gap-2">
             {challenge.tracks.map((t) => (
-              <span key={t} className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700">
+              <span
+                key={t}
+                className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700"
+              >
                 {t}
               </span>
             ))}
@@ -104,7 +127,9 @@ export default function HackathonDetailPage({
         <div className="rounded-2xl border border-border bg-white p-4 shadow-lg">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-foreground">Ready to build?</p>
+              <p className="text-sm font-semibold text-foreground">
+                Ready to build?
+              </p>
               <p className="text-xs text-muted-foreground">
                 Submissions close {formatDate(challenge.submissionDeadline)}.
               </p>
@@ -119,7 +144,15 @@ export default function HackathonDetailPage({
   );
 }
 
-function InfoBlock({ icon: Icon, title, children }: { icon: typeof Trophy; title: string; children: React.ReactNode }) {
+function InfoBlock({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof Trophy;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-2xl border border-border bg-white p-5">
       <div className="mb-2 flex items-center gap-2 text-muted-foreground">

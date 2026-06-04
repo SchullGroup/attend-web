@@ -25,14 +25,25 @@ export default function LivePage() {
   const [vote, setVote] = useState<"for" | "against" | "abstain" | null>(null);
   const [q, setQ] = useState("");
   const [questions, setQuestions] = useState([
-    { id: "q1", who: "Adaeze N.", text: "Will the dividend be paid in cash or scrip?" },
-    { id: "q2", who: "Femi A.", text: "What is the bank's outlook on FX volatility for the second half?" },
+    {
+      id: "q1",
+      who: "Adaeze N.",
+      text: "Will the dividend be paid in cash or scrip?",
+    },
+    {
+      id: "q2",
+      who: "Femi A.",
+      text: "What is the bank's outlook on FX volatility for the second half?",
+    },
   ]);
 
   function sendQuestion(e: React.FormEvent) {
     e.preventDefault();
     if (!q.trim()) return;
-    setQuestions((xs) => [...xs, { id: String(Math.random()), who: "You", text: q.trim() }]);
+    setQuestions((xs) => [
+      ...xs,
+      { id: String(Math.random()), who: "You", text: q.trim() },
+    ]);
     setQ("");
   }
 
@@ -41,7 +52,10 @@ export default function LivePage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/agm"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Leave meeting
         </Link>
         <div className="flex items-center gap-2">
@@ -60,7 +74,9 @@ export default function LivePage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           {event.organiser}
         </p>
-        <h1 className="text-xl font-bold text-foreground md:text-2xl">{event.title}</h1>
+        <h1 className="text-xl font-bold text-foreground md:text-2xl">
+          {event.title}
+        </h1>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
@@ -115,7 +131,9 @@ export default function LivePage() {
                   onClick={() => setTab(id)}
                   className={cn(
                     "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-semibold",
-                    tab === id ? "border-b-2 border-primary text-primary" : "text-muted-foreground",
+                    tab === id
+                      ? "border-b-2 border-primary text-primary"
+                      : "text-muted-foreground",
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" /> {label}
@@ -138,8 +156,12 @@ export default function LivePage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-xs text-muted-foreground">{a.startTime}</p>
-                          <p className="text-sm font-medium text-foreground">{a.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {a.startTime}
+                          </p>
+                          <p className="text-sm font-medium text-foreground">
+                            {a.title}
+                          </p>
                         </div>
                         {a.isCurrent && (
                           <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
@@ -157,8 +179,12 @@ export default function LivePage() {
                   <ul className="space-y-2">
                     {questions.map((q) => (
                       <li key={q.id} className="rounded-xl bg-muted/40 p-3">
-                        <p className="text-xs font-semibold text-foreground">{q.who}</p>
-                        <p className="mt-0.5 text-sm text-muted-foreground">{q.text}</p>
+                        <p className="text-xs font-semibold text-foreground">
+                          {q.who}
+                        </p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                          {q.text}
+                        </p>
                       </li>
                     ))}
                   </ul>
@@ -192,19 +218,20 @@ export default function LivePage() {
                   <div className="grid grid-cols-3 gap-2">
                     {(["for", "against", "abstain"] as const).map((opt) => {
                       const selected = vote === opt;
-                      const Icon = opt === "for" ? Check : opt === "against" ? X : Minus;
+                      const Icon =
+                        opt === "for" ? Check : opt === "against" ? X : Minus;
                       const tone =
                         opt === "for"
                           ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                           : opt === "against"
-                          ? "border-red-200 text-red-700 hover:bg-red-50"
-                          : "border-border text-muted-foreground hover:bg-muted";
+                            ? "border-red-200 text-red-700 hover:bg-red-50"
+                            : "border-border text-muted-foreground hover:bg-muted";
                       const selectedTone =
                         opt === "for"
                           ? "bg-emerald-600 text-white border-emerald-600"
                           : opt === "against"
-                          ? "bg-red-600 text-white border-red-600"
-                          : "bg-slate-700 text-white border-slate-700";
+                            ? "bg-red-600 text-white border-red-600"
+                            : "bg-slate-700 text-white border-slate-700";
                       return (
                         <button
                           key={opt}
