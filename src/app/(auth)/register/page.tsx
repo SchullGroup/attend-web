@@ -29,14 +29,18 @@ export default function RegisterPage() {
   return (
     <div className="space-y-6">
       <div className="md:hidden">
-        <div className="text-2xl font-extrabold tracking-tight text-primary">attend</div>
+        <div className="text-2xl font-extrabold tracking-tight text-primary">
+          attend
+        </div>
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Enterprise Events Platform
         </p>
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          Create your account
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Join Attend in under a minute.
         </p>
@@ -85,11 +89,15 @@ export default function RegisterPage() {
       </form>
 
       <p className="text-center text-xs text-muted-foreground">
-        By continuing, you agree to Attend&apos;s Terms of Service and Privacy Policy.
+        By continuing, you agree to Attend&apos;s Terms of Service and Privacy
+        Policy.
       </p>
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-primary hover:underline">
+        <Link
+          href="/login"
+          className="font-semibold text-primary hover:underline"
+        >
           Sign in
         </Link>
       </p>

@@ -12,15 +12,45 @@ interface PrefRow {
 }
 
 const CHANNELS: PrefRow[] = [
-  { key: "push", label: "Push notifications", description: "On-device alerts for new activity.", icon: BellRing },
-  { key: "sms", label: "SMS", description: "Critical updates by text message.", icon: MessageSquare },
-  { key: "email", label: "Email", description: "Notices, agendas and receipts by email.", icon: Mail },
+  {
+    key: "push",
+    label: "Push notifications",
+    description: "On-device alerts for new activity.",
+    icon: BellRing,
+  },
+  {
+    key: "sms",
+    label: "SMS",
+    description: "Critical updates by text message.",
+    icon: MessageSquare,
+  },
+  {
+    key: "email",
+    label: "Email",
+    description: "Notices, agendas and receipts by email.",
+    icon: Mail,
+  },
 ];
 
 const REMINDERS: PrefRow[] = [
-  { key: "r7", label: "7 days before", description: "Long-range planning reminder.", icon: Clock },
-  { key: "r1", label: "24 hours before", description: "Day-before nudge.", icon: Clock },
-  { key: "r30", label: "30 minutes before", description: "Last-call reminder.", icon: Clock },
+  {
+    key: "r7",
+    label: "7 days before",
+    description: "Long-range planning reminder.",
+    icon: Clock,
+  },
+  {
+    key: "r1",
+    label: "24 hours before",
+    description: "Day-before nudge.",
+    icon: Clock,
+  },
+  {
+    key: "r30",
+    label: "30 minutes before",
+    description: "Last-call reminder.",
+    icon: Clock,
+  },
 ];
 
 export default function NotificationPreferencesPage() {
@@ -39,19 +69,34 @@ export default function NotificationPreferencesPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/profile"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
       <header>
-        <h1 className="text-2xl font-bold text-foreground">Notification preferences</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          Notification preferences
+        </h1>
         <p className="text-sm text-muted-foreground">
           Choose how and when you&apos;d like to hear from Attend.
         </p>
       </header>
 
-      <Section title="Delivery channels" rows={CHANNELS} prefs={prefs} toggle={toggle} />
-      <Section title="Event reminders" rows={REMINDERS} prefs={prefs} toggle={toggle} />
+      <Section
+        title="Delivery channels"
+        rows={CHANNELS}
+        prefs={prefs}
+        toggle={toggle}
+      />
+      <Section
+        title="Event reminders"
+        rows={REMINDERS}
+        prefs={prefs}
+        toggle={toggle}
+      />
     </div>
   );
 }
@@ -89,8 +134,12 @@ function Section({
                   <Icon className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">{r.label}</p>
-                  <p className="text-xs text-muted-foreground">{r.description}</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {r.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.description}
+                  </p>
                 </div>
               </div>
               <button

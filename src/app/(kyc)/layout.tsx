@@ -22,12 +22,17 @@ export default function KycLayout({ children }: { children: React.ReactNode }) {
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
           <div>
-            <div className="text-lg font-extrabold tracking-tight text-primary">attend</div>
+            <div className="text-lg font-extrabold tracking-tight text-primary">
+              attend
+            </div>
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               Identity Verification
             </p>
           </div>
-          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
             Skip for now
           </Link>
         </div>
@@ -37,8 +42,13 @@ export default function KycLayout({ children }: { children: React.ReactNode }) {
         {!isIntro && !isSuccess && (
           <div className="mb-8">
             <div className="mb-3 flex items-center justify-between text-xs font-medium text-muted-foreground">
-              <span>Step {currentIndex + 1} of {STEPS.length}</span>
-              <span>{Math.round(((currentIndex + 1) / STEPS.length) * 100)}% complete</span>
+              <span>
+                Step {currentIndex + 1} of {STEPS.length}
+              </span>
+              <span>
+                {Math.round(((currentIndex + 1) / STEPS.length) * 100)}%
+                complete
+              </span>
             </div>
             <div className="flex items-center gap-2">
               {STEPS.map((s, i) => {
@@ -51,7 +61,9 @@ export default function KycLayout({ children }: { children: React.ReactNode }) {
                         "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
                         done && "border-primary bg-primary text-white",
                         active && "border-primary bg-white text-primary",
-                        !done && !active && "border-border bg-white text-muted-foreground",
+                        !done &&
+                          !active &&
+                          "border-border bg-white text-muted-foreground",
                       )}
                     >
                       {done ? <Check className="h-3.5 w-3.5" /> : s.n}

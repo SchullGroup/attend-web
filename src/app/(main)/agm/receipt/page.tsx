@@ -28,7 +28,10 @@ export default function ReceiptPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/agm"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to AGMs
       </Link>
 
@@ -40,8 +43,12 @@ export default function ReceiptPage() {
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-white/80">Vote receipt</p>
-                <h1 className="text-lg font-bold">Your votes have been recorded</h1>
+                <p className="text-xs uppercase tracking-wide text-white/80">
+                  Vote receipt
+                </p>
+                <h1 className="text-lg font-bold">
+                  Your votes have been recorded
+                </h1>
               </div>
             </div>
           </div>
@@ -50,7 +57,10 @@ export default function ReceiptPage() {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <Row label="Meeting" value={RECEIPT.meeting} />
               <Row label="Cast at" value={RECEIPT.date} />
-              <Row label="Voting power" value={`${RECEIPT.shares.toLocaleString()} shares`} />
+              <Row
+                label="Voting power"
+                value={`${RECEIPT.shares.toLocaleString()} shares`}
+              />
               <div>
                 <p className="text-xs text-muted-foreground">Reference</p>
                 <button
@@ -58,7 +68,11 @@ export default function ReceiptPage() {
                   className="mt-0.5 inline-flex items-center gap-1.5 font-mono text-sm font-medium text-foreground hover:text-primary"
                 >
                   {RECEIPT.reference}
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -69,9 +83,14 @@ export default function ReceiptPage() {
               </p>
               <ul className="divide-y divide-border rounded-xl border border-border">
                 {RECEIPT.resolutions.map((r) => (
-                  <li key={r.num} className="flex items-center justify-between p-3 text-sm">
+                  <li
+                    key={r.num}
+                    className="flex items-center justify-between p-3 text-sm"
+                  >
                     <div>
-                      <p className="text-xs text-muted-foreground">Resolution {r.num}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Resolution {r.num}
+                      </p>
                       <p className="font-medium text-foreground">{r.title}</p>
                     </div>
                     <span
@@ -79,8 +98,8 @@ export default function ReceiptPage() {
                         r.vote === "For"
                           ? "bg-emerald-100 text-emerald-700"
                           : r.vote === "Against"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-slate-100 text-slate-700"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-slate-100 text-slate-700"
                       }`}
                     >
                       {r.vote}
@@ -91,8 +110,8 @@ export default function ReceiptPage() {
             </div>
 
             <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
-              This receipt is cryptographically signed and timestamped. It serves as
-              evidence of your participation and votes at the meeting.
+              This receipt is cryptographically signed and timestamped. It
+              serves as evidence of your participation and votes at the meeting.
             </div>
 
             <div className="flex gap-3">

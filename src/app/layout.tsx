@@ -13,11 +13,19 @@ export const metadata: Metadata = {
   description: "AGMs, product launches, innovation challenges and more.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+import { QueryProvider } from "@/components/providers/query-provider";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body className={outfit.className}>
-        <UserProvider>{children}</UserProvider>
+        <QueryProvider>
+          <UserProvider>{children}</UserProvider>
+        </QueryProvider>
       </body>
     </html>
   );

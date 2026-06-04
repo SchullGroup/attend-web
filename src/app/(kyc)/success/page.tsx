@@ -18,10 +18,12 @@ export default function KycSuccessPage() {
         <CheckCircle2 className="h-9 w-9 text-emerald-600" />
       </div>
       <div>
-        <h1 className="text-2xl font-bold text-foreground">You&apos;re verified!</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          You&apos;re verified!
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Your identity has been confirmed. You can now RSVP for AGMs, cast votes
-          on shareholder resolutions and apply to innovation challenges.
+          Your identity has been confirmed. You can now RSVP for AGMs, cast
+          votes on shareholder resolutions and apply to innovation challenges.
         </p>
       </div>
 
@@ -45,7 +47,9 @@ export default function KycSuccessPage() {
 
       <div className="flex flex-col gap-2">
         <Link href="/agm" className="block">
-          <Button fullWidth size="lg">Browse AGMs</Button>
+          <Button fullWidth size="lg">
+            Browse AGMs
+          </Button>
         </Link>
         <Link href="/" className="block">
           <Button variant="ghost" fullWidth>

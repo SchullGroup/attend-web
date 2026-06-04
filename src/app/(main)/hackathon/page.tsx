@@ -1,7 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Search, Trophy, CalendarDays, Users, ArrowRight, FolderOpen } from "lucide-react";
+import {
+  Search,
+  Trophy,
+  CalendarDays,
+  Users,
+  ArrowRight,
+  FolderOpen,
+} from "lucide-react";
 import { MOCK_EVENTS, MOCK_CHALLENGE } from "@/lib/mock-data";
 import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/lib/utils";
@@ -69,12 +76,15 @@ export default function HackathonPage() {
               Innovation Challenges
             </h1>
             <p className="mt-2 max-w-xl text-sm text-white/80">
-              Hackathons, build sprints and open problem statements from Nigeria&apos;s
-              top financial institutions.
+              Hackathons, build sprints and open problem statements from
+              Nigeria&apos;s top financial institutions.
             </p>
           </div>
           <Link href="/hackathon/my-applications">
-            <Button variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white/20">
+            <Button
+              variant="outline"
+              className="border-white/40 bg-white/10 text-white hover:bg-white/20"
+            >
               <FolderOpen className="h-4 w-4" /> My applications
             </Button>
           </Link>
@@ -120,7 +130,8 @@ export default function HackathonPage() {
                     <Trophy className="h-3.5 w-3.5" /> Prize: {c.prize}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <CalendarDays className="h-3.5 w-3.5" /> Deadline: {formatDate(c.deadline)}
+                    <CalendarDays className="h-3.5 w-3.5" /> Deadline:{" "}
+                    {formatDate(c.deadline)}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5" /> Team: {c.teamMembers}

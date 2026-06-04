@@ -3,7 +3,14 @@ import { useState } from "react";
 import { MOCK_NOTIFICATIONS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/Button";
 import { formatRelativeTime } from "@/lib/utils";
-import { Bell, FileText, Megaphone, CalendarClock, Vote, Sparkles } from "lucide-react";
+import {
+  Bell,
+  FileText,
+  Megaphone,
+  CalendarClock,
+  Vote,
+  Sparkles,
+} from "lucide-react";
 
 const ICONS: Record<string, typeof Bell> = {
   vote_open: Vote,
@@ -40,7 +47,12 @@ export default function NotificationsPage() {
             {unread.length} unread · {items.length} total
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={markAll} disabled={unread.length === 0}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={markAll}
+          disabled={unread.length === 0}
+        >
           Mark all as read
         </Button>
       </header>
@@ -65,10 +77,14 @@ export default function NotificationsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-foreground">{n.title}</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {n.title}
+                      </p>
                       <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{n.body}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {n.body}
+                    </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       {formatRelativeTime(n.createdAt)}
                     </p>
@@ -99,8 +115,12 @@ export default function NotificationsPage() {
                     <Icon className="h-4.5 w-4.5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{n.title}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{n.body}</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {n.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {n.body}
+                    </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       {formatRelativeTime(n.createdAt)}
                     </p>

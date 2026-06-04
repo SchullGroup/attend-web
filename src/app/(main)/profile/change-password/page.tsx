@@ -31,7 +31,10 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/profile"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
@@ -70,7 +73,9 @@ export default function ChangePasswordPage() {
           leftIcon={<Lock className="h-4 w-4" />}
           value={form.confirm}
           onChange={(e) => update("confirm", e.target.value)}
-          error={form.confirm && !matches ? "Passwords do not match" : undefined}
+          error={
+            form.confirm && !matches ? "Passwords do not match" : undefined
+          }
         />
 
         {success && (

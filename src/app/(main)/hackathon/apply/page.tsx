@@ -35,9 +35,11 @@ export default function ApplyPage() {
   }
 
   const canNext =
-    step === 0 ? teamName.trim().length > 0 :
-    step === 1 ? ideaTitle.trim().length > 0 && ideaDescription.trim().length > 10 :
-    members.every((x) => x.name.trim() && x.role.trim());
+    step === 0
+      ? teamName.trim().length > 0
+      : step === 1
+        ? ideaTitle.trim().length > 0 && ideaDescription.trim().length > 10
+        : members.every((x) => x.name.trim() && x.role.trim());
 
   function submit() {
     setLoading(true);
@@ -46,7 +48,10 @@ export default function ApplyPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/hackathon"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Cancel application
       </Link>
 
@@ -54,7 +59,9 @@ export default function ApplyPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
           {MOCK_CHALLENGE.title}
         </p>
-        <h1 className="mt-1 text-2xl font-bold text-foreground">Apply to challenge</h1>
+        <h1 className="mt-1 text-2xl font-bold text-foreground">
+          Apply to challenge
+        </h1>
       </header>
 
       {/* stepper */}
@@ -69,14 +76,21 @@ export default function ApplyPage() {
                   "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
                   done && "border-purple-600 bg-purple-600 text-white",
                   active && "border-purple-600 bg-white text-purple-700",
-                  !done && !active && "border-border bg-white text-muted-foreground",
+                  !done &&
+                    !active &&
+                    "border-border bg-white text-muted-foreground",
                 )}
               >
                 {done ? <Check className="h-3.5 w-3.5" /> : i + 1}
               </div>
               <div className="hidden text-xs font-medium md:block">{s}</div>
               {i < STEPS.length - 1 && (
-                <div className={cn("h-1 flex-1 rounded-full", done ? "bg-purple-600" : "bg-border")} />
+                <div
+                  className={cn(
+                    "h-1 flex-1 rounded-full",
+                    done ? "bg-purple-600" : "bg-border",
+                  )}
+                />
               )}
             </div>
           );
@@ -86,7 +100,9 @@ export default function ApplyPage() {
       <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
         {step === 0 && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Team details</h2>
+            <h2 className="text-lg font-semibold text-foreground">
+              Team details
+            </h2>
             <Input
               name="teamName"
               label="Team name"
@@ -95,7 +111,9 @@ export default function ApplyPage() {
               onChange={(e) => setTeamName(e.target.value)}
             />
             <div>
-              <label className="text-sm font-medium text-foreground">Track</label>
+              <label className="text-sm font-medium text-foreground">
+                Track
+              </label>
               <select
                 value={track}
                 onChange={(e) => setTrack(e.target.value)}
@@ -120,7 +138,9 @@ export default function ApplyPage() {
               onChange={(e) => setIdeaTitle(e.target.value)}
             />
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Description</label>
+              <label className="text-sm font-medium text-foreground">
+                Description
+              </label>
               <textarea
                 value={ideaDescription}
                 onChange={(e) => setIdeaDescription(e.target.value)}
@@ -128,7 +148,9 @@ export default function ApplyPage() {
                 placeholder="Describe the problem, your solution, target users, and what you'll have built by demo day."
                 className="w-full rounded-xl border border-input bg-white p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
               />
-              <p className="text-xs text-muted-foreground">Minimum 10 characters.</p>
+              <p className="text-xs text-muted-foreground">
+                Minimum 10 characters.
+              </p>
             </div>
           </div>
         )}
@@ -136,7 +158,9 @@ export default function ApplyPage() {
         {step === 2 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">Team members</h2>
+              <h2 className="text-lg font-semibold text-foreground">
+                Team members
+              </h2>
               <Button
                 type="button"
                 variant="outline"
@@ -148,12 +172,15 @@ export default function ApplyPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              {MOCK_CHALLENGE.teamSize.min}–{MOCK_CHALLENGE.teamSize.max} members
-              per team. Add their full name and role.
+              {MOCK_CHALLENGE.teamSize.min}–{MOCK_CHALLENGE.teamSize.max}{" "}
+              members per team. Add their full name and role.
             </p>
             <ul className="space-y-3">
               {members.map((m, i) => (
-                <li key={m.id} className="rounded-xl border border-border bg-muted/30 p-3">
+                <li
+                  key={m.id}
+                  className="rounded-xl border border-border bg-muted/30 p-3"
+                >
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-xs font-semibold text-muted-foreground">
                       Member {i + 1}
@@ -173,14 +200,18 @@ export default function ApplyPage() {
                       label="Full name"
                       placeholder="e.g. Adaeze Nwosu"
                       value={m.name}
-                      onChange={(e) => updateMember(m.id, "name", e.target.value)}
+                      onChange={(e) =>
+                        updateMember(m.id, "name", e.target.value)
+                      }
                     />
                     <Input
                       name={`role-${m.id}`}
                       label="Role"
                       placeholder="e.g. Backend engineer"
                       value={m.role}
-                      onChange={(e) => updateMember(m.id, "role", e.target.value)}
+                      onChange={(e) =>
+                        updateMember(m.id, "role", e.target.value)
+                      }
                     />
                   </div>
                 </li>

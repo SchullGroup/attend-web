@@ -2,13 +2,23 @@
 import Link from "next/link";
 import { ArrowLeft, Download, Award, Star } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { MOCK_USER } from "@/lib/mock-data";
+import { useGetMe } from "@/api/auth/hooks";
 import { formatDate } from "@/lib/utils";
 
 export default function CertificatePage() {
+  const { data: userResponse, isLoading } = useGetMe();
+  const currentUser = userResponse?.data;
+
+  if (isLoading || !currentUser) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/hackathon"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
@@ -29,7 +39,9 @@ export default function CertificatePage() {
 
           <div className="relative space-y-6 text-center">
             <div className="flex items-center justify-center gap-2 text-purple-700">
-              <div className="text-base font-extrabold tracking-tight">attend</div>
+              <div className="text-base font-extrabold tracking-tight">
+                attend
+              </div>
               <span className="h-1 w-1 rounded-full bg-purple-700" />
               <p className="text-[10px] uppercase tracking-[0.3em]">
                 Innovation Challenge
@@ -41,7 +53,7 @@ export default function CertificatePage() {
                 Certificate of Participation
               </p>
               <h2 className="mt-3 font-serif text-4xl font-bold text-foreground md:text-5xl">
-                {MOCK_USER.fullName}
+                {currentUser.fullName}
               </h2>
               <div className="mx-auto mt-3 h-px w-32 bg-purple-200" />
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
@@ -63,7 +75,9 @@ export default function CertificatePage() {
 
             <div className="grid grid-cols-2 gap-6 border-t border-purple-200 pt-6 text-left">
               <div>
-                <p className="font-serif italic text-foreground">Dr. Yewande Adeyemi</p>
+                <p className="font-serif italic text-foreground">
+                  Dr. Yewande Adeyemi
+                </p>
                 <div className="mt-1 border-t border-foreground/40 pt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
                   Chief Innovation Officer
                 </div>

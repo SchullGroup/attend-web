@@ -1,13 +1,23 @@
 "use client";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, ScanLine } from "lucide-react";
-import { MOCK_USER } from "@/lib/mock-data";
+import { useGetMe } from "@/api/auth/hooks";
 import { Button } from "@/components/ui/Button";
 
 export default function QrCheckinPage() {
+  const { data: userResponse, isLoading } = useGetMe();
+  const currentUser = userResponse?.data;
+
+  if (isLoading || !currentUser) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="space-y-6">
-      <Link href="/events" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/events"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
@@ -25,8 +35,8 @@ export default function QrCheckinPage() {
           </div>
           <div className="mt-5 space-y-1 text-center">
             <p className="text-xs text-muted-foreground">Check-in code</p>
-            <p className="font-mono text-lg font-semibold tracking-wider text-foreground">
-              ATD-{MOCK_USER.id.toUpperCase()}-VIP
+            <p className="font-mono text-sm tracking-[0.2em] text-muted-foreground">
+              ATD-{currentUser.id.substring(0, 8).toUpperCase()}-VIP
             </p>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-2">
@@ -66,12 +76,17 @@ function FakeQr() {
         cells[i] = onBorder || onCenter;
       }
   };
-  mark(0, 0); mark(0, N - 7); mark(N - 7, 0);
+  mark(0, 0);
+  mark(0, N - 7);
+  mark(N - 7, 0);
 
   return (
     <div
       className="grid h-full w-full"
-      style={{ gridTemplateColumns: `repeat(${N}, 1fr)`, gridTemplateRows: `repeat(${N}, 1fr)` }}
+      style={{
+        gridTemplateColumns: `repeat(${N}, 1fr)`,
+        gridTemplateRows: `repeat(${N}, 1fr)`,
+      }}
     >
       {cells.map((on, i) => (
         <div key={i} className={on ? "bg-foreground" : "bg-white"} />
