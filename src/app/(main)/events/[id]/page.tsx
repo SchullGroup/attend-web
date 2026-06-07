@@ -1,7 +1,7 @@
 "use client";
 import { use, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
@@ -13,13 +13,33 @@ import {
   QrCode,
   CheckCircle2,
 } from "lucide-react";
-import { MOCK_EVENTS } from "@/lib/mock-data";
+import { useGetEvent, useRsvp, useCancelRsvp } from "@/api/events/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn, formatDate, initialsFor } from "@/lib/utils";
 
-type Tab = "about" | "agenda" | "speakers";
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  PRODUCT_LAUNCH: "Launch",
+  GENERAL_EVENT: "General",
+  AGM: "AGM",
+  HACKATHON: "Hackathon",
+  INNOVATION_CHALLENGE: "Innovation Challenge",
+};
+
+const FORMAT_LABELS: Record<string, string> = {
+  IN_PERSON: "In-Person",
+  VIRTUAL: "Virtual",
+  HYBRID: "Hybrid",
+};
+
+function formatEventType(type: string) {
+  return EVENT_TYPE_LABELS[type] ?? type;
+}
+
+function formatFormat(format: string) {
+  return FORMAT_LABELS[format] ?? format;
+}
 
 export default function EventDetailPage({
   params,
@@ -28,11 +48,65 @@ export default function EventDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const event = MOCK_EVENTS.find((e) => e.id === id);
-  const [tab, setTab] = useState<Tab>("about");
-  const [rsvp, setRsvp] = useState(event?.rsvpStatus === "confirmed");
 
-  if (!event) return notFound();
+  const { data, isLoading, error } = useGetEvent(id);
+  const event = data?.data;
+
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const { mutate: rsvp, isPending: rsvping } = useRsvp(id);
+  const { mutate: cancelRsvp, isPending: cancelling } = useCancelRsvp(id);
+
+  const bgColor = event?.organizerPrimaryColor || "#2563eb";
+
+  function handleRsvp() {
+    setRsvpError(null);
+    rsvp(undefined, {
+      onError: (err: any) => {
+        setRsvpError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "RSVP failed. Please try again.",
+        );
+      },
+    });
+  }
+
+  function handleCancelRsvp() {
+    setRsvpError(null);
+    cancelRsvp(undefined, {
+      onError: (err: any) => {
+        setRsvpError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Could not cancel RSVP. Please try again.",
+        );
+      },
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-6 w-24 animate-pulse rounded-lg bg-muted" />
+        <div className="h-64 animate-pulse rounded-3xl bg-muted" />
+        <div className="h-4 w-full animate-pulse rounded bg-muted" />
+        <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-center">
+        <p className="text-sm text-muted-foreground">
+          Could not load event details.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => router.back()}>
+          Go back
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -45,16 +119,16 @@ export default function EventDetailPage({
 
       <header
         className="relative overflow-hidden rounded-3xl p-6 text-white md:p-8"
-        style={{ background: event.thumbnailColor }}
+        style={{ background: bgColor }}
       >
         <div className="absolute -right-10 -bottom-12 select-none text-[180px] font-black leading-none text-white/10">
-          {initialsFor(event.organiser)}
+          {initialsFor(event.organizerName)}
         </div>
         <div className="relative space-y-4">
-          <ModuleBadge module={event.module} solid />
+          <ModuleBadge module={event.eventType} solid />
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-white/80">
-              {event.organiser}
+              {event.organizerName}
             </p>
             <h1 className="text-2xl font-bold leading-tight md:text-3xl">
               {event.title}
@@ -62,26 +136,39 @@ export default function EventDetailPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <Chip icon={CalendarDays}>{formatDate(event.date)}</Chip>
-            <Chip icon={Clock}>
-              {event.startTime} – {event.endTime}
-            </Chip>
-            <Chip icon={Users}>
-              {event.rsvpCount.toLocaleString()} attending
-            </Chip>
+            {event.startTime && (
+              <Chip icon={Clock}>{event.startTime}</Chip>
+            )}
+            {event.registeredCount > 0 && (
+              <Chip icon={Users}>
+                {event.registeredCount.toLocaleString()} attending
+              </Chip>
+            )}
             {event.venue && <Chip icon={MapPin}>{event.venue}</Chip>}
           </div>
+          {rsvpError && (
+            <div className="rounded-xl border border-red-300/50 bg-red-500/20 px-4 py-2.5 text-sm font-medium text-white">
+              {rsvpError}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 pt-2">
-            {rsvp ? (
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-4 py-2.5 text-sm font-semibold backdrop-blur">
-                <CheckCircle2 className="h-4 w-4" /> You&apos;re confirmed
-              </span>
+            {event.registered ? (
+              <button
+                onClick={handleCancelRsvp}
+                disabled={cancelling}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-4 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/30 disabled:opacity-60"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {cancelling ? "Cancelling..." : "You're confirmed"}
+              </button>
             ) : (
               <button
-                onClick={() => setRsvp(true)}
-                className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-white/90"
-                style={{ color: event.thumbnailColor }}
+                onClick={handleRsvp}
+                disabled={rsvping}
+                className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90 disabled:opacity-60"
+                style={{ color: bgColor }}
               >
-                RSVP now
+                {rsvping ? "Saving..." : "RSVP now"}
               </button>
             )}
             <Link href="/events/qr-checkin">
@@ -99,82 +186,18 @@ export default function EventDetailPage({
         </div>
       </header>
 
-      <div className="flex gap-1 border-b border-border">
-        {(["about", "agenda", "speakers"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "relative px-4 py-3 text-sm font-medium capitalize",
-              tab === t
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t}
-            {tab === t && (
-              <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-primary" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      {tab === "about" && (
-        <section className="space-y-4">
-          <p className="text-sm leading-relaxed text-foreground/80">
-            {event.description}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {event.tags.map((t) => (
-              <Badge key={t} variant="muted">
-                {t}
-              </Badge>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {tab === "agenda" && (
-        <section>
-          <ol className="space-y-2 border-l border-border pl-4">
-            {event.agenda.map((a, i) => (
-              <li key={a.id} className="relative">
-                <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-primary bg-white" />
-                <div className="rounded-xl border border-border bg-white p-3">
-                  <p className="text-xs text-muted-foreground">
-                    {a.startTime} · {a.duration} min
-                  </p>
-                  <p className="text-sm font-medium text-foreground">
-                    {a.title}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      {tab === "speakers" && (
-        <section className="grid gap-3 sm:grid-cols-2">
-          {event.speakers.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                {initialsFor(s.name)}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {s.name}
-                </p>
-                <p className="text-xs text-muted-foreground">{s.title}</p>
-                <p className="text-xs text-muted-foreground">{s.company}</p>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
+      <section className="space-y-4">
+        <p className="text-sm leading-relaxed text-foreground/80">
+          {event.description}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="muted">{formatEventType(event.eventType)}</Badge>
+          <Badge variant="muted">{formatFormat(event.format)}</Badge>
+          {event.agmProxyEnabled && (
+            <Badge variant="default">Proxy voting enabled</Badge>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

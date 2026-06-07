@@ -12,7 +12,7 @@ export const useLogin = () => {
 
   return useMutation({
     mutationFn: authClient.login,
-    onSuccess: (response) => {
+    onSuccess: (response: any) => {
       // Access token is saved here manually for the interceptor
       // The Next.js proxy route has already set the refreshToken as an HttpOnly cookie
       const token = response.data.token;
@@ -30,15 +30,20 @@ export const useLogin = () => {
 export const useLogout = () => {
   const queryClient = useQueryClient();
 
+  const clearAndRedirect = () => {
+    Cookies.remove("accessToken");
+    queryClient.clear();
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+  };
+
   return useMutation({
     mutationFn: authClient.logout,
-    onSuccess: () => {
-      Cookies.remove("accessToken");
-      queryClient.clear();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
-    },
+    // Clear local session and redirect regardless of whether the backend
+    // call succeeds — an expired token would otherwise trap the user.
+    onSuccess: clearAndRedirect,
+    onError: clearAndRedirect,
   });
 };
 
@@ -49,5 +54,35 @@ export const useGetMe = () => {
     // only fetch if access token exists
     enabled: !!Cookies.get("accessToken"),
     retry: false,
+  });
+};
+
+export const useRegister = () => {
+  return useMutation({
+    mutationFn: authClient.register,
+  });
+};
+
+export const useVerifyEmail = () => {
+  return useMutation({
+    mutationFn: authClient.verifyEmail,
+  });
+};
+
+export const useForgotPassword = () => {
+  return useMutation({
+    mutationFn: authClient.forgotPassword,
+  });
+};
+
+export const useResetPassword = () => {
+  return useMutation({
+    mutationFn: authClient.resetPassword,
+  });
+};
+
+export const useChangePassword = () => {
+  return useMutation({
+    mutationFn: authClient.changePassword,
   });
 };

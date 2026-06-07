@@ -2,32 +2,34 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useLogin } from "@/api/auth/hooks";
-import { Mail, Lock } from "lucide-react";
+import { Mail, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useForgotPassword } from "@/api/auth/hooks";
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter();
-  const { mutate: loginMutation, isPending } = useLogin();
+  const { mutate: forgotMutation, isPending } = useForgotPassword();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
-    loginMutation(
-      { email, password },
+
+    forgotMutation(
+      { email },
       {
         onSuccess: () => {
-          router.push("/");
+          // Store email so the reset page knows which account to reset
+          sessionStorage.setItem("pendingResetEmail", email);
+          router.push("/reset-password");
         },
         onError: (err: any) => {
           setErrorMsg(
             err?.response?.data?.message ||
               err?.message ||
-              "Invalid email or password"
+              "Could not send reset code. Please check your email and try again."
           );
         },
       }
@@ -46,9 +48,12 @@ export default function LoginPage() {
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          Forgot your password?
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Sign in to view your upcoming events and votes.
+          Enter your email address and we&apos;ll send you a code to reset your
+          password.
         </p>
       </div>
 
@@ -64,42 +69,22 @@ export default function LoginPage() {
           type="email"
           autoComplete="email"
           leftIcon={<Mail className="h-4 w-4" />}
+          placeholder="you@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <Input
-          name="password"
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          leftIcon={<Lock className="h-4 w-4" />}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center gap-2 text-muted-foreground">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-border accent-primary"
-            />
-            Remember me
-          </label>
-          <Link href="/forgot-password" className="font-medium text-primary hover:underline">
-            Forgot password?
-          </Link>
-        </div>
         <Button type="submit" fullWidth size="lg" loading={isPending}>
-          {isPending ? "Signing in" : "Sign in"}
+          {isPending ? "Sending code" : "Send reset code"}
         </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
-        New to Attend?{" "}
         <Link
-          href="/register"
-          className="font-semibold text-primary hover:underline"
+          href="/login"
+          className="inline-flex items-center gap-1 hover:underline"
         >
-          Create an account
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to sign in
         </Link>
       </p>
     </div>

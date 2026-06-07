@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { MOCK_EVENTS } from "@/lib/mock-data";
 import { useGetMe } from "@/api/auth/hooks";
+import { useGetEvents } from "@/api/events/hooks";
 import { useUserStore } from "@/lib/user-store";
 import { Badge } from "@/components/ui/Badge";
 import { cn, formatDate, greetingByHour, initialsFor } from "@/lib/utils";
@@ -67,15 +68,40 @@ const ANNOUNCEMENTS = [
 
 export default function HomePage() {
   const { kycStatus } = useUserStore();
-  const { data: userResponse, isLoading } = useGetMe();
+  const { data: userResponse, isLoading, error } = useGetMe();
   const currentUser = userResponse?.data;
   const verified = kycStatus === "full";
 
-  const liveEvent = MOCK_EVENTS.find((e) => e.status === "live");
-  const upcoming = MOCK_EVENTS.filter((e) => e.status === "upcoming").slice(
-    0,
-    4,
-  );
+  const { data: eventsData } = useGetEvents({ size: 5 });
+  const apiEvents = eventsData?.data?.events ?? [];
+  const usingMockEvents = apiEvents.length === 0;
+
+  const liveEvent = usingMockEvents
+    ? MOCK_EVENTS.find((e) => e.status === "live")
+    : apiEvents.find((e) => e.status === "LIVE");
+
+  const upcoming = usingMockEvents
+    ? MOCK_EVENTS.filter((e) => e.status === "upcoming").slice(0, 4).map((e) => ({
+        id: e.id,
+        title: e.title,
+        initials: initialsFor(e.organiser),
+        color: e.thumbnailColor,
+        date: e.date,
+        format: e.format,
+        startTime: e.startTime,
+      }))
+    : apiEvents
+        .filter((e) => e.status === "PUBLISHED" || e.status === "UPCOMING")
+        .slice(0, 4)
+        .map((e) => ({
+          id: e.id,
+          title: e.title,
+          initials: initialsFor(e.organizerName),
+          color: "#2563eb",
+          date: e.date,
+          format: e.format,
+          startTime: e.startTime,
+        }));
 
   return (
     <div className="space-y-8">
@@ -83,20 +109,22 @@ export default function HomePage() {
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1d4ed8] via-[#2563eb] to-[#3b82f6] p-6 text-white md:p-8">
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/5" />
-        {isLoading || !currentUser ? (
-          <div>Loading...</div>
+        {isLoading ? (
+          <div className="flex h-20 items-center justify-center">
+            <p className="text-sm text-white/70 animate-pulse">Loading profile...</p>
+          </div>
         ) : (
           <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-xl font-bold backdrop-blur">
-                {currentUser.initials || initialsFor(currentUser.fullName)}
+                {currentUser?.initials || initialsFor(currentUser?.fullName || "Shareholder")}
               </div>
               <div>
                 <p className="text-sm text-white/80">{greetingByHour()},</p>
                 <h1 className="text-2xl font-bold leading-tight md:text-3xl">
-                  {currentUser.fullName.split(" ")[0]}
+                  {(currentUser?.fullName || "Shareholder").split(" ")[0]}
                 </h1>
-                <p className="mt-0.5 text-xs text-white/70">Shareholder</p>
+                <p className="mt-0.5 text-xs text-white/70">{currentUser?.role || "Shareholder"}</p>
               </div>
             </div>
             <div className="flex flex-col items-start gap-2 md:items-end">
@@ -130,7 +158,7 @@ export default function HomePage() {
       {/* Live banner */}
       {liveEvent && (
         <Link
-          href={`/agm/live`}
+          href={usingMockEvents ? `/agm/live` : `/agm/live?eventId=${liveEvent.id}`}
           className="flex items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-100"
         >
           <span className="flex items-center gap-2">
@@ -202,9 +230,16 @@ export default function HomePage() {
       {/* Upcoming */}
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Upcoming events
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Upcoming events
+            </h2>
+            {usingMockEvents && (
+              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                Demo
+              </span>
+            )}
+          </div>
           <Link
             href="/events"
             className="text-xs font-semibold text-primary hover:underline"
@@ -221,9 +256,9 @@ export default function HomePage() {
             >
               <div
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
-                style={{ background: e.thumbnailColor }}
+                style={{ background: e.color }}
               >
-                {initialsFor(e.organiser)}
+                {e.initials}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">

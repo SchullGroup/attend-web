@@ -8,13 +8,12 @@ import { Fingerprint } from "lucide-react";
 export default function BvnPage() {
   const router = useRouter();
   const [bvn, setBvn] = useState("");
-  const [loading, setLoading] = useState(false);
   const isValid = /^\d{11}$/.test(bvn);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => router.push("/nin"), 1200);
+    sessionStorage.setItem("kyc_bvn", bvn);
+    router.push("/nin");
   }
 
   return (
@@ -52,7 +51,7 @@ export default function BvnPage() {
         >
           Back
         </Button>
-        <Button type="submit" fullWidth loading={loading} disabled={!isValid}>
+        <Button type="submit" fullWidth disabled={!isValid}>
           Continue
         </Button>
       </div>

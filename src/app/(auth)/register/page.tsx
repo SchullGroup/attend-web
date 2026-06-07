@@ -5,16 +5,18 @@ import Link from "next/link";
 import { Mail, Lock, User, Phone } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useRegister } from "@/api/auth/hooks";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { mutate: registerMutation, isPending } = useRegister();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
     phone: "",
     password: "",
   });
-  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function update<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -22,8 +24,41 @@ export default function RegisterPage() {
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => router.push("/verify"), 1200);
+    setErrorMsg(null);
+
+    // Split fullName into firstName and lastName for the API
+    const nameParts = form.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    if (!firstName || !lastName) {
+      setErrorMsg("Please enter your first and last name.");
+      return;
+    }
+
+    registerMutation(
+      {
+        firstName,
+        lastName,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+      },
+      {
+        onSuccess: () => {
+          // Store email so the verify page knows which account to verify
+          sessionStorage.setItem("pendingVerifyEmail", form.email);
+          router.push("/verify");
+        },
+        onError: (err: any) => {
+          setErrorMsg(
+            err?.response?.data?.message ||
+              err?.message ||
+              "Registration failed. Please try again."
+          );
+        },
+      }
+    );
   }
 
   return (
@@ -47,6 +82,11 @@ export default function RegisterPage() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
+        {errorMsg && (
+          <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+            {errorMsg}
+          </div>
+        )}
         <Input
           name="fullName"
           label="Full name"
@@ -83,8 +123,8 @@ export default function RegisterPage() {
           value={form.password}
           onChange={(e) => update("password", e.target.value)}
         />
-        <Button type="submit" fullWidth size="lg" loading={loading}>
-          {loading ? "Creating account" : "Create account"}
+        <Button type="submit" fullWidth size="lg" loading={isPending}>
+          {isPending ? "Creating account" : "Create account"}
         </Button>
       </form>
 

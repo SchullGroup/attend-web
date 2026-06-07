@@ -8,13 +8,12 @@ import { FileCheck2 } from "lucide-react";
 export default function NinPage() {
   const router = useRouter();
   const [nin, setNin] = useState("");
-  const [loading, setLoading] = useState(false);
   const isValid = /^\d{11}$/.test(nin);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => router.push("/chn"), 1200);
+    sessionStorage.setItem("kyc_nin", nin);
+    router.push("/chn");
   }
 
   return (
@@ -52,7 +51,7 @@ export default function NinPage() {
         >
           Back
         </Button>
-        <Button type="submit" fullWidth loading={loading} disabled={!isValid}>
+        <Button type="submit" fullWidth disabled={!isValid}>
           Continue
         </Button>
       </div>

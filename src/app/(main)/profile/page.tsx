@@ -60,14 +60,38 @@ const SECTIONS: { title: string; items: RowItem[] }[] = [
 
 export default function ProfilePage() {
   const { kycStatus } = useUserStore();
-  const { data: userResponse, isLoading } = useGetMe();
+  const { data: userResponse, isLoading, error } = useGetMe();
   const currentUser = userResponse?.data;
   const { mutate: logout } = useLogout();
   const verified = kycStatus === "full";
 
-  if (isLoading || !currentUser) {
-    return <div>Loading profile...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <p className="text-sm text-muted-foreground animate-pulse">Loading profile...</p>
+      </div>
+    );
   }
+
+  if (error || !currentUser) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-center">
+        <div>
+          <h2 className="text-lg font-bold text-foreground">Could not load profile</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Please check your internet connection or try signing out and signing in again.
+          </p>
+        </div>
+        <button
+          onClick={() => logout()}
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/95"
+        >
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-6">

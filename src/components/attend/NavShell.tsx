@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import { cn, initialsFor } from "@/lib/utils";
 import { useGetMe, useLogout } from "@/api/auth/hooks";
+import { useGetKycStatus } from "@/api/kyc/hooks";
+import { useGetNotifications } from "@/api/notifications/hooks";
+import { useUserStore, mapKycStatus } from "@/lib/user-store";
+import { useEffect } from "react";
 import Cookies from "js-cookie";
 
 const NAV = [
@@ -48,8 +52,19 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const { data: userResponse } = useGetMe();
   const currentUser = userResponse?.data;
   const { mutate: logout } = useLogout();
+  const { setKycStatus } = useUserStore();
 
   const hasToken = typeof window !== "undefined" && !!Cookies.get("accessToken");
+
+  const { data: kycData } = useGetKycStatus(hasToken);
+  useEffect(() => {
+    if (kycData?.data?.kycStatus) {
+      setKycStatus(mapKycStatus(kycData.data.kycStatus));
+    }
+  }, [kycData, setKycStatus]);
+
+  const { data: notifData } = useGetNotifications({ size: 1 }, hasToken);
+  const unreadCount = notifData?.data?.unreadCount ?? 0;
   const displayName = currentUser?.fullName || "User";
   const displayEmail = currentUser?.email || "";
   const displayInitials = currentUser?.initials || initialsFor(displayName);
@@ -134,7 +149,11 @@ export function NavShell({ children }: { children: React.ReactNode }) {
               className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white hover:bg-muted"
             >
               <Bell className="h-4.5 w-4.5" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+              {unreadCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </Link>
             {hasToken && (
               <Link

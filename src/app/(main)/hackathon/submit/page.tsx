@@ -1,33 +1,81 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Upload, Github, Globe } from "lucide-react";
+import { ArrowLeft, Github, Globe } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useSubmitProject, useGetMyTeam } from "@/api/hackathon/hooks";
 
-export default function SubmitPage() {
+function SubmitPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const challengeId = searchParams.get("challengeId") ?? "";
+  const teamIdParam = searchParams.get("teamId") ?? "";
+
   const [form, setForm] = useState({
     title: "",
-    demo: "",
-    repo: "",
     description: "",
+    repositoryUrl: "",
+    demoUrl: "",
   });
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { data: teamData } = useGetMyTeam(challengeId);
+  const { mutate: submitProject, isPending } = useSubmitProject();
+
+  const teamId = teamIdParam || teamData?.data?.id || "";
+
+  useEffect(() => {
+    if (!challengeId) router.replace("/hackathon");
+  }, [challengeId, router]);
+
+  // Pre-fill if an existing submission exists
+  useEffect(() => {
+    const sub = teamData?.data?.submission;
+    if (sub) {
+      setForm({
+        title: sub.title || "",
+        description: sub.description || "",
+        repositoryUrl: sub.repositoryUrl || "",
+        demoUrl: sub.demoUrl || "",
+      });
+    }
+  }, [teamData]);
 
   function update<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
+  const valid = form.title.trim().length > 0 && form.description.trim().length > 10;
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => router.push("/hackathon/certificate"), 1500);
-  }
+    if (!teamId) return;
+    setErrorMsg(null);
 
-  const valid = form.title.trim() && form.description.trim().length > 10;
+    submitProject(
+      {
+        teamId,
+        data: {
+          title: form.title.trim(),
+          description: form.description.trim(),
+          repositoryUrl: form.repositoryUrl.trim(),
+          demoUrl: form.demoUrl.trim(),
+        },
+      },
+      {
+        onSuccess: () => router.push("/hackathon/my-applications"),
+        onError: (err: any) => {
+          setErrorMsg(
+            err?.response?.data?.message ||
+              err?.message ||
+              "Submission failed. Please try again.",
+          );
+        },
+      },
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -40,13 +88,11 @@ export default function SubmitPage() {
 
       <header>
         <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-          MeriHack 2026 — Submission
+          {teamData?.data?.name ?? "Your team"}
         </p>
-        <h1 className="mt-1 text-2xl font-bold text-foreground">
-          Submit your project
-        </h1>
+        <h1 className="mt-1 text-2xl font-bold text-foreground">Submit your project</h1>
         <p className="text-sm text-muted-foreground">
-          Upload your pitch deck and share the demo & repo links.
+          Share your project links and description. You can update this before the deadline.
         </p>
       </header>
 
@@ -54,6 +100,12 @@ export default function SubmitPage() {
         onSubmit={submit}
         className="space-y-5 rounded-2xl border border-border bg-white p-6 shadow-sm"
       >
+        {errorMsg && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+            {errorMsg}
+          </div>
+        )}
+
         <Input
           name="title"
           label="Project title"
@@ -61,28 +113,28 @@ export default function SubmitPage() {
           value={form.title}
           onChange={(e) => update("title", e.target.value)}
         />
+
         <div className="grid gap-4 md:grid-cols-2">
           <Input
-            name="demo"
+            name="demoUrl"
             label="Demo URL"
             leftIcon={<Globe className="h-4 w-4" />}
             placeholder="https://demo.example.com"
-            value={form.demo}
-            onChange={(e) => update("demo", e.target.value)}
+            value={form.demoUrl}
+            onChange={(e) => update("demoUrl", e.target.value)}
           />
           <Input
-            name="repo"
+            name="repositoryUrl"
             label="Source repository"
             leftIcon={<Github className="h-4 w-4" />}
             placeholder="https://github.com/team/project"
-            value={form.repo}
-            onChange={(e) => update("repo", e.target.value)}
+            value={form.repositoryUrl}
+            onChange={(e) => update("repositoryUrl", e.target.value)}
           />
         </div>
+
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">
-            Project description
-          </label>
+          <label className="text-sm font-medium text-foreground">Project description</label>
           <textarea
             value={form.description}
             onChange={(e) => update("description", e.target.value)}
@@ -92,36 +144,23 @@ export default function SubmitPage() {
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">
-            Pitch deck (PDF)
-          </label>
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50">
-            <Upload className="h-6 w-6 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">
-              {file ? file.name : "Click to upload"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              PDF up to 25MB · landscape preferred
-            </p>
-            <input
-              type="file"
-              accept=".pdf"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-        </div>
-
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button type="submit" loading={loading} disabled={!valid}>
-            Submit project
+          <Button type="submit" loading={isPending} disabled={!valid || !teamId}>
+            {teamData?.data?.submission ? "Update submission" : "Submit project"}
           </Button>
         </div>
       </form>
     </div>
+  );
+}
+
+export default function SubmitPage() {
+  return (
+    <Suspense>
+      <SubmitPageInner />
+    </Suspense>
   );
 }

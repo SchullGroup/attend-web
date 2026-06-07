@@ -1,59 +1,50 @@
 "use client";
-import { useEffect } from "react";
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useUserStore } from "@/lib/user-store";
 
 export default function KycSuccessPage() {
-  const { setKycStatus } = useUserStore();
-
-  useEffect(() => {
-    setKycStatus("full");
-  }, [setKycStatus]);
-
   return (
     <div className="space-y-6 text-center">
-      <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-        <CheckCircle2 className="h-9 w-9 text-emerald-600" />
+      <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+        <Clock className="h-9 w-9 text-amber-600" />
       </div>
       <div>
         <h1 className="text-2xl font-bold text-foreground">
-          You&apos;re verified!
+          Verification submitted!
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Your identity has been confirmed. You can now RSVP for AGMs, cast
-          votes on shareholder resolutions and apply to innovation challenges.
+          Your BVN, NIN and CHN have been received. Our team will verify your
+          details — this usually takes a few minutes.
         </p>
       </div>
 
       <div className="space-y-2 rounded-xl border border-border bg-muted/40 p-4 text-left">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Verification details
+          Submitted for verification
         </p>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">BVN</span>
-          <span className="font-medium text-foreground">Verified</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">NIN</span>
-          <span className="font-medium text-foreground">Verified</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">CHN</span>
-          <span className="font-medium text-foreground">Verified</span>
-        </div>
+        {["BVN", "NIN", "CHN"].map((item) => (
+          <div key={item} className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{item}</span>
+            <span className="font-medium text-amber-600">Pending</span>
+          </div>
+        ))}
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        You will be notified once your identity is confirmed. You can still
+        browse events while verification is in progress.
+      </p>
+
       <div className="flex flex-col gap-2">
-        <Link href="/agm" className="block">
+        <Link href="/" className="block">
           <Button fullWidth size="lg">
-            Browse AGMs
+            Go to home
           </Button>
         </Link>
-        <Link href="/" className="block">
+        <Link href="/agm" className="block">
           <Button variant="ghost" fullWidth>
-            Go to home
+            Browse AGMs
           </Button>
         </Link>
       </div>

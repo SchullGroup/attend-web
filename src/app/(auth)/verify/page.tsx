@@ -1,16 +1,28 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { ShieldCheck } from "lucide-react";
+import { useVerifyEmail } from "@/api/auth/hooks";
 
 export default function VerifyPage() {
   const router = useRouter();
+  const { mutate: verifyMutation, isPending } = useVerifyEmail();
   const [code, setCode] = useState(["", "", "", "", "", ""]);
-  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [email, setEmail] = useState<string>("");
   const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    // Read the email stored during registration
+    const pendingEmail = sessionStorage.getItem("pendingVerifyEmail");
+    if (pendingEmail) {
+      setEmail(pendingEmail);
+    }
+  }, []);
 
   function onChangeDigit(i: number, v: string) {
     if (!/^\d?$/.test(v)) return;
@@ -26,13 +38,57 @@ export default function VerifyPage() {
     }
   }
 
+  function onPaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted.length > 0) {
+      const next = [...code];
+      for (let i = 0; i < pasted.length && i < 6; i++) {
+        next[i] = pasted[i];
+      }
+      setCode(next);
+      const focusIndex = Math.min(pasted.length, 5);
+      refs.current[focusIndex]?.focus();
+    }
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => router.push("/intro"), 1200);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!email) {
+      setErrorMsg("No email found. Please go back and register again.");
+      return;
+    }
+
+    const otp = code.join("");
+
+    verifyMutation(
+      { email, otp },
+      {
+        onSuccess: () => {
+          setSuccessMsg("Email verified successfully! Redirecting to login...");
+          sessionStorage.removeItem("pendingVerifyEmail");
+          setTimeout(() => router.push("/login"), 1500);
+        },
+        onError: (err: any) => {
+          setErrorMsg(
+            err?.response?.data?.message ||
+              err?.message ||
+              "Verification failed. Please check your code and try again."
+          );
+        },
+      }
+    );
   }
 
   const filled = code.every((c) => c !== "");
+
+  // Mask the email for display
+  const maskedEmail = email
+    ? email.replace(/^(.{2})(.*)(@.*)$/, (_, a, b, c) => a + b.replace(/./g, "•") + c)
+    : "your email";
 
   return (
     <div className="space-y-6">
@@ -51,12 +107,22 @@ export default function VerifyPage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           We sent a 6-digit code to{" "}
-          <span className="font-medium text-foreground">you@email.com</span>.
+          <span className="font-medium text-foreground">{maskedEmail}</span>.
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-5">
-        <div className="flex justify-between gap-2">
+        {errorMsg && (
+          <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+            {errorMsg}
+          </div>
+        )}
+        {successMsg && (
+          <div className="p-3 text-sm text-emerald-600 bg-emerald-50 rounded-lg border border-emerald-200">
+            {successMsg}
+          </div>
+        )}
+        <div className="flex justify-between gap-2" onPaste={onPaste}>
           {code.map((c, i) => (
             <input
               key={i}
@@ -80,10 +146,10 @@ export default function VerifyPage() {
           type="submit"
           fullWidth
           size="lg"
-          loading={loading}
+          loading={isPending}
           disabled={!filled}
         >
-          {loading ? "Verifying" : "Verify email"}
+          {isPending ? "Verifying" : "Verify email"}
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">

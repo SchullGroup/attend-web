@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     const data = await response.json();
 
-    if (!response.ok || data.status === "FAILURE") {
+    if (!response.ok || !data.status || data.status === "FAILURE") {
       // Clear cookie if refresh fails
       cookieStore.delete("refreshToken");
       return NextResponse.json(data, { status: response.status || 401 });

@@ -1,17 +1,36 @@
 import Link from "next/link";
-import { Event } from "@/lib/mock-data";
 import { ModuleBadge } from "./ModuleBadge";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate, initialsFor } from "@/lib/utils";
 import { CalendarDays, Clock, MapPin, Users } from "lucide-react";
 
+export interface EventCardData {
+  id: string;
+  title: string;
+  organiser: string;
+  module: string;
+  thumbnailColor?: string;
+  status: string;
+  date: string;
+  startTime: string;
+  endTime?: string;
+  venue?: string;
+  rsvpCount?: number;
+  rsvpStatus?: string | null;
+  registered?: boolean;
+  format: string;
+}
+
 interface Props {
-  event: Event;
+  event: EventCardData;
   href?: string;
 }
 
 export function EventCard({ event, href }: Props) {
   const link = href || `/events/${event.id}`;
+  const bgColor = event.thumbnailColor ?? "#2563eb";
+  const isRegistered = event.rsvpStatus === "confirmed" || event.registered === true;
+
   return (
     <Link
       href={link}
@@ -19,7 +38,7 @@ export function EventCard({ event, href }: Props) {
     >
       <div
         className="relative h-44 overflow-hidden"
-        style={{ background: event.thumbnailColor }}
+        style={{ background: bgColor }}
       >
         <div className="absolute -right-6 -bottom-10 select-none text-[140px] font-black leading-none text-white/10">
           {initialsFor(event.organiser)}
@@ -48,10 +67,12 @@ export function EventCard({ event, href }: Props) {
             <CalendarDays className="h-3.5 w-3.5" />
             {formatDate(event.date)}
           </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" />
-            {event.startTime} – {event.endTime}
-          </div>
+          {event.startTime && (
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+            </div>
+          )}
           {event.venue && (
             <div className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5" />
@@ -60,11 +81,15 @@ export function EventCard({ event, href }: Props) {
           )}
         </div>
         <div className="flex items-center justify-between border-t border-border pt-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="h-3.5 w-3.5" />
-            {event.rsvpCount.toLocaleString()} attending
-          </div>
-          {event.rsvpStatus === "confirmed" ? (
+          {event.rsvpCount != null ? (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+              {event.rsvpCount.toLocaleString()} attending
+            </div>
+          ) : (
+            <span />
+          )}
+          {isRegistered ? (
             <Badge variant="success">Confirmed</Badge>
           ) : event.rsvpStatus === "waitlisted" ? (
             <Badge variant="warning">Waitlisted</Badge>

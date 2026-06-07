@@ -2,44 +2,116 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, Image as ImageIcon, Archive } from "lucide-react";
+import { useGetEvents } from "@/api/events/hooks";
+import { EventListItem } from "@/types";
 import { MOCK_EVENTS } from "@/lib/mock-data";
-import { EventCard } from "@/components/attend/EventCard";
+import { EventCard, EventCardData } from "@/components/attend/EventCard";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 const FORMATS = ["All", "Virtual", "Hybrid", "In-Person"] as const;
 type Format = (typeof FORMATS)[number];
 
+const EVENT_COLOR: Record<string, string> = {
+  AGM: "#1a6b3c",
+  PRODUCT_LAUNCH: "#f97316",
+  LAUNCH: "#f97316",
+  HACKATHON: "#9333ea",
+  INNOVATION_CHALLENGE: "#9333ea",
+  GENERAL_EVENT: "#2563eb",
+  GENERAL: "#2563eb",
+};
+
+function apiToCard(item: EventListItem): EventCardData {
+  return {
+    id: item.id,
+    title: item.title,
+    organiser: item.organizerName,
+    module: item.eventType,
+    thumbnailColor: EVENT_COLOR[item.eventType?.toUpperCase()] ?? "#2563eb",
+    status: item.status,
+    date: item.date,
+    startTime: item.startTime,
+    venue: item.venue,
+    registered: item.registered,
+    format: item.format,
+  };
+}
+
+function DemoBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+      Demo data
+    </span>
+  );
+}
+
 export default function EventsPage() {
   const [query, setQuery] = useState("");
   const [fmt, setFmt] = useState<Format>("All");
 
-  const visible = useMemo(() => {
-    return MOCK_EVENTS.filter(
-      (e) => e.module === "LAUNCH" || e.module === "GENERAL",
-    )
+  const { data, isLoading, error } = useGetEvents({ search: query || undefined });
+  const apiEvents = data?.data?.events ?? [];
+  const usingMock = !isLoading && (!!error || apiEvents.length === 0);
+
+  const visible = useMemo((): EventCardData[] => {
+    const normaliseFormat = (s: string) =>
+      s.toLowerCase().replace(/[^a-z]/g, "");
+    const fmtKey = normaliseFormat(fmt);
+
+    if (usingMock) {
+      return MOCK_EVENTS.filter(
+        (e) => e.module === "LAUNCH" || e.module === "GENERAL",
+      )
+        .filter((e) => (fmt === "All" ? true : normaliseFormat(e.format) === fmtKey))
+        .filter((e) =>
+          query.trim()
+            ? `${e.title} ${e.organiser}`.toLowerCase().includes(query.toLowerCase())
+            : true,
+        )
+        .map((e) => ({
+          id: e.id,
+          title: e.title,
+          organiser: e.organiser,
+          module: e.module,
+          thumbnailColor: e.thumbnailColor,
+          status: e.status,
+          date: e.date,
+          startTime: e.startTime,
+          endTime: e.endTime,
+          venue: e.venue,
+          rsvpCount: e.rsvpCount,
+          rsvpStatus: e.rsvpStatus,
+          format: e.format,
+        }));
+    }
+
+    return apiEvents
       .filter((e) =>
-        fmt === "All" ? true : e.format.toLowerCase() === fmt.toLowerCase(),
+        e.eventType === "PRODUCT_LAUNCH" ||
+        e.eventType === "GENERAL_EVENT" ||
+        e.eventType === "LAUNCH" ||
+        e.eventType === "GENERAL",
       )
       .filter((e) =>
-        query.trim()
-          ? `${e.title} ${e.organiser}`
-              .toLowerCase()
-              .includes(query.toLowerCase())
-          : true,
-      );
-  }, [query, fmt]);
+        fmt === "All" ? true : normaliseFormat(e.format) === fmtKey,
+      )
+      .map(apiToCard);
+  }, [apiEvents, usingMock, fmt, query]);
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Launches & Events
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Product reveals, conferences and roundtables.
-          </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              Launches & Events
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Product reveals, conferences and roundtables.
+            </p>
+          </div>
+          {usingMock && <DemoBadge />}
         </div>
         <div className="flex gap-2">
           <Link href="/events/gallery">
@@ -83,7 +155,13 @@ export default function EventsPage() {
         </div>
       </div>
 
-      {visible.length === 0 ? (
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="h-64 animate-pulse rounded-2xl border border-border bg-muted" />
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           No events match those filters.
         </div>
