@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Github, Globe } from "lucide-react";
+import { ArrowLeft, Github, Globe, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useSubmitProject, useGetMyTeam } from "@/api/hackathon/hooks";
@@ -20,6 +20,8 @@ function SubmitPageInner() {
     demoUrl: "",
   });
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Collected to match design; the submit endpoint has no pitch-deck field yet.
+  const [file, setFile] = useState<File | null>(null);
 
   const { data: teamData } = useGetMyTeam(challengeId);
   const { mutate: submitProject, isPending } = useSubmitProject();
@@ -30,7 +32,6 @@ function SubmitPageInner() {
     if (!challengeId) router.replace("/hackathon");
   }, [challengeId, router]);
 
-  // Pre-fill if an existing submission exists
   useEffect(() => {
     const sub = teamData?.data?.submission;
     if (sub) {
@@ -53,7 +54,6 @@ function SubmitPageInner() {
     e.preventDefault();
     if (!teamId) return;
     setErrorMsg(null);
-
     submitProject(
       {
         teamId,
@@ -66,23 +66,17 @@ function SubmitPageInner() {
       },
       {
         onSuccess: () => router.push("/hackathon/my-applications"),
-        onError: (err: any) => {
+        onError: (err: any) =>
           setErrorMsg(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Submission failed. Please try again.",
-          );
-        },
+            err?.response?.data?.message || err?.message || "Submission failed. Please try again.",
+          ),
       },
     );
   }
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/hackathon"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
@@ -96,10 +90,7 @@ function SubmitPageInner() {
         </p>
       </header>
 
-      <form
-        onSubmit={submit}
-        className="space-y-5 rounded-2xl border border-border bg-white p-6 shadow-sm"
-      >
+      <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-white p-6 shadow-sm">
         {errorMsg && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
             {errorMsg}
@@ -142,6 +133,25 @@ function SubmitPageInner() {
             placeholder="What you built, who it's for, and what makes it stand out."
             className="w-full rounded-xl border border-input bg-white p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Pitch deck (PDF)</label>
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50">
+            <Upload className="h-6 w-6 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">
+              {file ? file.name : "Click to upload"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              PDF up to 25MB · landscape preferred
+            </p>
+            <input
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
         </div>
 
         <div className="flex justify-end gap-3">

@@ -1,12 +1,5 @@
 "use client";
-import {
-  Bell,
-  FileText,
-  Megaphone,
-  CalendarClock,
-  Vote,
-  Sparkles,
-} from "lucide-react";
+import { Bell, FileText, Megaphone, CalendarClock, Vote, Sparkles } from "lucide-react";
 import { useGetNotifications, useMarkRead, useMarkAllRead } from "@/api/notifications/hooks";
 import { Notification } from "@/types";
 import { Button } from "@/components/ui/Button";
@@ -83,11 +76,7 @@ export default function NotificationsPage() {
               </h2>
               <ul className="space-y-2">
                 {unread.map((n) => (
-                  <NotificationItem
-                    key={n.id}
-                    notification={n}
-                    onRead={() => markRead(n.id)}
-                  />
+                  <NotificationItem key={n.id} notification={n} onRead={() => markRead(n.id)} />
                 ))}
               </ul>
             </section>
@@ -125,9 +114,7 @@ function NotificationItem({
     <li
       onClick={() => !n.read && onRead?.()}
       className={`flex items-start gap-3 rounded-2xl border border-border p-4 transition-colors ${
-        n.read
-          ? "bg-white/60"
-          : "cursor-pointer bg-white shadow-sm hover:bg-muted/20"
+        n.read ? "bg-white/60" : "cursor-pointer bg-white shadow-sm hover:bg-muted/20"
       }`}
     >
       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${colorClass}`}>
@@ -141,9 +128,7 @@ function NotificationItem({
           {!n.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />}
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">{n.message}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {formatRelativeTime(n.createdAt)}
-        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{formatRelativeTime(n.createdAt)}</p>
       </div>
     </li>
   );

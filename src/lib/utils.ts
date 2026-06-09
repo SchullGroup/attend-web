@@ -6,18 +6,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function formatShortDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-  });
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 export function formatRelativeTime(d: string) {

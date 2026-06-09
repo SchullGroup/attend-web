@@ -1,102 +1,85 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, BellRing, MessageSquare, Mail, Clock } from "lucide-react";
+import { ArrowLeft, BellRing, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  useGetNotificationPreferences,
+  useSaveNotificationPreferences,
+} from "@/api/notifications/hooks";
+import { NotificationPreferences } from "@/types";
 
 interface PrefRow {
-  key: string;
+  key: keyof NotificationPreferences;
   label: string;
   description: string;
   icon: typeof BellRing;
 }
 
-const CHANNELS: PrefRow[] = [
-  {
-    key: "push",
-    label: "Push notifications",
-    description: "On-device alerts for new activity.",
-    icon: BellRing,
-  },
-  {
-    key: "sms",
-    label: "SMS",
-    description: "Critical updates by text message.",
-    icon: MessageSquare,
-  },
-  {
-    key: "email",
-    label: "Email",
-    description: "Notices, agendas and receipts by email.",
-    icon: Mail,
-  },
+const EMAIL_ROWS: PrefRow[] = [
+  { key: "emailRsvpConfirmation", label: "RSVP confirmations", description: "When your event registration is confirmed.", icon: Mail },
+  { key: "emailEventReminder", label: "Event reminders", description: "Reminders before events you've registered for.", icon: Mail },
+  { key: "emailNewDocument", label: "New documents", description: "When a new document is shared with you.", icon: Mail },
 ];
 
-const REMINDERS: PrefRow[] = [
-  {
-    key: "r7",
-    label: "7 days before",
-    description: "Long-range planning reminder.",
-    icon: Clock,
-  },
-  {
-    key: "r1",
-    label: "24 hours before",
-    description: "Day-before nudge.",
-    icon: Clock,
-  },
-  {
-    key: "r30",
-    label: "30 minutes before",
-    description: "Last-call reminder.",
-    icon: Clock,
-  },
+const INAPP_ROWS: PrefRow[] = [
+  { key: "inAppRsvpConfirmation", label: "RSVP confirmations", description: "In-app alert when your registration is confirmed.", icon: BellRing },
+  { key: "inAppEventReminder", label: "Event reminders", description: "In-app reminders before your events.", icon: BellRing },
+  { key: "inAppNewDocument", label: "New documents", description: "In-app alert when a new document is shared.", icon: BellRing },
 ];
+
+const DEFAULT_PREFS: NotificationPreferences = {
+  emailRsvpConfirmation: true,
+  emailEventReminder: true,
+  emailNewDocument: true,
+  inAppRsvpConfirmation: true,
+  inAppEventReminder: true,
+  inAppNewDocument: true,
+};
 
 export default function NotificationPreferencesPage() {
-  const [prefs, setPrefs] = useState<Record<string, boolean>>({
-    push: true,
-    sms: false,
-    email: true,
-    r7: true,
-    r1: true,
-    r30: false,
-  });
+  const { data, isLoading } = useGetNotificationPreferences();
+  const { mutate: savePreferences, isPending: saving } = useSaveNotificationPreferences();
+  const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
 
-  function toggle(k: string) {
-    setPrefs((p) => ({ ...p, [k]: !p[k] }));
+  useEffect(() => {
+    if (data?.data) setPrefs(data.data);
+  }, [data]);
+
+  function toggle(k: keyof NotificationPreferences) {
+    const next = { ...prefs, [k]: !prefs[k] };
+    setPrefs(next);
+    savePreferences(next);
   }
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/profile"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">
-          Notification preferences
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Choose how and when you&apos;d like to hear from Attend.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Notification preferences</h1>
+          <p className="text-sm text-muted-foreground">
+            Choose how and when you&apos;d like to hear from Attend.
+          </p>
+        </div>
+        {saving && <span className="text-xs text-muted-foreground">Saving…</span>}
       </header>
 
-      <Section
-        title="Delivery channels"
-        rows={CHANNELS}
-        prefs={prefs}
-        toggle={toggle}
-      />
-      <Section
-        title="Event reminders"
-        rows={REMINDERS}
-        prefs={prefs}
-        toggle={toggle}
-      />
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2].map((n) => (
+            <div key={n} className="h-40 animate-pulse rounded-2xl border border-border bg-muted" />
+          ))}
+        </div>
+      ) : (
+        <>
+          <Section title="Email notifications" rows={EMAIL_ROWS} prefs={prefs} toggle={toggle} />
+          <Section title="In-app notifications" rows={INAPP_ROWS} prefs={prefs} toggle={toggle} />
+        </>
+      )}
     </div>
   );
 }
@@ -109,8 +92,8 @@ function Section({
 }: {
   title: string;
   rows: PrefRow[];
-  prefs: Record<string, boolean>;
-  toggle: (k: string) => void;
+  prefs: NotificationPreferences;
+  toggle: (k: keyof NotificationPreferences) => void;
 }) {
   return (
     <section>
@@ -134,12 +117,8 @@ function Section({
                   <Icon className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {r.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.description}
-                  </p>
+                  <p className="text-sm font-semibold text-foreground">{r.label}</p>
+                  <p className="text-xs text-muted-foreground">{r.description}</p>
                 </div>
               </div>
               <button

@@ -7,7 +7,7 @@ import { formatDate, initialsFor } from "@/lib/utils";
 
 const ARCHIVE = MOCK_EVENTS.map((e, i) => ({
   ...e,
-  endedDate: `2025-${String((i % 12) + 1).padStart(2, "0")}-15`,
+  endedDate: `2025-${String(((i % 12) + 1)).padStart(2, "0")}-15`,
   duration: 90 + i * 12,
   views: 4200 + i * 1100,
 }));
@@ -15,10 +15,7 @@ const ARCHIVE = MOCK_EVENTS.map((e, i) => ({
 export default function ArchivePage() {
   return (
     <div className="space-y-6">
-      <Link
-        href="/events"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/events" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to events
       </Link>
 
@@ -57,8 +54,7 @@ export default function ArchivePage() {
                 <Badge variant="muted">{e.module}</Badge>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Ended {formatDate(e.endedDate)} · {e.duration} min ·{" "}
-                {e.views.toLocaleString()} views
+                Ended {formatDate(e.endedDate)} · {e.duration} min · {e.views.toLocaleString()} views
               </p>
             </div>
           </li>

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import {
   House,
   Building2,
@@ -16,65 +17,54 @@ import { useGetMe, useLogout } from "@/api/auth/hooks";
 import { useGetKycStatus } from "@/api/kyc/hooks";
 import { useGetNotifications } from "@/api/notifications/hooks";
 import { useUserStore, mapKycStatus } from "@/lib/user-store";
-import { useEffect } from "react";
 import Cookies from "js-cookie";
+import { MOCK_EVENTS } from "@/lib/mock-data";
+
+// Resolve the module of an /events/[id] detail page so the correct sidebar tab
+// stays active. Covers demo events (MOCK_EVENTS); real API events fall through to
+// Launches until we wire the live event type into the nav.
+function eventModule(pathname: string) {
+  const id = pathname.match(/^\/events\/([^/]+)/)?.[1];
+  return id ? MOCK_EVENTS.find((e) => e.id === id)?.module : undefined;
+}
 
 const NAV = [
   { label: "Home", href: "/", icon: House, match: (p: string) => p === "/" },
-  {
-    label: "AGM",
-    href: "/agm",
-    icon: Building2,
-    match: (p: string) => p.startsWith("/agm"),
-  },
-  {
-    label: "Challenges",
-    href: "/hackathon",
-    icon: Lightbulb,
-    match: (p: string) => p.startsWith("/hackathon"),
-  },
-  {
-    label: "Launches",
-    href: "/events",
-    icon: Rocket,
-    match: (p: string) => p.startsWith("/events"),
-  },
-  {
-    label: "Profile",
-    href: "/profile",
-    icon: UserIcon,
-    match: (p: string) => p.startsWith("/profile"),
-  },
+  { label: "AGM", href: "/agm", icon: Building2, match: (p: string) => p.startsWith("/agm") || eventModule(p) === "AGM" },
+  { label: "Innovation", href: "/hackathon", icon: Lightbulb, match: (p: string) => p.startsWith("/hackathon") || eventModule(p) === "HACKATHON" },
+  { label: "Launches", href: "/events", icon: Rocket, match: (p: string) => p.startsWith("/events") && !["AGM", "HACKATHON"].includes(eventModule(p) ?? "") },
+  { label: "Profile", href: "/profile", icon: UserIcon, match: (p: string) => p.startsWith("/profile") },
 ];
 
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
-  const { data: userResponse } = useGetMe();
-  const currentUser = userResponse?.data;
-  const { mutate: logout } = useLogout();
   const { setKycStatus } = useUserStore();
+  const { data: userResponse } = useGetMe();
+  const { mutate: logout } = useLogout();
 
   const hasToken = typeof window !== "undefined" && !!Cookies.get("accessToken");
-
-  const { data: kycData } = useGetKycStatus(hasToken);
-  useEffect(() => {
-    if (kycData?.data?.kycStatus) {
-      setKycStatus(mapKycStatus(kycData.data.kycStatus));
-    }
-  }, [kycData, setKycStatus]);
-
-  const { data: notifData } = useGetNotifications({ size: 1 }, hasToken);
-  const unreadCount = notifData?.data?.unreadCount ?? 0;
+  const currentUser = userResponse?.data;
   const displayName = currentUser?.fullName || "User";
   const displayEmail = currentUser?.email || "";
   const displayInitials = currentUser?.initials || initialsFor(displayName);
+
+  // TODO: revert after testing RSVP — KYC bypass
+  // const { data: kycData } = useGetKycStatus(hasToken);
+  // useEffect(() => {
+  //   if (kycData?.data?.kycStatus) {
+  //     setKycStatus(mapKycStatus(kycData.data.kycStatus));
+  //   }
+  // }, [kycData, setKycStatus]);
+
+  const { data: notifData } = useGetNotifications({ size: 1 }, hasToken);
+  const unreadCount = notifData?.data?.unreadCount ?? 0;
 
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Sidebar (desktop) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-white md:flex">
-        <div className="border-b border-border px-6 py-5">
-          <img src="/attend-logo.png" alt="Attend" style={{ height: 28 }} />
+        <div className="border-b border-border px-6 py-4 flex items-center" style={{ minHeight: 80 }}>
+          <img src="/attend-logo.png" alt="Attend" style={{ height: 28, width: "auto" }} />
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
           {NAV.map((item) => {
@@ -97,34 +87,30 @@ export function NavShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="border-t border-border p-4">
-          {hasToken && (
-            <div className="flex items-center gap-3 rounded-xl p-2">
-              <Link
-                href="/profile"
-                className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-85"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary shrink-0">
-                  {displayInitials}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {displayName}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {displayEmail}
-                  </p>
-                </div>
-              </Link>
-              <button
-                onClick={() => logout()}
-                className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors shrink-0"
-                title="Sign out"
-              >
-                <LogOut className="h-4.5 w-4.5" />
-              </button>
+        <div className="border-t border-border p-4 space-y-1">
+          <Link
+            href="/profile"
+            className="flex items-center gap-3 rounded-xl p-2 hover:bg-muted"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+              {displayInitials}
             </div>
-          )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {displayName}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {displayEmail}
+              </p>
+            </div>
+          </Link>
+          <button
+            onClick={() => logout()}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
         </div>
       </aside>
 
@@ -132,7 +118,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-20 border-b border-border bg-white/85 backdrop-blur md:pl-64">
         <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-8">
           <div className="flex items-center gap-3 md:hidden">
-            <img src="/attend-logo.png" alt="Attend" style={{ height: 24 }} />
+            <img src="/attend-logo.png" alt="Attend" style={{ height: 22, width: "auto" }} />
           </div>
           <div className="hidden flex-1 max-w-md md:block">
             <div className="relative">
@@ -155,14 +141,12 @@ export function NavShell({ children }: { children: React.ReactNode }) {
                 </span>
               )}
             </Link>
-            {hasToken && (
-              <Link
-                href="/profile"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-sm font-semibold text-primary md:hidden"
-              >
-                {displayInitials}
-              </Link>
-            )}
+            <Link
+              href="/profile"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-sm font-semibold text-primary md:hidden"
+            >
+              {displayInitials}
+            </Link>
           </div>
         </div>
       </header>

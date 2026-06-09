@@ -15,7 +15,7 @@ import {
 import { useGetMe, useLogout } from "@/api/auth/hooks";
 import { useUserStore } from "@/lib/user-store";
 import { Badge } from "@/components/ui/Badge";
-import { initialsFor, formatDate } from "@/lib/utils";
+import { initialsFor } from "@/lib/utils";
 
 interface RowItem {
   icon: typeof Lock;
@@ -27,22 +27,14 @@ const SECTIONS: { title: string; items: RowItem[] }[] = [
   {
     title: "Account",
     items: [
-      {
-        icon: Lock,
-        label: "Change password",
-        href: "/profile/change-password",
-      },
+      { icon: Lock, label: "Change password", href: "/profile/change-password" },
       { icon: FileText, label: "My documents", href: "/profile/documents" },
     ],
   },
   {
     title: "Preferences",
     items: [
-      {
-        icon: Bell,
-        label: "Notification preferences",
-        href: "/profile/notification-preferences",
-      },
+      { icon: Bell, label: "Notification preferences", href: "/profile/notification-preferences" },
     ],
   },
   {
@@ -78,8 +70,8 @@ export default function ProfilePage() {
       <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-center">
         <div>
           <h2 className="text-lg font-bold text-foreground">Could not load profile</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Please check your internet connection or try signing out and signing in again.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Please check your connection or try signing out and in again.
           </p>
         </div>
         <button
@@ -91,7 +83,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
 
   return (
     <div className="space-y-6">
@@ -105,34 +96,28 @@ export default function ProfilePage() {
       <section className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
         <div className="border-b border-border bg-gradient-to-br from-primary/5 to-primary/10 p-6">
           <div className="flex items-start gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white">
-                {currentUser.initials || initialsFor(currentUser.fullName)}
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white">
+              {currentUser.initials || initialsFor(currentUser.fullName)}
+            </div>
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-bold text-foreground">{currentUser.fullName}</h2>
+                {verified ? (
+                  <Badge variant="success">
+                    <ShieldCheck className="h-3 w-3" /> Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="warning">KYC pending</Badge>
+                )}
               </div>
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-bold text-foreground">
-                    {currentUser.fullName}
-                  </h2>
-                  {verified ? (
-                    <Badge variant="success">
-                      <ShieldCheck className="h-3 w-3" /> Verified
-                    </Badge>
-                  ) : (
-                    <Badge variant="warning">KYC pending</Badge>
-                  )}
-                </div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {currentUser.role}
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {currentUser.role}
+              </p>
+              <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
+                <p className="flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5" /> {currentUser.email}
                 </p>
-                <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
-                  <p className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5" /> {currentUser.email}
-                  </p>
-                  {/* <p className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5" /> {currentUser.phone}
-                  </p>
-                  {currentUser.createdAt && <p>Member since {formatDate(currentUser.createdAt)}</p>} */}
-                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -156,10 +141,7 @@ export default function ProfilePage() {
             {s.items.map((item, i) => {
               const Icon = item.icon;
               return (
-                <li
-                  key={item.href}
-                  className={i > 0 ? "border-t border-border" : ""}
-                >
+                <li key={item.href} className={i > 0 ? "border-t border-border" : ""}>
                   <Link
                     href={item.href}
                     className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40"
@@ -168,9 +150,7 @@ export default function ProfilePage() {
                       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Icon className="h-4 w-4" />
                       </div>
-                      <span className="text-sm font-medium text-foreground">
-                        {item.label}
-                      </span>
+                      <span className="text-sm font-medium text-foreground">{item.label}</span>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Link>

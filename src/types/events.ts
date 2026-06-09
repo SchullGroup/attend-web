@@ -13,6 +13,7 @@ export interface EventListItem {
   organizerName: string;
   organizerLogo: string;
   maximumCapacity: number;
+  rsvpEnabled?: boolean;
   registered: boolean;
 }
 

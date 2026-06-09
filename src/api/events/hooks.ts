@@ -24,6 +24,23 @@ export const useGetEvent = (id: string) => {
   });
 };
 
+export const useGetMyEvents = () => {
+  return useQuery({
+    queryKey: [...eventKeys.all, "mine"] as const,
+    queryFn: () => eventsClient.getMyEvents(),
+  });
+};
+
+export const useCheckIn = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => eventsClient.checkIn(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventKeys.detail(id) });
+    },
+  });
+};
+
 export const useRsvp = (id: string) => {
   const queryClient = useQueryClient();
   return useMutation({

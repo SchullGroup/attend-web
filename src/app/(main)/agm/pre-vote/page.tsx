@@ -38,11 +38,9 @@ function PreVotePageInner() {
       for (const [resolutionId, choice] of Object.entries(pendingVotes)) {
         await castVote({ resolutionId, data: { choice } });
       }
-      router.push("/agm/receipt");
+      router.push(`/agm/receipt?eventId=${eventId}`);
     } catch (err: any) {
-      setErrorMsg(
-        err?.response?.data?.message || err?.message || "Failed to submit votes.",
-      );
+      setErrorMsg(err?.response?.data?.message || err?.message || "Failed to submit votes.");
     } finally {
       setSubmitting(false);
     }
@@ -62,18 +60,15 @@ function PreVotePageInner() {
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/agm"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to AGMs
       </Link>
 
       <header>
         <h1 className="mt-1 text-2xl font-bold text-foreground">Pre-vote on resolutions</h1>
         <p className="text-sm text-muted-foreground">
-          Submit your vote on each open resolution before the meeting starts.
-          You can change your vote until voting closes.
+          Submit your vote on each open resolution before the meeting starts. You
+          can change your vote until voting closes.
         </p>
       </header>
 
@@ -99,9 +94,7 @@ function PreVotePageInner() {
                   key={r.id}
                   resolution={r}
                   selected={pendingVotes[r.id] ?? null}
-                  onSelect={(choice) =>
-                    setPendingVotes((v) => ({ ...v, [r.id]: choice }))
-                  }
+                  onSelect={(choice) => setPendingVotes((v) => ({ ...v, [r.id]: choice }))}
                 />
               ))}
             </section>
@@ -174,14 +167,14 @@ function ResolutionCard({
             opt === "FOR"
               ? "border-emerald-200 hover:bg-emerald-50 text-emerald-700"
               : opt === "AGAINST"
-                ? "border-red-200 hover:bg-red-50 text-red-700"
-                : "border-border hover:bg-muted text-muted-foreground";
+              ? "border-red-200 hover:bg-red-50 text-red-700"
+              : "border-border hover:bg-muted text-muted-foreground";
           const selectedTone =
             opt === "FOR"
               ? "border-emerald-600 bg-emerald-600 text-white"
               : opt === "AGAINST"
-                ? "border-red-600 bg-red-600 text-white"
-                : "border-slate-700 bg-slate-700 text-white";
+              ? "border-red-600 bg-red-600 text-white"
+              : "border-slate-700 bg-slate-700 text-white";
           return (
             <button
               key={opt}

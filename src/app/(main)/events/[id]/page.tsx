@@ -1,7 +1,7 @@
 "use client";
-import { use, useState } from "react";
-import { useRouter } from "next/navigation";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
@@ -12,12 +12,15 @@ import {
   Share2,
   QrCode,
   CheckCircle2,
+  Check,
 } from "lucide-react";
 import { useGetEvent, useRsvp, useCancelRsvp } from "@/api/events/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn, formatDate, initialsFor } from "@/lib/utils";
+
+const SAVED_KEY = "attend_saved_events";
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   PRODUCT_LAUNCH: "Launch",
@@ -26,19 +29,20 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   HACKATHON: "Hackathon",
   INNOVATION_CHALLENGE: "Innovation Challenge",
 };
-
 const FORMAT_LABELS: Record<string, string> = {
   IN_PERSON: "In-Person",
   VIRTUAL: "Virtual",
   HYBRID: "Hybrid",
 };
+const fmtType = (t: string) => EVENT_TYPE_LABELS[t] ?? t;
+const fmtFormat = (f: string) => FORMAT_LABELS[f] ?? f;
 
-function formatEventType(type: string) {
-  return EVENT_TYPE_LABELS[type] ?? type;
-}
-
-function formatFormat(format: string) {
-  return FORMAT_LABELS[format] ?? format;
+function getSaved(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
 }
 
 export default function EventDetailPage({
@@ -53,34 +57,52 @@ export default function EventDetailPage({
   const event = data?.data;
 
   const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [shared, setShared] = useState(false);
   const { mutate: rsvp, isPending: rsvping } = useRsvp(id);
   const { mutate: cancelRsvp, isPending: cancelling } = useCancelRsvp(id);
 
   const bgColor = event?.organizerPrimaryColor || "#2563eb";
 
+  useEffect(() => {
+    setSaved(getSaved().includes(id));
+  }, [id]);
+
+  function toggleSave() {
+    const list = getSaved();
+    const next = saved ? list.filter((x) => x !== id) : [...list, id];
+    localStorage.setItem(SAVED_KEY, JSON.stringify(next));
+    setSaved(!saved);
+  }
+
+  async function handleShare() {
+    const url = window.location.href;
+    if (navigator.share) {
+      await navigator.share({ title: event?.title ?? "Event", url }).catch(() => {});
+    } else {
+      await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    }
+  }
+
   function handleRsvp() {
     setRsvpError(null);
     rsvp(undefined, {
-      onError: (err: any) => {
+      onError: (err: any) =>
         setRsvpError(
-          err?.response?.data?.message ||
-            err?.message ||
-            "RSVP failed. Please try again.",
-        );
-      },
+          err?.response?.data?.message || err?.message || "RSVP failed. Please try again.",
+        ),
     });
   }
 
   function handleCancelRsvp() {
     setRsvpError(null);
     cancelRsvp(undefined, {
-      onError: (err: any) => {
+      onError: (err: any) =>
         setRsvpError(
-          err?.response?.data?.message ||
-            err?.message ||
-            "Could not cancel RSVP. Please try again.",
-        );
-      },
+          err?.response?.data?.message || err?.message || "Could not cancel RSVP.",
+        ),
     });
   }
 
@@ -98,9 +120,7 @@ export default function EventDetailPage({
   if (error || !event) {
     return (
       <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          Could not load event details.
-        </p>
+        <p className="text-sm text-muted-foreground">Could not load event details.</p>
         <Button variant="outline" size="sm" onClick={() => router.back()}>
           Go back
         </Button>
@@ -130,27 +150,23 @@ export default function EventDetailPage({
             <p className="text-xs font-semibold uppercase tracking-wide text-white/80">
               {event.organizerName}
             </p>
-            <h1 className="text-2xl font-bold leading-tight md:text-3xl">
-              {event.title}
-            </h1>
+            <h1 className="text-2xl font-bold leading-tight md:text-3xl">{event.title}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             <Chip icon={CalendarDays}>{formatDate(event.date)}</Chip>
-            {event.startTime && (
-              <Chip icon={Clock}>{event.startTime}</Chip>
-            )}
+            {event.startTime && <Chip icon={Clock}>{event.startTime}</Chip>}
             {event.registeredCount > 0 && (
-              <Chip icon={Users}>
-                {event.registeredCount.toLocaleString()} attending
-              </Chip>
+              <Chip icon={Users}>{event.registeredCount.toLocaleString()} attending</Chip>
             )}
             {event.venue && <Chip icon={MapPin}>{event.venue}</Chip>}
           </div>
+
           {rsvpError && (
             <div className="rounded-xl border border-red-300/50 bg-red-500/20 px-4 py-2.5 text-sm font-medium text-white">
               {rsvpError}
             </div>
           )}
+
           <div className="flex flex-wrap gap-2 pt-2">
             {event.registered ? (
               <button
@@ -159,7 +175,7 @@ export default function EventDetailPage({
                 className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-4 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/30 disabled:opacity-60"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                {cancelling ? "Cancelling..." : "You're confirmed"}
+                {cancelling ? "Cancelling…" : "You're confirmed"}
               </button>
             ) : (
               <button
@@ -168,34 +184,40 @@ export default function EventDetailPage({
                 className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90 disabled:opacity-60"
                 style={{ color: bgColor }}
               >
-                {rsvping ? "Saving..." : "RSVP now"}
+                {rsvping ? "Saving…" : "RSVP now"}
               </button>
             )}
-            <Link href="/events/qr-checkin">
+            <Link href={`/events/qr-checkin?eventId=${id}`}>
               <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/20">
                 <QrCode className="h-4 w-4" /> QR check-in
               </button>
             </Link>
-            <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 backdrop-blur hover:bg-white/20">
-              <Bookmark className="h-4 w-4" />
+            <button
+              onClick={toggleSave}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 backdrop-blur hover:bg-white/20 transition-colors"
+              title={saved ? "Remove from saved" : "Save event"}
+            >
+              <Bookmark className={cn("h-4 w-4", saved && "fill-white")} />
             </button>
-            <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 backdrop-blur hover:bg-white/20">
-              <Share2 className="h-4 w-4" />
+            <button
+              onClick={handleShare}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 backdrop-blur hover:bg-white/20 transition-colors"
+              title={shared ? "Link copied!" : "Share event"}
+            >
+              {shared ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
             </button>
           </div>
         </div>
       </header>
 
       <section className="space-y-4">
-        <p className="text-sm leading-relaxed text-foreground/80">
-          {event.description}
-        </p>
+        {event.description && (
+          <p className="text-sm leading-relaxed text-foreground/80">{event.description}</p>
+        )}
         <div className="flex flex-wrap gap-2">
-          <Badge variant="muted">{formatEventType(event.eventType)}</Badge>
-          <Badge variant="muted">{formatFormat(event.format)}</Badge>
-          {event.agmProxyEnabled && (
-            <Badge variant="default">Proxy voting enabled</Badge>
-          )}
+          <Badge variant="muted">{fmtType(event.eventType)}</Badge>
+          <Badge variant="muted">{fmtFormat(event.format)}</Badge>
+          {event.agmProxyEnabled && <Badge variant="default">Proxy voting enabled</Badge>}
         </div>
       </section>
     </div>

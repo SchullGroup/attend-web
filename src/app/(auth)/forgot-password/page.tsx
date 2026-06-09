@@ -16,12 +16,10 @@ export default function ForgotPasswordPage() {
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
-
     forgotMutation(
       { email },
       {
         onSuccess: () => {
-          // Store email so the reset page knows which account to reset
           sessionStorage.setItem("pendingResetEmail", email);
           router.push("/reset-password");
         },
@@ -29,37 +27,29 @@ export default function ForgotPasswordPage() {
           setErrorMsg(
             err?.response?.data?.message ||
               err?.message ||
-              "Could not send reset code. Please check your email and try again."
+              "Could not send reset code. Check your email and try again.",
           );
         },
-      }
+      },
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="md:hidden">
-        <div className="text-2xl font-extrabold tracking-tight text-primary">
-          attend
-        </div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          Enterprise Events Platform
-        </p>
+      <div className="md:hidden mb-2">
+        <img src="/attend-logo.png" alt="Attend" style={{ height: 31 }} />
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-foreground">
-          Forgot your password?
-        </h1>
+        <h1 className="text-2xl font-bold text-foreground">Forgot password?</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your email address and we&apos;ll send you a code to reset your
-          password.
+          Enter your email and we&apos;ll send you a verification code.
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
         {errorMsg && (
-          <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
             {errorMsg}
           </div>
         )}
@@ -73,17 +63,15 @@ export default function ForgotPasswordPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <Button type="submit" fullWidth size="lg" loading={isPending}>
-          {isPending ? "Sending code" : "Send reset code"}
+        <Button type="submit" fullWidth size="lg" loading={isPending} disabled={!email.trim()}>
+          {isPending ? "Sending code…" : "Send reset code"}
         </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-1 hover:underline"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
+        Remembered it?{" "}
+        <Link href="/login" className="font-semibold text-foreground hover:underline">
+          <ArrowLeft className="inline h-3.5 w-3.5 mr-0.5" />
           Back to sign in
         </Link>
       </p>

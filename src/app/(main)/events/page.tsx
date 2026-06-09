@@ -29,6 +29,7 @@ function apiToCard(item: EventListItem): EventCardData {
     organiser: item.organizerName,
     module: item.eventType,
     thumbnailColor: EVENT_COLOR[item.eventType?.toUpperCase()] ?? "#2563eb",
+    image: item.organizerLogo || undefined,
     status: item.status,
     date: item.date,
     startTime: item.startTime,
@@ -38,13 +39,7 @@ function apiToCard(item: EventListItem): EventCardData {
   };
 }
 
-function DemoBadge() {
-  return (
-    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-      Demo data
-    </span>
-  );
-}
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
 
 export default function EventsPage() {
   const [query, setQuery] = useState("");
@@ -55,15 +50,10 @@ export default function EventsPage() {
   const usingMock = !isLoading && (!!error || apiEvents.length === 0);
 
   const visible = useMemo((): EventCardData[] => {
-    const normaliseFormat = (s: string) =>
-      s.toLowerCase().replace(/[^a-z]/g, "");
-    const fmtKey = normaliseFormat(fmt);
-
+    const fmtKey = norm(fmt);
     if (usingMock) {
-      return MOCK_EVENTS.filter(
-        (e) => e.module === "LAUNCH" || e.module === "GENERAL",
-      )
-        .filter((e) => (fmt === "All" ? true : normaliseFormat(e.format) === fmtKey))
+      return MOCK_EVENTS.filter((e) => e.module === "LAUNCH" || e.module === "GENERAL")
+        .filter((e) => (fmt === "All" ? true : norm(e.format) === fmtKey))
         .filter((e) =>
           query.trim()
             ? `${e.title} ${e.organiser}`.toLowerCase().includes(query.toLowerCase())
@@ -85,33 +75,33 @@ export default function EventsPage() {
           format: e.format,
         }));
     }
-
     return apiEvents
-      .filter((e) =>
-        e.eventType === "PRODUCT_LAUNCH" ||
-        e.eventType === "GENERAL_EVENT" ||
-        e.eventType === "LAUNCH" ||
-        e.eventType === "GENERAL",
+      .filter(
+        (e) =>
+          e.eventType === "PRODUCT_LAUNCH" ||
+          e.eventType === "GENERAL_EVENT" ||
+          e.eventType === "LAUNCH" ||
+          e.eventType === "GENERAL",
       )
-      .filter((e) =>
-        fmt === "All" ? true : normaliseFormat(e.format) === fmtKey,
-      )
+      .filter((e) => (fmt === "All" ? true : norm(e.format) === fmtKey))
       .map(apiToCard);
   }, [apiEvents, usingMock, fmt, query]);
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Launches & Events
-            </h1>
+            <h1 className="text-2xl font-bold text-foreground">Launches & Events</h1>
             <p className="text-sm text-muted-foreground">
               Product reveals, conferences and roundtables.
             </p>
           </div>
-          {usingMock && <DemoBadge />}
+          {usingMock && (
+            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+              Demo data
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
           <Link href="/events/gallery">

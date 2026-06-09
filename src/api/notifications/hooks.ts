@@ -1,10 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificationsClient } from "./client";
-import { NotificationsParams } from "@/types";
+import { NotificationsParams, SaveNotificationPreferencesRequest } from "@/types";
 
 export const notificationKeys = {
   all: ["notifications"] as const,
   list: (params?: NotificationsParams) => [...notificationKeys.all, params] as const,
+  preferences: ["notification-preferences"] as const,
+};
+
+export const useGetNotificationPreferences = () => {
+  return useQuery({
+    queryKey: notificationKeys.preferences,
+    queryFn: () => notificationsClient.getPreferences(),
+  });
+};
+
+export const useSaveNotificationPreferences = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: SaveNotificationPreferencesRequest) =>
+      notificationsClient.savePreferences(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.preferences });
+    },
+  });
 };
 
 export const useGetNotifications = (params?: NotificationsParams, enabled = true) => {

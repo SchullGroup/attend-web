@@ -25,3 +25,15 @@ export interface NotificationsParams {
 }
 
 export type NotificationsResponse = ApiResponse<NotificationsData>;
+
+export interface NotificationPreferences {
+  emailRsvpConfirmation: boolean;
+  emailEventReminder: boolean;
+  emailNewDocument: boolean;
+  inAppRsvpConfirmation: boolean;
+  inAppEventReminder: boolean;
+  inAppNewDocument: boolean;
+}
+
+export type NotificationPreferencesResponse = ApiResponse<NotificationPreferences>;
+export type SaveNotificationPreferencesRequest = NotificationPreferences;

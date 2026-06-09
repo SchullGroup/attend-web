@@ -1,206 +1,168 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Lock, ArrowLeft, KeyRound } from "lucide-react";
+import { Lock, Check, X, CheckCircle2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
 import { useResetPassword } from "@/api/auth/hooks";
+
+const RULES = [
+  { label: "At least 8 characters", test: (p: string) => p.length >= 8 },
+  { label: "One capital letter", test: (p: string) => /[A-Z]/.test(p) },
+  { label: "Contains a number", test: (p: string) => /\d/.test(p) },
+];
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const { mutate: resetMutation, isPending } = useResetPassword();
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const pendingEmail = sessionStorage.getItem("pendingResetEmail");
-    if (pendingEmail) {
-      setEmail(pendingEmail);
-    }
+    const pending = sessionStorage.getItem("pendingResetEmail");
+    if (pending) setEmail(pending);
   }, []);
 
-  function onChangeDigit(i: number, v: string) {
-    if (!/^\d?$/.test(v)) return;
-    const next = [...code];
-    next[i] = v;
-    setCode(next);
-    if (v && i < 5) refs.current[i + 1]?.focus();
-  }
-
-  function onKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !code[i] && i > 0) {
-      refs.current[i - 1]?.focus();
-    }
-  }
-
-  function onPaste(e: React.ClipboardEvent) {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (pasted.length > 0) {
-      const next = [...code];
-      for (let i = 0; i < pasted.length && i < 6; i++) {
-        next[i] = pasted[i];
-      }
-      setCode(next);
-      const focusIndex = Math.min(pasted.length, 5);
-      refs.current[focusIndex]?.focus();
-    }
-  }
+  const rulesPass = RULES.every((r) => r.test(password));
+  const matches = password === confirm && confirm.length > 0;
+  const otpValid = /^\d{6}$/.test(otp);
+  const canSubmit = rulesPass && matches && otpValid && !!email;
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canSubmit) return;
     setErrorMsg(null);
-    setSuccessMsg(null);
-
-    if (!email) {
-      setErrorMsg("No email found. Please start the reset process again.");
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setErrorMsg("Password must be at least 8 characters.");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setErrorMsg("Passwords do not match.");
-      return;
-    }
-
-    const otp = code.join("");
-
     resetMutation(
-      { email, otp, newPassword },
+      { email, otp, newPassword: password },
       {
         onSuccess: () => {
-          setSuccessMsg("Password reset successfully! Redirecting to login...");
           sessionStorage.removeItem("pendingResetEmail");
-          setTimeout(() => router.push("/login"), 1500);
+          setDone(true);
         },
         onError: (err: any) => {
           setErrorMsg(
             err?.response?.data?.message ||
               err?.message ||
-              "Password reset failed. Please check your code and try again."
+              "Reset failed. Check your code and try again.",
           );
         },
-      }
+      },
     );
   }
 
-  const otpFilled = code.every((c) => c !== "");
-  const canSubmit = otpFilled && newPassword.length >= 8 && confirmPassword.length > 0;
-
-  // Mask the email for display
-  const maskedEmail = email
-    ? email.replace(/^(.{2})(.*)(@.*)$/, (_, a, b, c) => a + b.replace(/./g, "•") + c)
-    : "your email";
+  if (done) {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="md:hidden mb-2 flex justify-start">
+          <img src="/attend-logo.png" alt="Attend" style={{ height: 31 }} />
+        </div>
+        <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+          <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Password updated</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your password has been reset. Sign in with your new credentials.
+          </p>
+        </div>
+        <Button fullWidth size="lg" onClick={() => router.push("/login")}>
+          Go to sign in
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="md:hidden">
-        <div className="text-2xl font-extrabold tracking-tight text-primary">
-          attend
-        </div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          Enterprise Events Platform
-        </p>
+      <div className="md:hidden mb-2">
+        <img src="/attend-logo.png" alt="Attend" style={{ height: 31 }} />
       </div>
 
       <div>
-        <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 md:mx-0">
-          <KeyRound className="h-6 w-6 text-primary" />
-        </div>
-        <h1 className="text-2xl font-bold text-foreground">
-          Reset your password
-        </h1>
+        <h1 className="text-2xl font-bold text-foreground">Set a new password</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter the 6-digit code sent to{" "}
-          <span className="font-medium text-foreground">{maskedEmail}</span> and
-          choose a new password.
+          Enter the code sent to your email and choose a new password.
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
         {errorMsg && (
-          <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
             {errorMsg}
           </div>
         )}
-        {successMsg && (
-          <div className="p-3 text-sm text-emerald-600 bg-emerald-50 rounded-lg border border-emerald-200">
-            {successMsg}
-          </div>
-        )}
+
+        <Input
+          name="otp"
+          label="Verification code"
+          inputMode="numeric"
+          maxLength={6}
+          leftIcon={<KeyRound className="h-4 w-4" />}
+          placeholder="6-digit code"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+        />
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">
-            Verification code
-          </label>
-          <div className="flex justify-between gap-2" onPaste={onPaste}>
-            {code.map((c, i) => (
-              <input
-                key={i}
-                ref={(el) => {
-                  refs.current[i] = el;
-                }}
-                inputMode="numeric"
-                maxLength={1}
-                value={c}
-                onChange={(e) => onChangeDigit(i, e.target.value)}
-                onKeyDown={(e) => onKey(i, e)}
-                className={cn(
-                  "h-12 w-12 rounded-xl border border-input bg-white text-center text-lg font-semibold",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary",
-                )}
-              />
-            ))}
-          </div>
+          <Input
+            name="password"
+            label="New password"
+            type="password"
+            autoComplete="new-password"
+            leftIcon={<Lock className="h-4 w-4" />}
+            placeholder="Min 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          {password.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {RULES.map((r) => {
+                const ok = r.test(password);
+                return (
+                  <li key={r.label} className="flex items-center gap-1.5">
+                    {ok ? (
+                      <Check className="h-3.5 w-3.5 text-green-600" strokeWidth={2.5} />
+                    ) : (
+                      <X className="h-3.5 w-3.5 text-red-500" strokeWidth={2.5} />
+                    )}
+                    <span className={`text-xs font-medium ${ok ? "text-green-700" : "text-red-600"}`}>
+                      {r.label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         <Input
-          name="newPassword"
-          label="New password"
+          name="confirm"
+          label="Confirm new password"
           type="password"
+          autoComplete="new-password"
           leftIcon={<Lock className="h-4 w-4" />}
-          placeholder="Min 8 characters"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Re-enter password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
         />
-        <Input
-          name="confirmPassword"
-          label="Confirm password"
-          type="password"
-          leftIcon={<Lock className="h-4 w-4" />}
-          placeholder="Re-enter your password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-        />
-        <Button
-          type="submit"
-          fullWidth
-          size="lg"
-          loading={isPending}
-          disabled={!canSubmit}
-        >
-          {isPending ? "Resetting password" : "Reset password"}
+        {confirm.length > 0 && !matches && (
+          <p className="text-xs text-red-600 font-medium -mt-2">Passwords do not match.</p>
+        )}
+
+        <Button type="submit" fullWidth size="lg" loading={isPending} disabled={!canSubmit}>
+          {isPending ? "Updating…" : "Update password"}
         </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-1 hover:underline"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to sign in
+        Remembered it?{" "}
+        <Link href="/login" className="font-semibold text-foreground hover:underline">
+          Sign in
         </Link>
       </p>
     </div>

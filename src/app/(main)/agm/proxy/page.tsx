@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { useAssignProxy, useGetProxy } from "@/api/agm/hooks";
 
 type ProxyType = "chairman" | "named";
-
 const CHAIRMAN_NAME = "Chairman of the Meeting";
 
 function ProxyPageInner() {
@@ -31,13 +30,11 @@ function ProxyPageInner() {
   }, [eventId, router]);
 
   const valid =
-    type === "chairman" ||
-    (name.trim().length > 0 && /.+@.+\..+/.test(email));
+    type === "chairman" || (name.trim().length > 0 && /.+@.+\..+/.test(email));
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
-
     const payload =
       type === "chairman"
         ? { proxyName: CHAIRMAN_NAME, proxyEmail: "", proxyPhone: "" }
@@ -45,22 +42,16 @@ function ProxyPageInner() {
 
     assignProxy(payload, {
       onSuccess: () => router.push("/agm/receipt"),
-      onError: (err: any) => {
+      onError: (err: any) =>
         setErrorMsg(
-          err?.response?.data?.message ||
-            err?.message ||
-            "Failed to assign proxy. Please try again.",
-        );
-      },
+          err?.response?.data?.message || err?.message || "Failed to assign proxy.",
+        ),
     });
   }
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/agm"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to AGMs
       </Link>
 
@@ -70,16 +61,13 @@ function ProxyPageInner() {
           If you can&apos;t attend the meeting, appoint someone to vote on your behalf.
         </p>
         {existingProxy?.data && (
-          <p className="mt-2 text-xs text-primary font-medium">
+          <p className="mt-2 text-xs font-medium text-primary">
             Current proxy: {existingProxy.data.proxyName}
           </p>
         )}
       </header>
 
-      <form
-        onSubmit={submit}
-        className="space-y-5 rounded-2xl border border-border bg-white p-5 shadow-sm"
-      >
+      <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-white p-5 shadow-sm">
         {errorMsg && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
             {errorMsg}
@@ -167,10 +155,12 @@ function Choice({
         active ? "border-primary bg-primary/5" : "border-border bg-white hover:border-primary/40",
       )}
     >
-      <div className={cn(
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-        active ? "bg-primary text-white" : "bg-muted text-muted-foreground",
-      )}>
+      <div
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+          active ? "bg-primary text-white" : "bg-muted text-muted-foreground",
+        )}
+      >
         <Icon className="h-5 w-5" />
       </div>
       <div>

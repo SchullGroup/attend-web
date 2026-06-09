@@ -6,17 +6,11 @@ import { EventCard } from "@/components/attend/EventCard";
 
 export default function SavedEventsPage() {
   // pretend saved: pick non-confirmed events
-  const saved = MOCK_EVENTS.filter((e) => e.rsvpStatus !== "confirmed").slice(
-    0,
-    4,
-  );
+  const saved = MOCK_EVENTS.filter((e) => e.rsvpStatus !== "confirmed").slice(0, 4);
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/profile"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 

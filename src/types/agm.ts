@@ -40,3 +40,43 @@ export interface CastVoteRequest {
 
 export type ResolutionsResponse = ApiResponse<ResolutionsData>;
 export type ProxyResponse = ApiResponse<ProxyData>;
+
+export interface VoteReceiptItem {
+  resolutionId: string;
+  resolutionTitle: string;
+  choice: string;
+  votedAt: string;
+}
+
+export interface VoteReceiptData {
+  eventId: string;
+  eventTitle: string;
+  totalVotes: number;
+  votes: VoteReceiptItem[];
+}
+
+export interface EventQuestion {
+  id: string;
+  content: string;
+  askerName: string;
+  status: string;
+  answer: string;
+  answeredBy: string;
+  answeredAt: string;
+  anonymous: boolean;
+  submittedAt: string;
+}
+
+export interface QuestionsData {
+  eventId: string;
+  totalCount: number;
+  questions: EventQuestion[];
+}
+
+export interface SubmitQuestionRequest {
+  content: string;
+  anonymous: boolean;
+}
+
+export type VoteReceiptResponse = ApiResponse<VoteReceiptData>;
+export type QuestionsResponse = ApiResponse<QuestionsData>;

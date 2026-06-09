@@ -20,19 +20,18 @@ interface UserStore {
   kycStatus: KYCStatus;
   setKycStatus: (s: KYCStatus) => void;
 }
-
 const UserContext = createContext<UserStore>({
   kycStatus: "none",
   setKycStatus: () => {},
 });
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [kycStatus, setKycStatus] = useState<KYCStatus>("none");
+  // TODO: revert to "none" after testing RSVP
+  const [kycStatus, setKycStatus] = useState<KYCStatus>("full");
   return (
     <UserContext.Provider value={{ kycStatus, setKycStatus }}>
       {children}
     </UserContext.Provider>
   );
 }
-
 export const useUserStore = () => useContext(UserContext);

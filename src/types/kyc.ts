@@ -10,10 +10,21 @@ export interface KycStatusData {
   chnVerified?: boolean;
 }
 
-export interface KycSubmitRequest {
+// Stepped KYC flow (backend split the old single submit into steps).
+export interface KycStep1Request {
   bvn: string;
-  nin: string;
+  firstName?: string;
+  lastName?: string;
+  dob?: string;
+}
+
+export interface KycStep2Request {
   chn: string;
+}
+
+export interface KycStep3Request {
+  selfieImage: string;
+  bvn: string;
 }
 
 export type KycStatusResponse = ApiResponse<KycStatusData>;
