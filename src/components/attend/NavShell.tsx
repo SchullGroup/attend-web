@@ -48,13 +48,12 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const displayEmail = currentUser?.email || "";
   const displayInitials = currentUser?.initials || initialsFor(displayName);
 
-  // TODO: revert after testing RSVP — KYC bypass
-  // const { data: kycData } = useGetKycStatus(hasToken);
-  // useEffect(() => {
-  //   if (kycData?.data?.kycStatus) {
-  //     setKycStatus(mapKycStatus(kycData.data.kycStatus));
-  //   }
-  // }, [kycData, setKycStatus]);
+  const { data: kycData } = useGetKycStatus(hasToken);
+  useEffect(() => {
+    if (kycData?.data?.kycStatus) {
+      setKycStatus(mapKycStatus(kycData.data.kycStatus));
+    }
+  }, [kycData, setKycStatus]);
 
   const { data: notifData } = useGetNotifications({ size: 1 }, hasToken);
   const unreadCount = notifData?.data?.unreadCount ?? 0;

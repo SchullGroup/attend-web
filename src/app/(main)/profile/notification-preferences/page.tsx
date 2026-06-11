@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, BellRing, Mail } from "lucide-react";
+import { ArrowLeft, BellRing, MessageSquare, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useGetNotificationPreferences,
@@ -10,22 +10,19 @@ import {
 import { NotificationPreferences } from "@/types";
 
 interface PrefRow {
-  key: keyof NotificationPreferences;
+  key: string;
   label: string;
   description: string;
   icon: typeof BellRing;
 }
 
-const EMAIL_ROWS: PrefRow[] = [
-  { key: "emailRsvpConfirmation", label: "RSVP confirmations", description: "When your event registration is confirmed.", icon: Mail },
-  { key: "emailEventReminder", label: "Event reminders", description: "Reminders before events you've registered for.", icon: Mail },
-  { key: "emailNewDocument", label: "New documents", description: "When a new document is shared with you.", icon: Mail },
-];
-
-const INAPP_ROWS: PrefRow[] = [
-  { key: "inAppRsvpConfirmation", label: "RSVP confirmations", description: "In-app alert when your registration is confirmed.", icon: BellRing },
-  { key: "inAppEventReminder", label: "Event reminders", description: "In-app reminders before your events.", icon: BellRing },
-  { key: "inAppNewDocument", label: "New documents", description: "In-app alert when a new document is shared.", icon: BellRing },
+// Design's channel model. Each channel is a master switch over the backend's
+// three notification types (RSVP confirmation, event reminder, new document):
+//   Email → email* fields, Push → inApp* fields, SMS → no backend field yet.
+const CHANNELS: PrefRow[] = [
+  { key: "push", label: "Push notifications", description: "On-device alerts for new activity.", icon: BellRing },
+  { key: "sms", label: "SMS", description: "Critical updates by text message.", icon: MessageSquare },
+  { key: "email", label: "Email", description: "Notices, agendas and receipts by email.", icon: Mail },
 ];
 
 const DEFAULT_PREFS: NotificationPreferences = {
@@ -41,13 +38,32 @@ export default function NotificationPreferencesPage() {
   const { data, isLoading } = useGetNotificationPreferences();
   const { mutate: savePreferences, isPending: saving } = useSaveNotificationPreferences();
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
+  const [sms, setSms] = useState(false); // no backend field yet
 
   useEffect(() => {
     if (data?.data) setPrefs(data.data);
   }, [data]);
 
-  function toggle(k: keyof NotificationPreferences) {
-    const next = { ...prefs, [k]: !prefs[k] };
+  const emailOn =
+    prefs.emailRsvpConfirmation && prefs.emailEventReminder && prefs.emailNewDocument;
+  const pushOn =
+    prefs.inAppRsvpConfirmation && prefs.inAppEventReminder && prefs.inAppNewDocument;
+
+  const channelState: Record<string, boolean> = { email: emailOn, push: pushOn, sms };
+
+  function toggle(key: string) {
+    if (key === "sms") {
+      setSms((v) => !v);
+      return;
+    }
+    let next = prefs;
+    if (key === "email") {
+      const v = !emailOn;
+      next = { ...prefs, emailRsvpConfirmation: v, emailEventReminder: v, emailNewDocument: v };
+    } else {
+      const v = !pushOn;
+      next = { ...prefs, inAppRsvpConfirmation: v, inAppEventReminder: v, inAppNewDocument: v };
+    }
     setPrefs(next);
     savePreferences(next);
   }
@@ -69,16 +85,9 @@ export default function NotificationPreferencesPage() {
       </header>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2].map((n) => (
-            <div key={n} className="h-40 animate-pulse rounded-2xl border border-border bg-muted" />
-          ))}
-        </div>
+        <div className="h-40 animate-pulse rounded-2xl border border-border bg-muted" />
       ) : (
-        <>
-          <Section title="Email notifications" rows={EMAIL_ROWS} prefs={prefs} toggle={toggle} />
-          <Section title="In-app notifications" rows={INAPP_ROWS} prefs={prefs} toggle={toggle} />
-        </>
+        <Section title="Delivery channels" rows={CHANNELS} prefs={channelState} toggle={toggle} />
       )}
     </div>
   );
@@ -92,8 +101,8 @@ function Section({
 }: {
   title: string;
   rows: PrefRow[];
-  prefs: NotificationPreferences;
-  toggle: (k: keyof NotificationPreferences) => void;
+  prefs: Record<string, boolean>;
+  toggle: (k: string) => void;
 }) {
   return (
     <section>
@@ -132,8 +141,8 @@ function Section({
               >
                 <span
                   className={cn(
-                    "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                    on ? "translate-x-5" : "translate-x-0.5",
+                    "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                    on ? "translate-x-5" : "translate-x-0",
                   )}
                 />
               </button>

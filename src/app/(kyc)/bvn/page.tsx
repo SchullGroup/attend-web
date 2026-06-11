@@ -26,11 +26,14 @@ export default function BvnPage() {
           router.push("/chn");
         },
         onError: (err: any) => {
-          setErrorMsg(
-            err?.response?.data?.message ||
-              err?.message ||
-              "We couldn't verify that BVN. Please check and try again.",
-          );
+          const msg = err?.response?.data?.message || err?.message || "";
+          // BVN already verified on this account — not an error; move on to CHN.
+          if (/already.*verif/i.test(msg)) {
+            sessionStorage.setItem("kyc_bvn", bvn);
+            router.push("/chn");
+            return;
+          }
+          setErrorMsg(msg || "We couldn't verify that BVN. Please check and try again.");
         },
       },
     );

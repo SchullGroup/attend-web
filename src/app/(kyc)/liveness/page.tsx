@@ -68,25 +68,22 @@ export default function LivenessPage() {
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        selfieImage = canvas.toDataURL("image/jpeg", 0.8);
+        // Send raw base64 (strip the "data:image/jpeg;base64," prefix) — the
+        // backend's liveness check expects the bare base64 string.
+        selfieImage = canvas.toDataURL("image/jpeg", 0.8).split(",")[1] ?? "";
       }
     }
     stopCamera();
 
-    const bvn = sessionStorage.getItem("kyc_bvn") || "";
-    if (!selfieImage || !bvn) {
-      setErrorMsg(
-        !bvn
-          ? "Your BVN session expired. Please restart verification from the BVN step."
-          : "We couldn't capture a clear image. Please try again.",
-      );
+    if (!selfieImage) {
+      setErrorMsg("We couldn't capture a clear image. Please try again.");
       setStage("idle");
       return;
     }
 
     setStage("verifying");
     submitStep3(
-      { selfieImage, bvn },
+      { selfieImage },
       {
         onSuccess: () => {
           sessionStorage.removeItem("kyc_bvn");

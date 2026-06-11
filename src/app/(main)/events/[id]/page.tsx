@@ -25,6 +25,7 @@ const SAVED_KEY = "attend_saved_events";
 const EVENT_TYPE_LABELS: Record<string, string> = {
   PRODUCT_LAUNCH: "Launch",
   GENERAL_EVENT: "General",
+  AGM_EGM: "AGM",
   AGM: "AGM",
   HACKATHON: "Hackathon",
   INNOVATION_CHALLENGE: "Innovation Challenge",
@@ -142,13 +143,13 @@ export default function EventDetailPage({
         style={{ background: bgColor }}
       >
         <div className="absolute -right-10 -bottom-12 select-none text-[180px] font-black leading-none text-white/10">
-          {initialsFor(event.organizerName)}
+          {initialsFor(event.registerName || event.organizerName)}
         </div>
         <div className="relative space-y-4">
           <ModuleBadge module={event.eventType} solid />
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-white/80">
-              {event.organizerName}
+              {event.registerName || event.organizerName}
             </p>
             <h1 className="text-2xl font-bold leading-tight md:text-3xl">{event.title}</h1>
           </div>
@@ -217,7 +218,12 @@ export default function EventDetailPage({
         <div className="flex flex-wrap gap-2">
           <Badge variant="muted">{fmtType(event.eventType)}</Badge>
           <Badge variant="muted">{fmtFormat(event.format)}</Badge>
-          {event.agmProxyEnabled && <Badge variant="default">Proxy voting enabled</Badge>}
+          {/* Proxy is only for in-person/hybrid meetings — virtual attendees just pre-vote. */}
+          {event.agmProxyEnabled && event.format !== "VIRTUAL" && (
+            <Link href={`/agm/proxy?eventId=${id}`}>
+              <Badge variant="default">Appoint proxy</Badge>
+            </Link>
+          )}
         </div>
       </section>
     </div>

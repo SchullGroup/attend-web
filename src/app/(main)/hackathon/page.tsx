@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, Trophy, CalendarDays, Users, ArrowRight, FolderOpen } from "lucide-react";
 import { MOCK_CHALLENGE } from "@/lib/mock-data";
 import { useGetChallenges } from "@/api/hackathon/hooks";
+import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/lib/utils";
@@ -38,11 +39,31 @@ const MOCK_CHALLENGES = [
   },
 ];
 
+const FORMAT_LABELS: Record<string, string> = {
+  IN_PERSON: "In-person",
+  VIRTUAL: "Virtual",
+  HYBRID: "Hybrid",
+};
+const fmtFormat = (f: string) => FORMAT_LABELS[f] ?? (f || "").replace(/_/g, "-");
+
 export default function HackathonPage() {
   const [q, setQ] = useState("");
-  const { data, isLoading, error } = useGetChallenges({ search: q || undefined });
-  const apiChallenges = data?.data?.events ?? [];
-  const usingMock = !isLoading && (!!error || apiChallenges.length === 0);
+  const { data, isLoading: chLoading } = useGetChallenges({ search: q || undefined });
+  const { data: evData, isLoading: evLoading } = useGetEvents({ search: q || undefined });
+
+  // Innovation events live in two places: the /challenges collection and the
+  // shared /events collection (typed HACKATHON / INNOVATION_CHALLENGE). Merge both,
+  // de-duplicated by id, so nothing is missed.
+  const challengeEvents = data?.data?.events ?? [];
+  const eventInnovation = (evData?.data?.events ?? []).filter(
+    (e) => e.eventType === "HACKATHON" || e.eventType === "INNOVATION_CHALLENGE",
+  );
+  const apiChallenges = Array.from(
+    new Map([...challengeEvents, ...eventInnovation].map((e) => [e.id, e])).values(),
+  );
+
+  const isLoading = chLoading || evLoading;
+  const usingMock = !isLoading && apiChallenges.length === 0;
 
   const mockVisible = MOCK_CHALLENGES.filter((c) =>
     q.trim() ? `${c.title} ${c.organiser}`.toLowerCase().includes(q.toLowerCase()) : true,
@@ -139,7 +160,7 @@ export default function HackathonPage() {
               <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-                    {c.organizerName}
+                    {c.registerName || c.organizerName}
                   </p>
                   <h2 className="mt-0.5 text-base font-semibold text-foreground md:text-lg">{c.title}</h2>
                   <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
@@ -147,7 +168,7 @@ export default function HackathonPage() {
                       <CalendarDays className="h-3.5 w-3.5" /> {formatDate(c.date)} · {c.startTime}
                     </span>
                     {c.venue && <span>{c.venue}</span>}
-                    <span className="capitalize">{c.format?.toLowerCase()}</span>
+                    <span>{fmtFormat(c.format)}</span>
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-2">

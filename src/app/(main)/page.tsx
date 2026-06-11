@@ -16,7 +16,7 @@ import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { MOCK_EVENTS } from "@/lib/mock-data";
 import { useUserStore } from "@/lib/user-store";
-import { cn, formatDate, greetingByHour, initialsFor } from "@/lib/utils";
+import { cn, formatDate, greetingByHour, initialsFor, formatEventFormat } from "@/lib/utils";
 
 const TILES = [
   {
@@ -92,7 +92,7 @@ function toHomeEvent(e: EventListItem): HomeEvent {
   return {
     id: e.id,
     module: e.eventType,
-    organiser: e.organizerName,
+    organiser: e.registerName || e.organizerName,
     title: e.title,
     date: e.date,
     format: e.format,
@@ -191,7 +191,7 @@ export default function HomePage() {
       {liveEvent && (
         <section>
           <Link
-            href={liveEvent.module === "AGM" ? `/agm/live?eventId=${liveEvent.id}` : `/events/${liveEvent.id}`}
+            href={(liveEvent.module === "AGM" || liveEvent.module === "AGM_EGM") ? `/agm/live?eventId=${liveEvent.id}` : `/events/${liveEvent.id}`}
             className="group block overflow-hidden rounded-2xl bg-[#1e293b] p-5 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
           >
             <div className="flex items-start justify-between gap-4">
@@ -201,7 +201,7 @@ export default function HomePage() {
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                     Live Now
                   </span>
-                  {liveEvent.module === "AGM" && (
+                  {(liveEvent.module === "AGM" || liveEvent.module === "AGM_EGM") && (
                     <span className="text-xs text-white/50">AGM · {liveEvent.organiser}</span>
                   )}
                 </div>
@@ -209,7 +209,7 @@ export default function HomePage() {
                   {liveEvent.title.split("—")[1]?.trim() ?? liveEvent.title}
                 </p>
                 <p className="mt-1 text-xs text-white/50">
-                  {liveEvent.module === "AGM" ? "Voting is open · Click to join and vote" : `${liveEvent.rsvpCount.toLocaleString()} watching`}
+                  {(liveEvent.module === "AGM" || liveEvent.module === "AGM_EGM") ? "Voting is open · Click to join and vote" : `${liveEvent.rsvpCount.toLocaleString()} watching`}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition-colors group-hover:bg-white/20">
@@ -364,7 +364,7 @@ export default function HomePage() {
                   {e.title}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDate(e.date)} · {e.format} · {e.startTime}
+                  {formatDate(e.date)} · {formatEventFormat(e.format)} · {e.startTime}
                 </p>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ModuleBadge } from "./ModuleBadge";
 import { Badge } from "@/components/ui/Badge";
-import { formatDate, initialsFor } from "@/lib/utils";
+import { formatDate, initialsFor, formatEventFormat } from "@/lib/utils";
 import { CalendarDays, Clock, MapPin, Users } from "lucide-react";
 
 export interface EventCardData {
@@ -102,7 +102,7 @@ export function EventCard({ event, href }: Props) {
           ) : event.rsvpStatus === "waitlisted" ? (
             <Badge variant="warning">Waitlisted</Badge>
           ) : (
-            <Badge variant="muted">{event.format}</Badge>
+            <Badge variant="muted">{formatEventFormat(event.format)}</Badge>
           )}
         </div>
       </div>

@@ -45,7 +45,7 @@ function LivePageInner() {
   const { data: eventResp } = useGetEvent(eventId);
   const event = eventResp?.data;
   const title = event?.title ?? "Annual General Meeting";
-  const organiser = event?.organizerName ?? "Shareholder Meeting";
+  const organiser = event?.registerName || event?.organizerName || "Shareholder Meeting";
   const watching = event?.registeredCount ?? 0;
 
   const { data: resData } = useGetResolutions(eventId);

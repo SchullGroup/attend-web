@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import { useAssignProxy, useGetProxy } from "@/api/agm/hooks";
+import { useGetEvent } from "@/api/events/hooks";
 
 type ProxyType = "chairman" | "named";
 const CHAIRMAN_NAME = "Chairman of the Meeting";
@@ -24,6 +25,8 @@ function ProxyPageInner() {
 
   const { data: existingProxy } = useGetProxy(eventId);
   const { mutate: assignProxy, isPending } = useAssignProxy(eventId);
+  const { data: eventData } = useGetEvent(eventId);
+  const isVirtual = eventData?.data?.format === "VIRTUAL";
 
   useEffect(() => {
     if (!eventId) router.replace("/agm");
@@ -47,6 +50,24 @@ function ProxyPageInner() {
           err?.response?.data?.message || err?.message || "Failed to assign proxy.",
         ),
     });
+  }
+
+  // Proxy voting is only for in-person/hybrid meetings — block it for virtual.
+  if (isVirtual) {
+    return (
+      <div className="space-y-6">
+        <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back to AGMs
+        </Link>
+        <div className="mx-auto max-w-md rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-foreground">Proxy not needed for virtual meetings</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This is a virtual meeting — you can attend and vote yourself, or cast your
+            votes early. Appointing a proxy is only for in-person meetings.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

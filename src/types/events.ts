@@ -12,6 +12,8 @@ export interface EventListItem {
   streamUrl: string;
   organizerName: string;
   organizerLogo: string;
+  registerId?: string;
+  registerName?: string;
   maximumCapacity: number;
   rsvpEnabled?: boolean;
   registered: boolean;
@@ -31,6 +33,8 @@ export interface EventDetail {
   organizerName: string;
   organizerLogo: string;
   organizerPrimaryColor: string;
+  registerId?: string;
+  registerName?: string;
   maximumCapacity: number;
   registeredCount: number;
   registered: boolean;

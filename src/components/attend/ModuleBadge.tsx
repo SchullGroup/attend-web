@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 
 const config: Record<string, { label: string; bg: string; color: string }> = {
   // backend enum values
+  AGM_EGM: { label: "AGM", bg: "#eff6ff", color: "#1e40af" },
   AGM: { label: "AGM", bg: "#eff6ff", color: "#1e40af" },
   PRODUCT_LAUNCH: { label: "Launch", bg: "#fff4eb", color: "#ea6c00" },
   HACKATHON: { label: "Innovation Challenge", bg: "#f8f0ff", color: "#7c22c9" },

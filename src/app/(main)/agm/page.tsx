@@ -32,8 +32,10 @@ function mockToListItem(e: (typeof MOCK_EVENTS)[0]): EventListItem {
 const fmtFormat = (f: string) => (f || "").toLowerCase().replace(/_/g, "-");
 
 export default function AgmPage() {
-  const { data, isLoading, error } = useGetEvents({ eventType: "AGM", size: 50 });
-  const apiAgms = data?.data?.events ?? [];
+  // Backend event type for AGMs/EGMs is "AGM_EGM" (not "AGM"). Filter defensively
+  // too, in case the backend returns mixed types for an unrecognised value.
+  const { data, isLoading, error } = useGetEvents({ eventType: "AGM_EGM", size: 50 });
+  const apiAgms = (data?.data?.events ?? []).filter((e) => e.eventType === "AGM_EGM");
   const usingMock = !isLoading && (!!error || apiAgms.length === 0);
   const agms = usingMock
     ? MOCK_EVENTS.filter((e) => e.module === "AGM").map(mockToListItem)
@@ -123,7 +125,7 @@ function AgmCard({ event: e }: { event: EventListItem }) {
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {e.organizerName}
+                {e.registerName || e.organizerName}
               </p>
               <h2 className="text-base font-semibold leading-snug text-foreground md:text-lg">
                 {e.title}

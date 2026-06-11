@@ -10,7 +10,9 @@ export function mapKycStatus(apiStatus: KycStatusValue | string): KYCStatus {
     case "BASIC_KYC":
       return "basic";
     case "PENDING":
+    case "PENDING_REVIEW":
       return "pending";
+    // NO_KYC, REJECTED, or anything unknown → treat as not verified
     default:
       return "none";
   }
@@ -26,8 +28,7 @@ const UserContext = createContext<UserStore>({
 });
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  // TODO: revert to "none" after testing RSVP
-  const [kycStatus, setKycStatus] = useState<KYCStatus>("full");
+  const [kycStatus, setKycStatus] = useState<KYCStatus>("none");
   return (
     <UserContext.Provider value={{ kycStatus, setKycStatus }}>
       {children}

@@ -44,7 +44,7 @@ export default function MyEventsPage() {
       }))
     : apiEvents.map((e: EventListItem) => ({
         id: e.id,
-        organiser: e.organizerName,
+        organiser: e.registerName || e.organizerName,
         title: e.title,
         date: e.date,
         format: fmtFormat(e.format),
