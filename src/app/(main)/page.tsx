@@ -71,11 +71,6 @@ const EVENT_COLOR: Record<string, string> = {
   GENERAL: "#2563eb",
 };
 
-// Featured carousel stays a curated mock showcase (design intent).
-const carouselEvents = MOCK_EVENTS.filter(
-  (e) => e.module === "LAUNCH" || e.module === "HACKATHON"
-);
-
 // Normalise an API event into the shape the design JSX consumes.
 interface HomeEvent {
   id: string;
@@ -87,6 +82,7 @@ interface HomeEvent {
   startTime: string;
   rsvpCount: number;
   thumbnailColor: string;
+  rsvpStatus?: boolean;
 }
 function toHomeEvent(e: EventListItem): HomeEvent {
   return {
@@ -99,6 +95,7 @@ function toHomeEvent(e: EventListItem): HomeEvent {
     startTime: e.startTime,
     rsvpCount: e.maximumCapacity || 0,
     thumbnailColor: EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb",
+    rsvpStatus: e.registered,
   };
 }
 
@@ -126,6 +123,13 @@ export default function HomePage() {
     ? (MOCK_EVENTS.filter((e) => e.status === "upcoming").slice(0, 4) as unknown as HomeEvent[])
     : apiEvents.filter((e) => e.status === "PUBLISHED").slice(0, 4).map(toHomeEvent);
 
+  // Featured events come straight from the endpoint (admin marks an event
+  // featured → EventItem.featured === true). No mock fallback.
+  const carouselEvents: HomeEvent[] = apiEvents
+    .filter((e) => e.featured)
+    .slice(0, 5)
+    .map(toHomeEvent);
+
   const [activeSlide, setActiveSlide] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -135,7 +139,7 @@ export default function HomePage() {
       setActiveSlide((prev) => (prev + 1) % carouselEvents.length);
     }, 4000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+  }, [carouselEvents.length]);
 
   return (
     <div className="space-y-8">
@@ -156,7 +160,7 @@ export default function HomePage() {
                 {firstName}
               </h1>
               <p className="mt-0.5 text-xs text-white/70">
-                {me?.role ? `${me.role} · ` : ""}Shareholder
+                {me?.role || "Member"}
               </p>
             </div>
           </div>
@@ -253,6 +257,7 @@ export default function HomePage() {
       </section>
 
       {/* Featured Events Carousel */}
+      {carouselEvents.length > 0 && (
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -335,6 +340,7 @@ export default function HomePage() {
           </div>
         )}
       </section>
+      )}
 
       {/* Upcoming */}
       <section>

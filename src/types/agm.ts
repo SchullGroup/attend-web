@@ -6,10 +6,16 @@ export interface Resolution {
   title: string;
   description: string;
   specialResolution: boolean;
+  status: string; // PENDING | OPEN | CLOSED
   myVote: string | null;
+  votingDeadline: string | null;
+  secondsRemaining: number;
   forCount: number;
   againstCount: number;
   abstainCount: number;
+  forShares: number;
+  againstShares: number;
+  abstainShares: number;
 }
 
 export interface ResolutionsData {

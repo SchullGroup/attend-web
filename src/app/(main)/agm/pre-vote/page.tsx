@@ -195,10 +195,13 @@ function ResolutionCard({
 }
 
 function VotedCard({ resolution: r }: { resolution: Resolution }) {
-  const total = r.forCount + r.againstCount + r.abstainCount;
-  const forPct = total ? Math.round((r.forCount / total) * 100) : 0;
-  const againstPct = total ? Math.round((r.againstCount / total) * 100) : 0;
-  const abstainPct = total ? 100 - forPct - againstPct : 0;
+  const totalCount = r.forCount + r.againstCount + r.abstainCount;
+  const totalShares = r.forShares + r.againstShares + r.abstainShares;
+  // AGM votes are weighted by shareholding — use shares when available, else heads.
+  const byShares = totalShares > 0;
+  const denom = byShares ? totalShares : totalCount;
+  const pct = (shares: number, count: number) =>
+    denom ? Math.round(((byShares ? shares : count) / denom) * 100) : 0;
 
   return (
     <article className="rounded-2xl border border-border bg-white p-5">
@@ -211,23 +214,25 @@ function VotedCard({ resolution: r }: { resolution: Resolution }) {
         </div>
         <Badge variant="success">Voted {r.myVote}</Badge>
       </div>
-      {total > 0 && (
+      {totalCount > 0 && (
         <div className="space-y-2">
-          <Bar label="For" value={forPct} color="bg-emerald-500" count={r.forCount} />
-          <Bar label="Against" value={againstPct} color="bg-red-500" count={r.againstCount} />
-          <Bar label="Abstain" value={abstainPct} color="bg-slate-400" count={r.abstainCount} />
+          <Bar label="For" value={pct(r.forShares, r.forCount)} color="bg-emerald-500" count={r.forCount} shares={r.forShares} />
+          <Bar label="Against" value={pct(r.againstShares, r.againstCount)} color="bg-red-500" count={r.againstCount} shares={r.againstShares} />
+          <Bar label="Abstain" value={pct(r.abstainShares, r.abstainCount)} color="bg-slate-400" count={r.abstainCount} shares={r.abstainShares} />
         </div>
       )}
     </article>
   );
 }
 
-function Bar({ label, value, color, count }: { label: string; value: number; color: string; count: number }) {
+function Bar({ label, value, color, count, shares }: { label: string; value: number; color: string; count: number; shares: number }) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
         <span className="font-medium text-foreground">{label}</span>
-        <span className="text-muted-foreground">{count.toLocaleString()} · {value}%</span>
+        <span className="text-muted-foreground">
+          {count.toLocaleString()}{shares > 0 ? ` · ${shares.toLocaleString()} shares` : ""} · {value}%
+        </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
         <div className={`${color} h-full rounded-full`} style={{ width: `${value}%` }} />

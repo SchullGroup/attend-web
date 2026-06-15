@@ -16,6 +16,7 @@ export interface EventListItem {
   registerName?: string;
   maximumCapacity: number;
   rsvpEnabled?: boolean;
+  featured?: boolean;
   registered: boolean;
 }
 

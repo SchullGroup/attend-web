@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -25,11 +25,10 @@ import {
 } from "@/api/agm/hooks";
 import { Button } from "@/components/ui/Button";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { Resolution } from "@/types";
 
 type Tab = "qa" | "ballot";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
-
-const COUNTDOWN_DURATION = 45;
 
 // Fallback sample Q&A shown when the meeting has no submitted questions yet.
 const MOCK_QA_QUESTIONS = [
@@ -48,13 +47,17 @@ function LivePageInner() {
   const organiser = event?.registerName || event?.organizerName || "Shareholder Meeting";
   const watching = event?.registeredCount ?? 0;
 
-  const { data: resData } = useGetResolutions(eventId);
+  // Poll every 5s so the countdown and tallies stay live during the meeting.
+  const { data: resData } = useGetResolutions(eventId, 5000);
   const { mutate: castVote, isPending: voting } = useCastVote(eventId);
 
   const resolutions = resData?.data?.resolutions ?? [];
-  const votingOpen = resData?.data?.votingOpen ?? false;
-  // Design shows one resolution at a time: the next one this user hasn't voted on.
-  const openRes = votingOpen ? resolutions.find((r) => !r.myVote) : undefined;
+  // The resolution the admin has opened for voting is the one with time left.
+  const openRes = resolutions.find((r) => r.secondsRemaining > 0);
+  // Resolutions that have closed and have a result to show.
+  const closedRes = resolutions.filter(
+    (r) => r.secondsRemaining <= 0 && r.forCount + r.againstCount + r.abstainCount > 0,
+  );
 
   const { data: qData } = useGetQuestions(eventId);
   const { mutate: submitQuestion, isPending: submittingQ } = useSubmitQuestion(eventId);
@@ -80,19 +83,25 @@ function LivePageInner() {
   const [userQuestion, setUserQuestion] = useState("");
   const [videoHidden, setVideoHidden] = useState(false);
 
-  // Decorative countdown — voting actually gates on the API `votingOpen` flag.
-  const countdownEndsAt = useRef<number>(Date.now() + COUNTDOWN_DURATION * 1000);
-  const [countdown, setCountdown] = useState(COUNTDOWN_DURATION);
-
+  // Real countdown: re-sync to the open resolution's secondsRemaining on every
+  // poll, tick down locally in between.
+  const [countdown, setCountdown] = useState(0);
   useEffect(() => {
-    if (!votingOpen) return;
-    const t = setInterval(() => {
-      const remaining = Math.max(0, Math.round((countdownEndsAt.current - Date.now()) / 1000));
-      setCountdown(remaining);
-      if (remaining <= 0) clearInterval(t);
-    }, 1000);
+    if (!openRes) {
+      setCountdown(0);
+      return;
+    }
+    setCountdown(openRes.secondsRemaining);
+    const t = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
     return () => clearInterval(t);
-  }, [votingOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRes?.id, openRes?.secondsRemaining]);
+
+  // Pre-select the user's existing vote so they can review/change it in the window.
+  useEffect(() => {
+    setVote((openRes?.myVote as VoteChoice | null) ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRes?.id]);
 
   function sendQuestion(e: React.FormEvent) {
     e.preventDefault();
@@ -208,8 +217,8 @@ function LivePageInner() {
             </div>
           )}
 
-          {/* Countdown strip (decorative) */}
-          {votingOpen && openRes && (
+          {/* Countdown strip — driven by the open resolution's secondsRemaining */}
+          {openRes && (
             <div
               className={cn(
                 "mt-2 flex items-center gap-2 rounded-xl px-4 py-2.5 transition-colors",
@@ -237,7 +246,7 @@ function LivePageInner() {
             </div>
             <div className="rounded-xl border border-border bg-white p-3 text-center">
               <p className="text-xs text-muted-foreground">Status</p>
-              <p className="text-base font-semibold text-foreground">{votingOpen ? "Open" : "Closed"}</p>
+              <p className="text-base font-semibold text-foreground">{openRes ? "Open" : "Closed"}</p>
             </div>
           </div>
         </div>
@@ -323,17 +332,7 @@ function LivePageInner() {
               )}
 
               {tab === "ballot" &&
-                (!votingOpen ? (
-                  <div className="py-8 text-center text-sm text-muted-foreground">
-                    Voting is not currently open.
-                  </div>
-                ) : !openRes ? (
-                  <div className="rounded-xl bg-muted py-6 text-center">
-                    <p className="text-sm font-semibold text-muted-foreground">
-                      You&apos;ve voted on all open resolutions.
-                    </p>
-                  </div>
-                ) : (
+                (openRes ? (
                   <div className="space-y-4">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
@@ -396,12 +395,58 @@ function LivePageInner() {
                       {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
                     </Button>
                   </div>
+                ) : closedRes.length > 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Results
+                    </p>
+                    {closedRes.map((r) => (
+                      <ResolutionResult key={r.id} r={r} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    Voting is not currently open.
+                  </div>
                 ))}
             </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function ResolutionResult({ r }: { r: Resolution }) {
+  const totalShares = r.forShares + r.againstShares + r.abstainShares;
+  const pct = (s: number) => (totalShares ? Math.round((s / totalShares) * 100) : 0);
+  const rows = [
+    { label: "For", count: r.forCount, shares: r.forShares, color: "bg-emerald-500" },
+    { label: "Against", count: r.againstCount, shares: r.againstShares, color: "bg-red-500" },
+    { label: "Abstain", count: r.abstainCount, shares: r.abstainShares, color: "bg-slate-400" },
+  ];
+  return (
+    <article className="rounded-xl border border-border bg-white p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Resolution {r.order + 1}
+      </p>
+      <h4 className="text-sm font-semibold text-foreground">{r.title}</h4>
+      <div className="mt-2 space-y-1.5">
+        {rows.map((row) => (
+          <div key={row.label}>
+            <div className="mb-0.5 flex items-center justify-between text-[11px]">
+              <span className="font-medium text-foreground">{row.label}</span>
+              <span className="text-muted-foreground">
+                {row.count} · {row.shares.toLocaleString()} shares · {pct(row.shares)}%
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className={`${row.color} h-full`} style={{ width: `${pct(row.shares)}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }
 
@@ -412,3 +457,4 @@ export default function LivePage() {
     </Suspense>
   );
 }
+

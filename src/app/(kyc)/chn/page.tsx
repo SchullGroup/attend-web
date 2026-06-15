@@ -24,11 +24,13 @@ export default function ChnPage() {
   }, [router]);
 
   function handleError(err: any) {
-    setErrorMsg(
-      err?.response?.data?.message ||
-        err?.message ||
-        "Submission failed. Please check your details and try again.",
-    );
+    const msg = err?.response?.data?.message || err?.message || "";
+    // CHN already on file — not an error; continue to the liveness step.
+    if (/already.*(submitted|verif)/i.test(msg)) {
+      router.push("/liveness");
+      return;
+    }
+    setErrorMsg(msg || "Submission failed. Please check your details and try again.");
   }
 
   function onSubmit(e: React.FormEvent) {

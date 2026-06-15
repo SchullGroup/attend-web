@@ -31,7 +31,9 @@ function ReceiptInner() {
 
   const { data, isLoading } = useGetVoteReceipt(eventId);
   const receipt = data?.data;
-  const usingMock = !eventId || (!isLoading && !receipt);
+  // Real branch dereferences `receipt`, so only leave mock when it's actually
+  // present (covers the loading race + empty/error responses).
+  const usingMock = !eventId || !receipt;
 
   const view = usingMock
     ? MOCK_RECEIPT

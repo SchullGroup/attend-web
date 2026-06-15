@@ -2,8 +2,6 @@
 import Link from "next/link";
 import { ArrowLeft, Download, FileText, FileBarChart2, FileCheck2, FileSignature } from "lucide-react";
 import { useGetDocuments } from "@/api/documents/hooks";
-import { MOCK_DOCUMENTS } from "@/lib/mock-data";
-import { formatDate } from "@/lib/utils";
 
 const TYPE_META: Record<string, { Icon: typeof FileText; bg: string; color: string; label: string }> = {
   notice: { Icon: FileText, bg: "bg-blue-50", color: "text-blue-700", label: "Notice" },
@@ -21,25 +19,16 @@ interface DocRow {
 }
 
 export default function DocumentsPage() {
-  const { data, isLoading, error } = useGetDocuments();
+  const { data, isLoading } = useGetDocuments();
   const apiDocs = data?.data?.documents ?? [];
-  const usingMock = !isLoading && (!!error || apiDocs.length === 0);
 
-  const docs: DocRow[] = usingMock
-    ? MOCK_DOCUMENTS.map((d) => ({
-        id: d.id,
-        typeKey: d.type,
-        title: d.title,
-        meta: `${d.fileSize} · ${formatDate(d.uploadedAt)}`,
-        eventTitle: d.eventTitle,
-      }))
-    : apiDocs.map((d) => ({
-        id: d.id,
-        typeKey: (d.documentType || "").toLowerCase(),
-        title: d.title,
-        meta: d.downloadCount > 0 ? `${d.sizeLabel} · ${d.downloadCount} downloads` : d.sizeLabel,
-        eventTitle: d.eventTitle,
-      }));
+  const docs: DocRow[] = apiDocs.map((d) => ({
+    id: d.id,
+    typeKey: (d.documentType || "").toLowerCase(),
+    title: d.title,
+    meta: d.downloadCount > 0 ? `${d.sizeLabel} · ${d.downloadCount} downloads` : d.sizeLabel,
+    eventTitle: d.eventTitle,
+  }));
 
   return (
     <div className="space-y-6">
@@ -54,11 +43,6 @@ export default function DocumentsPage() {
             Notices, agendas, reports and proxy forms attached to your events.
           </p>
         </div>
-        {usingMock && (
-          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            Demo data
-          </span>
-        )}
       </header>
 
       {isLoading ? (

@@ -15,25 +15,28 @@ import {
 import { cn, initialsFor } from "@/lib/utils";
 import { useGetMe, useLogout } from "@/api/auth/hooks";
 import { useGetKycStatus } from "@/api/kyc/hooks";
+import { useGetEvent } from "@/api/events/hooks";
 import { useGetNotifications } from "@/api/notifications/hooks";
 import { useUserStore, mapKycStatus } from "@/lib/user-store";
 import Cookies from "js-cookie";
 import { MOCK_EVENTS } from "@/lib/mock-data";
 
-// Resolve the module of an /events/[id] detail page so the correct sidebar tab
-// stays active. Covers demo events (MOCK_EVENTS); real API events fall through to
-// Launches until we wire the live event type into the nav.
-function eventModule(pathname: string) {
-  const id = pathname.match(/^\/events\/([^/]+)/)?.[1];
-  return id ? MOCK_EVENTS.find((e) => e.id === id)?.module : undefined;
+// Extract the event id from an /events/[id] detail path so the nav can look up
+// that event's type and keep the right tab active.
+function eventDetailId(pathname: string) {
+  return pathname.match(/^\/events\/([^/]+)/)?.[1] ?? "";
 }
+const isAgm = (m?: string) => m === "AGM" || m === "AGM_EGM";
+const isInnovation = (m?: string) => m === "HACKATHON" || m === "INNOVATION_CHALLENGE";
 
+// `m` is the type of the event currently being viewed (if on /events/[id]), so
+// AGM / Innovation detail pages highlight the correct tab instead of Launches.
 const NAV = [
-  { label: "Home", href: "/", icon: House, match: (p: string) => p === "/" },
-  { label: "AGM", href: "/agm", icon: Building2, match: (p: string) => p.startsWith("/agm") || eventModule(p) === "AGM" },
-  { label: "Innovation", href: "/hackathon", icon: Lightbulb, match: (p: string) => p.startsWith("/hackathon") || eventModule(p) === "HACKATHON" },
-  { label: "Launches", href: "/events", icon: Rocket, match: (p: string) => p.startsWith("/events") && !["AGM", "HACKATHON"].includes(eventModule(p) ?? "") },
-  { label: "Profile", href: "/profile", icon: UserIcon, match: (p: string) => p.startsWith("/profile") },
+  { label: "Home", href: "/", icon: House, match: (p: string, m?: string) => p === "/" },
+  { label: "AGM", href: "/agm", icon: Building2, match: (p: string, m?: string) => p.startsWith("/agm") || isAgm(m) },
+  { label: "Innovation", href: "/hackathon", icon: Lightbulb, match: (p: string, m?: string) => p.startsWith("/hackathon") || isInnovation(m) },
+  { label: "Launches", href: "/events", icon: Rocket, match: (p: string, m?: string) => p.startsWith("/events") && !isAgm(m) && !isInnovation(m) },
+  { label: "Profile", href: "/profile", icon: UserIcon, match: (p: string, m?: string) => p.startsWith("/profile") },
 ];
 
 export function NavShell({ children }: { children: React.ReactNode }) {
@@ -58,6 +61,13 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const { data: notifData } = useGetNotifications({ size: 1 }, hasToken);
   const unreadCount = notifData?.data?.unreadCount ?? 0;
 
+  // Resolve the type of the event being viewed (real API event, falling back to
+  // demo events) so an /events/[id] page highlights the correct tab.
+  const detailId = eventDetailId(pathname);
+  const { data: eventDetail } = useGetEvent(detailId);
+  const currentModule =
+    eventDetail?.data?.eventType ?? MOCK_EVENTS.find((e) => e.id === detailId)?.module;
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Sidebar (desktop) */}
@@ -67,7 +77,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
           {NAV.map((item) => {
-            const active = item.match(pathname);
+            const active = item.match(pathname, currentModule);
             const Icon = item.icon;
             return (
               <Link
@@ -161,7 +171,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 backdrop-blur md:hidden">
         <ul className="flex items-center justify-around px-2 py-2">
           {NAV.map((item) => {
-            const active = item.match(pathname);
+            const active = item.match(pathname, currentModule);
             const Icon = item.icon;
             return (
               <li key={item.href}>

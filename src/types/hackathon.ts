@@ -68,6 +68,7 @@ export interface ChallengeDetailData {
   organizerName: string;
   registered: boolean;
   resourceCount: number;
+  tracks?: string[];
   myTeam: ChallengeMyTeamSummary | null;
 }
 
