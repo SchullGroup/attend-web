@@ -1,7 +1,8 @@
 "use client";
 import { createContext, useContext, useState } from "react";
-import { KYCStatus } from "./mock-data";
 import { KycStatusValue } from "@/types";
+
+export type KYCStatus = "none" | "basic" | "full" | "pending";
 
 export function mapKycStatus(apiStatus: KycStatusValue | string): KYCStatus {
   switch (apiStatus) {

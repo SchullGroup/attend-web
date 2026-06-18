@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, FileText, PlayCircle, ExternalLink } from "lucide-react";
 import { useGetResources } from "@/api/hackathon/hooks";
-import { MOCK_RESOURCES } from "@/lib/mock-data";
 
 interface ResourceRow {
   id: string;
@@ -16,25 +15,16 @@ interface ResourceRow {
 
 function ResourcesInner() {
   const challengeId = useSearchParams().get("challengeId") ?? "";
-  const { data, isLoading, error } = useGetResources(challengeId);
+  const { data, isLoading } = useGetResources(challengeId);
   const apiResources = data?.data ?? [];
-  const usingMock = !challengeId || (!isLoading && (!!error || apiResources.length === 0));
 
-  const resources: ResourceRow[] = usingMock
-    ? MOCK_RESOURCES.map((r) => ({
-        id: r.id,
-        isVideo: r.type === "video",
-        title: r.title,
-        description: r.description,
-        url: r.url,
-      }))
-    : apiResources.map((r) => ({
-        id: r.id,
-        isVideo: `${r.resourceType} ${r.fileType}`.toLowerCase().includes("video"),
-        title: r.title,
-        description: r.description,
-        url: r.url,
-      }));
+  const resources: ResourceRow[] = apiResources.map((r) => ({
+    id: r.id,
+    isVideo: `${r.resourceType} ${r.fileType}`.toLowerCase().includes("video"),
+    title: r.title,
+    description: r.description,
+    url: r.url,
+  }));
 
   return (
     <div className="space-y-6">
@@ -42,18 +32,11 @@ function ResourcesInner() {
         <ArrowLeft className="h-4 w-4" /> Back to Innovation
       </Link>
 
-      <header className="flex flex-wrap items-center gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Hackathon resources</h1>
-          <p className="text-sm text-muted-foreground">
-            Documentation, sample code, mentor sessions and submission templates.
-          </p>
-        </div>
-        {usingMock && (
-          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            Demo data
-          </span>
-        )}
+      <header>
+        <h1 className="text-2xl font-bold text-foreground">Hackathon resources</h1>
+        <p className="text-sm text-muted-foreground">
+          Documentation, sample code, mentor sessions and submission templates.
+        </p>
       </header>
 
       {isLoading ? (

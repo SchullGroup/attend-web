@@ -30,13 +30,6 @@ import { Resolution } from "@/types";
 type Tab = "qa" | "ballot";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
 
-// Fallback sample Q&A shown when the meeting has no submitted questions yet.
-const MOCK_QA_QUESTIONS = [
-  { id: "q1", who: "Adaeze N.", time: "10:12 AM", text: "Will the final dividend be paid in cash or scrip, and what is the expected payment timeline?", answered: true },
-  { id: "q2", who: "Femi A.", time: "10:18 AM", text: "What is management's outlook on FX volatility for H2 2026, and how is the bank hedging its dollar-denominated liabilities?", answered: false },
-  { id: "q3", who: "Chidi O.", time: "10:25 AM", text: "Can the board comment on the revenue contribution of the digital banking subsidiary to the group?", answered: false },
-];
-
 function LivePageInner() {
   const searchParams = useSearchParams();
   const eventId = searchParams.get("eventId") ?? "";
@@ -62,17 +55,14 @@ function LivePageInner() {
   const { data: qData } = useGetQuestions(eventId);
   const { mutate: submitQuestion, isPending: submittingQ } = useSubmitQuestion(eventId);
   const apiQuestions = qData?.data?.questions ?? [];
-  const usingMockQA = apiQuestions.length === 0;
-  const qaItems = usingMockQA
-    ? MOCK_QA_QUESTIONS.map((m) => ({ ...m, answer: "" }))
-    : apiQuestions.map((x) => ({
-        id: x.id,
-        who: x.anonymous ? "Anonymous" : x.askerName || "Participant",
-        time: x.submittedAt ? formatRelativeTime(x.submittedAt) : "",
-        text: x.content,
-        answered: !!x.answer || (x.status || "").toUpperCase() === "ANSWERED",
-        answer: x.answer || "",
-      }));
+  const qaItems = apiQuestions.map((x) => ({
+    id: x.id,
+    who: x.anonymous ? "Anonymous" : x.askerName || "Participant",
+    time: x.submittedAt ? formatRelativeTime(x.submittedAt) : "",
+    text: x.content,
+    answered: !!x.answer || (x.status || "").toUpperCase() === "ANSWERED",
+    answer: x.answer || "",
+  }));
 
   const [tab, setTab] = useState<Tab>("ballot");
   const [vote, setVote] = useState<VoteChoice | null>(null);
@@ -301,7 +291,7 @@ function LivePageInner() {
                         )}
                       </li>
                     ))}
-                    {qSent && usingMockQA && (
+                    {qSent && (
                       <li className="rounded-xl border border-primary/20 bg-primary/5 p-3">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <p className="text-xs font-semibold text-primary">You</p>

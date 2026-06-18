@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Search, Image as ImageIcon, Archive } from "lucide-react";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
-import { MOCK_EVENTS } from "@/lib/mock-data";
 import { EventCard, EventCardData } from "@/components/attend/EventCard";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -45,36 +44,11 @@ export default function EventsPage() {
   const [query, setQuery] = useState("");
   const [fmt, setFmt] = useState<Format>("All");
 
-  const { data, isLoading, error } = useGetEvents({ search: query || undefined });
+  const { data, isLoading } = useGetEvents({ search: query || undefined });
   const apiEvents = data?.data?.events ?? [];
-  const usingMock = !isLoading && (!!error || apiEvents.length === 0);
 
   const visible = useMemo((): EventCardData[] => {
     const fmtKey = norm(fmt);
-    if (usingMock) {
-      return MOCK_EVENTS.filter((e) => e.module === "LAUNCH" || e.module === "GENERAL")
-        .filter((e) => (fmt === "All" ? true : norm(e.format) === fmtKey))
-        .filter((e) =>
-          query.trim()
-            ? `${e.title} ${e.organiser}`.toLowerCase().includes(query.toLowerCase())
-            : true,
-        )
-        .map((e) => ({
-          id: e.id,
-          title: e.title,
-          organiser: e.organiser,
-          module: e.module,
-          thumbnailColor: e.thumbnailColor,
-          status: e.status,
-          date: e.date,
-          startTime: e.startTime,
-          endTime: e.endTime,
-          venue: e.venue,
-          rsvpCount: e.rsvpCount,
-          rsvpStatus: e.rsvpStatus,
-          format: e.format,
-        }));
-    }
     return apiEvents
       .filter(
         (e) =>
@@ -85,23 +59,16 @@ export default function EventsPage() {
       )
       .filter((e) => (fmt === "All" ? true : norm(e.format) === fmtKey))
       .map(apiToCard);
-  }, [apiEvents, usingMock, fmt, query]);
+  }, [apiEvents, fmt, query]);
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Launches & Events</h1>
-            <p className="text-sm text-muted-foreground">
-              Product reveals, conferences and roundtables.
-            </p>
-          </div>
-          {usingMock && (
-            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-              Demo data
-            </span>
-          )}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Launches & Events</h1>
+          <p className="text-sm text-muted-foreground">
+            Product reveals, conferences and roundtables.
+          </p>
         </div>
         <div className="flex gap-2">
           <Link href="/events/gallery">

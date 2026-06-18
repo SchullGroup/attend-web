@@ -2,44 +2,21 @@
 import Link from "next/link";
 import {
   Building2, CalendarDays, MapPin,
-  Users, XCircle, Vote, ChevronRight,
+  Users, XCircle, Vote, ChevronRight, UserCheck,
 } from "lucide-react";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
-import { MOCK_EVENTS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
-
-function mockToListItem(e: (typeof MOCK_EVENTS)[0]): EventListItem {
-  return {
-    id: e.id,
-    title: e.title,
-    eventType: e.module,
-    format: e.format,
-    status: e.status.toUpperCase(),
-    date: e.date,
-    startTime: e.startTime,
-    venue: e.venue || "",
-    streamUrl: "",
-    organizerName: e.organiser,
-    organizerLogo: "",
-    maximumCapacity: e.capacity || 0,
-    registered: e.rsvpStatus === "confirmed",
-  };
-}
 
 const fmtFormat = (f: string) => (f || "").toLowerCase().replace(/_/g, "-");
 
 export default function AgmPage() {
   // Backend event type for AGMs/EGMs is "AGM_EGM" (not "AGM"). Filter defensively
   // too, in case the backend returns mixed types for an unrecognised value.
-  const { data, isLoading, error } = useGetEvents({ eventType: "AGM_EGM", size: 50 });
-  const apiAgms = (data?.data?.events ?? []).filter((e) => e.eventType === "AGM_EGM");
-  const usingMock = !isLoading && (!!error || apiAgms.length === 0);
-  const agms = usingMock
-    ? MOCK_EVENTS.filter((e) => e.module === "AGM").map(mockToListItem)
-    : apiAgms;
+  const { data, isLoading } = useGetEvents({ eventType: "AGM_EGM", size: 50 });
+  const agms = (data?.data?.events ?? []).filter((e) => e.eventType === "AGM_EGM");
 
   const upcoming = agms.filter((e) => e.status !== "ENDED" && e.status !== "CANCELLED");
   const past = agms.filter((e) => e.status === "ENDED");
@@ -54,11 +31,6 @@ export default function AgmPage() {
               All upcoming AGMs on the Attend platform.
             </p>
           </div>
-          {usingMock && (
-            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-              Demo data
-            </span>
-          )}
         </div>
         <Link href="/agm/receipt">
           <Button variant="outline" size="sm">My receipts</Button>
@@ -169,6 +141,13 @@ function AgmCard({ event: e }: { event: EventListItem }) {
           <div className="pt-1">
             {registered ? (
               <div className="flex gap-2">
+                {e.format !== "VIRTUAL" && (
+                  <Link href={`/agm/proxy?eventId=${e.id}`}>
+                    <Button size="sm" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
+                      <UserCheck className="h-3.5 w-3.5 mr-1.5" /> Proxy
+                    </Button>
+                  </Link>
+                )}
                 <Link href={`/agm/pre-vote?eventId=${e.id}`}>
                   <Button size="sm" className="flex-1 bg-slate-900 text-white hover:bg-slate-800 border-0">
                     <Vote className="h-3.5 w-3.5 mr-1.5" /> Pre-vote

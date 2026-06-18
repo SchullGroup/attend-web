@@ -1,43 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { Search, Trophy, CalendarDays, Users, ArrowRight, FolderOpen } from "lucide-react";
-import { MOCK_CHALLENGE } from "@/lib/mock-data";
+import { Search, CalendarDays, ArrowRight, FolderOpen } from "lucide-react";
 import { useGetChallenges } from "@/api/hackathon/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/lib/utils";
-
-const MOCK_CHALLENGES = [
-  {
-    id: "chl_001",
-    title: MOCK_CHALLENGE.title,
-    organiser: "Meristem Innovation Hub",
-    deadline: MOCK_CHALLENGE.submissionDeadline,
-    prize: "₦5,000,000",
-    teamMembers: "2–5",
-    tracks: MOCK_CHALLENGE.tracks,
-  },
-  {
-    id: "chl_002",
-    title: "NGX Builders Sprint 2026",
-    organiser: "NGX Group",
-    deadline: "2026-08-30",
-    prize: "₦3,000,000",
-    teamMembers: "1–4",
-    tracks: ["Market Data APIs", "Investor Analytics", "Compliance"],
-  },
-  {
-    id: "chl_003",
-    title: "CBN Open Banking Hackathon",
-    organiser: "Central Bank of Nigeria",
-    deadline: "2026-09-20",
-    prize: "₦4,000,000",
-    teamMembers: "3–5",
-    tracks: ["Open Banking", "Consumer Protection", "FX Innovation"],
-  },
-];
 
 const FORMAT_LABELS: Record<string, string> = {
   IN_PERSON: "In-person",
@@ -63,11 +32,6 @@ export default function HackathonPage() {
   );
 
   const isLoading = chLoading || evLoading;
-  const usingMock = !isLoading && apiChallenges.length === 0;
-
-  const mockVisible = MOCK_CHALLENGES.filter((c) =>
-    q.trim() ? `${c.title} ${c.organiser}`.toLowerCase().includes(q.toLowerCase()) : true,
-  );
 
   return (
     <div className="space-y-6">
@@ -79,16 +43,9 @@ export default function HackathonPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
               Build the future
             </p>
-            <div className="mt-1 flex items-center gap-2">
-              <h1 className="text-2xl font-bold leading-tight md:text-3xl">
-                Innovation Challenges
-              </h1>
-              {usingMock && (
-                <span className="inline-flex items-center rounded-full border border-white/30 bg-white/20 px-2 py-0.5 text-[10px] font-semibold text-white">
-                  Demo
-                </span>
-              )}
-            </div>
+            <h1 className="mt-1 text-2xl font-bold leading-tight md:text-3xl">
+              Innovation Challenges
+            </h1>
             <p className="mt-2 max-w-xl text-sm text-white/80">
               Hackathons, build sprints and open problem statements from Nigeria&apos;s
               top financial institutions.
@@ -118,41 +75,10 @@ export default function HackathonPage() {
             <div key={n} className="h-32 animate-pulse rounded-2xl border border-border bg-muted" />
           ))}
         </div>
-      ) : usingMock ? (
-        <ul className="space-y-4">
-          {mockVisible.map((c) => (
-            <li key={c.id} className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-              <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-                    {c.organiser}
-                  </p>
-                  <h2 className="mt-0.5 text-base font-semibold text-foreground md:text-lg">{c.title}</h2>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {c.tracks.map((t) => (
-                      <span key={t} className="rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-medium text-purple-700">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><Trophy className="h-3.5 w-3.5" /> Prize: {c.prize}</span>
-                    <span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> Deadline: {formatDate(c.deadline)}</span>
-                    <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> Team: {c.teamMembers}</span>
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Link href={`/hackathon/${c.id}`}>
-                    <Button variant="outline" size="sm">View</Button>
-                  </Link>
-                  <Link href={`/hackathon/apply?challengeId=${c.id}`}>
-                    <Button size="sm">Apply <ArrowRight className="h-3.5 w-3.5" /></Button>
-                  </Link>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+      ) : apiChallenges.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          No innovation challenges available right now. Check back soon.
+        </div>
       ) : (
         <ul className="space-y-4">
           {apiChallenges.map((c: EventListItem) => (

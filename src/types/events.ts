@@ -20,6 +20,21 @@ export interface EventListItem {
   registered: boolean;
 }
 
+export interface SpeakerItem {
+  id: string;
+  name: string;
+  roleTitle: string;
+  bio: string;
+}
+
+export interface AgendaItemDetail {
+  id: string;
+  time: string;
+  title: string;
+  speaker: string;
+  orderIndex: number;
+}
+
 export interface EventDetail {
   id: string;
   title: string;
@@ -38,8 +53,30 @@ export interface EventDetail {
   registerName?: string;
   maximumCapacity: number;
   registeredCount: number;
+  rsvpEnabled?: boolean;
+  featured?: boolean;
   registered: boolean;
   agmProxyEnabled: boolean;
+  speakers?: SpeakerItem[];
+  agenda?: AgendaItemDetail[];
+  // Design-main UI fields — kept ready for when the backend provides them.
+  tags?: string[];
+  waitlisted?: boolean;
+  pressKitReleased?: boolean;
+}
+
+export interface MyTicket {
+  registrationId: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventVenue: string;
+  participantName: string;
+  participantEmail: string;
+  qrToken: string;
+  checkedIn: boolean;
+  checkedInAt: string;
+  registeredAt: string;
 }
 
 export interface EventsListData {
@@ -59,3 +96,4 @@ export interface EventsQueryParams {
 
 export type EventsListResponse = ApiResponse<EventsListData>;
 export type EventDetailResponse = ApiResponse<EventDetail>;
+export type MyTicketResponse = ApiResponse<MyTicket>;

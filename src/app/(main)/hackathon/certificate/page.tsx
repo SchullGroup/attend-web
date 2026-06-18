@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, Award, Star, Check, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useGetCertificate } from "@/api/hackathon/hooks";
-import { MOCK_USER } from "@/lib/mock-data";
 import { formatDate } from "@/lib/utils";
 
 function CertificateInner() {
@@ -14,7 +13,6 @@ function CertificateInner() {
 
   const { data, isLoading } = useGetCertificate(challengeId);
   const cert = data?.data;
-  const usingMock = !challengeId || (!isLoading && !cert);
 
   async function handleShare() {
     const url = window.location.href;
@@ -35,8 +33,21 @@ function CertificateInner() {
     );
   }
 
-  // Real but not eligible yet → show the backend message instead of a certificate.
-  if (!usingMock && cert && !cert.eligible) {
+  if (!challengeId || !cert) {
+    return (
+      <div className="space-y-6">
+        <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Link>
+        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          No certificate found. Open this from a challenge you participated in.
+        </div>
+      </div>
+    );
+  }
+
+  // Not eligible yet → show the backend message instead of a certificate.
+  if (!cert.eligible) {
     return (
       <div className="space-y-6">
         <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -55,19 +66,12 @@ function CertificateInner() {
     );
   }
 
-  const view = usingMock
-    ? {
-        name: MOCK_USER.fullName,
-        eventTitle: "MeriHack 2026 — FinTech Innovation Challenge",
-        subline: "Hosted by Meristem Innovation Hub",
-        verifyId: "ATD-CERT-2026-77821",
-      }
-    : {
-        name: cert!.participantName,
-        eventTitle: cert!.eventTitle,
-        subline: cert!.teamName ? `Team ${cert!.teamName}` : "",
-        verifyId: data?.referenceId ?? "—",
-      };
+  const view = {
+    name: cert.participantName,
+    eventTitle: cert.eventTitle,
+    subline: cert.teamName ? `Team ${cert.teamName}` : "",
+    verifyId: data?.referenceId ?? "—",
+  };
 
   return (
     <div className="space-y-6">
@@ -82,11 +86,6 @@ function CertificateInner() {
             Thank you for taking part — share your achievement.
           </p>
         </div>
-        {usingMock && (
-          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            Demo data
-          </span>
-        )}
       </header>
 
       <div className="mx-auto max-w-3xl">

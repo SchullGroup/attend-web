@@ -19,7 +19,6 @@ import { useGetEvent } from "@/api/events/hooks";
 import { useGetNotifications } from "@/api/notifications/hooks";
 import { useUserStore, mapKycStatus } from "@/lib/user-store";
 import Cookies from "js-cookie";
-import { MOCK_EVENTS } from "@/lib/mock-data";
 
 // Extract the event id from an /events/[id] detail path so the nav can look up
 // that event's type and keep the right tab active.
@@ -61,12 +60,11 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const { data: notifData } = useGetNotifications({ size: 1 }, hasToken);
   const unreadCount = notifData?.data?.unreadCount ?? 0;
 
-  // Resolve the type of the event being viewed (real API event, falling back to
-  // demo events) so an /events/[id] page highlights the correct tab.
+  // Resolve the type of the event being viewed so an /events/[id] page highlights
+  // the correct tab.
   const detailId = eventDetailId(pathname);
   const { data: eventDetail } = useGetEvent(detailId);
-  const currentModule =
-    eventDetail?.data?.eventType ?? MOCK_EVENTS.find((e) => e.id === detailId)?.module;
+  const currentModule = eventDetail?.data?.eventType;
 
   return (
     <div className="min-h-screen bg-muted/30">

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useGetMyEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
-import { MOCK_EVENTS } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate, initialsFor } from "@/lib/utils";
 
@@ -29,27 +28,17 @@ interface MyEventRow {
 const fmtFormat = (f: string) => (f || "").toLowerCase().replace(/_/g, "-");
 
 export default function MyEventsPage() {
-  const { data, isLoading, error } = useGetMyEvents();
+  const { data, isLoading } = useGetMyEvents();
   const apiEvents = data?.data?.events ?? [];
-  const usingMock = !isLoading && (!!error || apiEvents.length === 0);
 
-  const events: MyEventRow[] = usingMock
-    ? MOCK_EVENTS.filter((e) => e.rsvpStatus === "confirmed").map((e) => ({
-        id: e.id,
-        organiser: e.organiser,
-        title: e.title,
-        date: e.date,
-        format: e.format,
-        thumbnailColor: e.thumbnailColor,
-      }))
-    : apiEvents.map((e: EventListItem) => ({
-        id: e.id,
-        organiser: e.registerName || e.organizerName,
-        title: e.title,
-        date: e.date,
-        format: fmtFormat(e.format),
-        thumbnailColor: EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb",
-      }));
+  const events: MyEventRow[] = apiEvents.map((e: EventListItem) => ({
+    id: e.id,
+    organiser: e.registerName || e.organizerName,
+    title: e.title,
+    date: e.date,
+    format: fmtFormat(e.format),
+    thumbnailColor: EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb",
+  }));
 
   return (
     <div className="space-y-6">
@@ -57,18 +46,11 @@ export default function MyEventsPage() {
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
-      <header className="flex flex-wrap items-center gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">My events</h1>
-          <p className="text-sm text-muted-foreground">
-            Events you&apos;ve RSVP&apos;d to or attended.
-          </p>
-        </div>
-        {usingMock && (
-          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            Demo data
-          </span>
-        )}
+      <header>
+        <h1 className="text-2xl font-bold text-foreground">My events</h1>
+        <p className="text-sm text-muted-foreground">
+          Events you&apos;ve RSVP&apos;d to or attended.
+        </p>
       </header>
 
       {isLoading ? (

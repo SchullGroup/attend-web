@@ -14,7 +14,6 @@ import {
 import { useGetMe } from "@/api/auth/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
-import { MOCK_EVENTS } from "@/lib/mock-data";
 import { useUserStore } from "@/lib/user-store";
 import { cn, formatDate, greetingByHour, initialsFor, formatEventFormat } from "@/lib/utils";
 
@@ -108,23 +107,21 @@ export default function HomePage() {
   const { kycStatus } = useUserStore();
   const verified = kycStatus === "full";
 
-  const { data: evResp, isLoading, error } = useGetEvents();
+  const { data: evResp } = useGetEvents();
   const apiEvents = evResp?.data?.events ?? [];
-  const usingMock = !isLoading && (!!error || apiEvents.length === 0);
 
-  const liveEvent: HomeEvent | undefined = usingMock
-    ? (MOCK_EVENTS.find((e) => e.status === "live") as unknown as HomeEvent | undefined)
-    : (() => {
-        const live = apiEvents.find((e) => e.status === "LIVE");
-        return live ? toHomeEvent(live) : undefined;
-      })();
+  const liveEvent: HomeEvent | undefined = (() => {
+    const live = apiEvents.find((e) => e.status === "LIVE");
+    return live ? toHomeEvent(live) : undefined;
+  })();
 
-  const upcoming: HomeEvent[] = usingMock
-    ? (MOCK_EVENTS.filter((e) => e.status === "upcoming").slice(0, 4) as unknown as HomeEvent[])
-    : apiEvents.filter((e) => e.status === "PUBLISHED").slice(0, 4).map(toHomeEvent);
+  const upcoming: HomeEvent[] = apiEvents
+    .filter((e) => e.status === "PUBLISHED")
+    .slice(0, 4)
+    .map(toHomeEvent);
 
   // Featured events come straight from the endpoint (admin marks an event
-  // featured → EventItem.featured === true). No mock fallback.
+  // featured → EventItem.featured === true).
   const carouselEvents: HomeEvent[] = apiEvents
     .filter((e) => e.featured)
     .slice(0, 5)

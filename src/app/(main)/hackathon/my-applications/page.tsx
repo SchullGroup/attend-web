@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useGetMyTeams } from "@/api/hackathon/hooks";
-import { MOCK_APPLICATIONS } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 
@@ -40,29 +39,18 @@ const labelFor = (k: string) => STATUS_LABEL[k] ?? (k ? k.replace(/_/g, " ") : "
 const toneFor = (k: string): Tone => STATUS_TONE[k] ?? "muted";
 
 export default function MyApplicationsPage() {
-  const { data, isLoading, error } = useGetMyTeams();
+  const { data, isLoading } = useGetMyTeams();
   const apiTeams = data?.data?.teams ?? [];
-  const usingMock = !isLoading && (!!error || apiTeams.length === 0);
 
-  const apps: AppRow[] = usingMock
-    ? MOCK_APPLICATIONS.map((a) => ({
-        id: a.id,
-        eventId: a.id,
-        challengeTitle: a.challengeTitle,
-        teamName: a.teamName,
-        track: a.track,
-        submittedAt: formatDate(a.submittedAt),
-        statusKey: a.status,
-      }))
-    : apiTeams.map((t) => ({
-        id: t.teamId,
-        eventId: t.eventId,
-        challengeTitle: t.eventTitle,
-        teamName: t.teamName,
-        track: fmtType(t.eventType),
-        submittedAt: t.eventDate ? formatDate(t.eventDate) : "—",
-        statusKey: (t.submissionStatus || "").toLowerCase(),
-      }));
+  const apps: AppRow[] = apiTeams.map((t) => ({
+    id: t.teamId,
+    eventId: t.eventId,
+    challengeTitle: t.eventTitle,
+    teamName: t.teamName,
+    track: fmtType(t.eventType),
+    submittedAt: t.eventDate ? formatDate(t.eventDate) : "—",
+    statusKey: (t.submissionStatus || "").toLowerCase(),
+  }));
 
   return (
     <div className="space-y-6">
@@ -70,18 +58,11 @@ export default function MyApplicationsPage() {
         <ArrowLeft className="h-4 w-4" /> Back to Innovation
       </Link>
 
-      <header className="flex flex-wrap items-center gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">My applications</h1>
-          <p className="text-sm text-muted-foreground">
-            Track the status of every challenge you&apos;ve applied to.
-          </p>
-        </div>
-        {usingMock && (
-          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            Demo data
-          </span>
-        )}
+      <header>
+        <h1 className="text-2xl font-bold text-foreground">My applications</h1>
+        <p className="text-sm text-muted-foreground">
+          Track the status of every challenge you&apos;ve applied to.
+        </p>
       </header>
 
       {isLoading ? (

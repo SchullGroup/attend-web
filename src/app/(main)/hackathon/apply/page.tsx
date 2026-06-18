@@ -2,11 +2,11 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, Check } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Check, Video } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { UploadField } from "@/components/attend/UploadField";
 import { useCreateTeam, useGetMyTeam, useGetChallenge } from "@/api/hackathon/hooks";
-import { MOCK_CHALLENGE } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 type Member = { id: string; name: string; role: string };
@@ -22,15 +22,18 @@ function ApplyPageInner() {
   const { data: existingTeam } = useGetMyTeam(challengeId);
   const { mutate: createTeam, isPending } = useCreateTeam(challengeId);
 
-  const challengeTitle = chData?.data?.title ?? MOCK_CHALLENGE.title;
-  const tracks = MOCK_CHALLENGE.tracks;
-  const teamSize = MOCK_CHALLENGE.teamSize;
+  const challenge = chData?.data;
+  const challengeTitle = challenge?.title ?? "Innovation Challenge";
+  const tracks = challenge?.tracks && challenge.tracks.length > 0 ? challenge.tracks : ["General"];
+  const teamSize = { min: challenge?.minTeamSize ?? 2, max: challenge?.maxTeamSize ?? 5 };
 
   const [step, setStep] = useState(0);
   const [teamName, setTeamName] = useState("");
   const [track, setTrack] = useState(tracks[0]);
   const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaDescription, setIdeaDescription] = useState("");
+  const [ideaVideoUrl, setIdeaVideoUrl] = useState("");
+  const [ideaSupportingDocUrl, setIdeaSupportingDocUrl] = useState("");
   const [members, setMembers] = useState<Member[]>([{ id: "m1", name: "", role: "Team Lead" }]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -43,6 +46,12 @@ function ApplyPageInner() {
       router.replace(`/hackathon/submit?challengeId=${challengeId}&teamId=${existingTeam.data.id}`);
     }
   }, [existingTeam, challengeId, router]);
+
+  // Default the selected track to a real one once the challenge loads.
+  useEffect(() => {
+    if (tracks.length && !tracks.includes(track)) setTrack(tracks[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chData]);
 
   function addMember() {
     setMembers((m) => [...m, { id: `m${Math.random()}`, name: "", role: "" }]);
@@ -61,12 +70,26 @@ function ApplyPageInner() {
 
   function submit() {
     setErrorMsg(null);
-    // Backend team creation accepts name + description only; the idea title is
-    // folded into the description so it isn't lost. Track/members are collected
-    // in the form but not yet persisted (no backend field).
-    const description = ideaTitle ? `${ideaTitle}\n\n${ideaDescription}` : ideaDescription;
+    // Backend persists track, idea title/description and team members (member email is
+    // sent empty until we add that field). The pitch-video link and supporting-document
+    // upload are collected in the form (design parity) but NOT sent yet — CreateTeamRequest
+    // has no ideaVideoUrl/ideaSupportingDocUrl field (see backend doc 7f). They are kept in
+    // the UI, ready to send the moment those fields exist, so we don't pollute the
+    // description with raw URLs in the meantime.
+    const ideaDesc = ideaDescription.trim();
     createTeam(
-      { name: teamName.trim(), description: description.trim() },
+      {
+        name: teamName.trim(),
+        description: ideaDesc,
+        track,
+        ideaTitle: ideaTitle.trim(),
+        ideaDescription: ideaDesc,
+        members: members.map((m) => ({
+          fullName: m.name.trim(),
+          role: m.role.trim(),
+          email: "",
+        })),
+      },
       {
         onSuccess: () => router.push("/hackathon/my-applications"),
         onError: (err: any) =>
@@ -169,6 +192,28 @@ function ApplyPageInner() {
               />
               <p className="text-xs text-muted-foreground">Minimum 10 characters.</p>
             </div>
+
+            <hr className="border-border" />
+
+            {/* Pitch video URL */}
+            <Input
+              name="ideaVideoUrl"
+              label="Pitch video URL (optional)"
+              placeholder="https://youtube.com/... or loom.com/..."
+              value={ideaVideoUrl}
+              onChange={(e) => setIdeaVideoUrl(e.target.value)}
+              leftIcon={<Video className="h-4 w-4" />}
+            />
+
+            {/* Supporting document upload */}
+            <UploadField
+              label="Supporting document (optional)"
+              accept=".pdf,.doc,.docx,.zip"
+              folder="documents"
+              hint="PDF, DOC, or ZIP · max 10 MB"
+              value={ideaSupportingDocUrl}
+              onUploaded={setIdeaSupportingDocUrl}
+            />
           </div>
         )}
 

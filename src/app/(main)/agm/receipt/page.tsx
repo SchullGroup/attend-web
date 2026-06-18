@@ -7,18 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { useGetVoteReceipt } from "@/api/agm/hooks";
 import { formatDate } from "@/lib/utils";
 
-const MOCK_RECEIPT = {
-  reference: "ATD-AGM-2026-77821",
-  meeting: "Zenith Bank Plc — 2026 Annual General Meeting",
-  date: "2026-05-28 10:42 WAT",
-  resolutions: [
-    { num: 1, title: "Adoption of Financial Statements", vote: "For" },
-    { num: 2, title: "Declaration of Final Dividend", vote: "For" },
-    { num: 3, title: "Re-election of Directors", vote: "For" },
-    { num: 4, title: "Appointment of Auditors", vote: "Abstain" },
-  ],
-};
-
 function voteLabel(c: string) {
   const u = (c || "").toUpperCase();
   return u === "FOR" ? "For" : u === "AGAINST" ? "Against" : "Abstain";
@@ -31,28 +19,6 @@ function ReceiptInner() {
 
   const { data, isLoading } = useGetVoteReceipt(eventId);
   const receipt = data?.data;
-  // Real branch dereferences `receipt`, so only leave mock when it's actually
-  // present (covers the loading race + empty/error responses).
-  const usingMock = !eventId || !receipt;
-
-  const view = usingMock
-    ? MOCK_RECEIPT
-    : {
-        reference: data?.referenceId ?? "—",
-        meeting: receipt!.eventTitle,
-        date: receipt!.votes[0]?.votedAt ? formatDate(receipt!.votes[0].votedAt) : "—",
-        resolutions: receipt!.votes.map((v, i) => ({
-          num: i + 1,
-          title: v.resolutionTitle,
-          vote: voteLabel(v.choice),
-        })),
-      };
-
-  function copy() {
-    navigator.clipboard.writeText(view.reference);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
 
   if (eventId && isLoading) {
     return (
@@ -60,6 +26,36 @@ function ReceiptInner() {
         <div className="h-72 animate-pulse rounded-3xl border border-border bg-muted" />
       </div>
     );
+  }
+
+  if (!eventId || !receipt) {
+    return (
+      <div className="space-y-6">
+        <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back to AGMs
+        </Link>
+        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          No vote receipt found. Cast your votes at an AGM and your receipt will appear here.
+        </div>
+      </div>
+    );
+  }
+
+  const view = {
+    reference: data?.referenceId ?? "—",
+    meeting: receipt.eventTitle,
+    date: receipt.votes[0]?.votedAt ? formatDate(receipt.votes[0].votedAt) : "—",
+    resolutions: receipt.votes.map((v, i) => ({
+      num: i + 1,
+      title: v.resolutionTitle,
+      vote: voteLabel(v.choice),
+    })),
+  };
+
+  function copy() {
+    navigator.clipboard.writeText(view.reference);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   return (
@@ -76,13 +72,8 @@ function ReceiptInner() {
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div>
-                <p className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/80">
+                <p className="text-xs uppercase tracking-wide text-white/80">
                   Vote receipt
-                  {usingMock && (
-                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold">
-                      Demo data
-                    </span>
-                  )}
                 </p>
                 <h1 className="text-lg font-bold">Your votes have been recorded</h1>
               </div>

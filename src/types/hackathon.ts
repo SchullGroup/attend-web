@@ -33,9 +33,19 @@ export interface ChallengesListData {
   events: EventListItem[];
 }
 
+export interface ApplicationMemberRequest {
+  fullName: string;
+  role: string;
+  email: string;
+}
+
 export interface CreateTeamRequest {
   name: string;
   description: string;
+  track?: string;
+  ideaTitle?: string;
+  ideaDescription?: string;
+  members?: ApplicationMemberRequest[];
 }
 
 export interface SubmitProjectRequest {
@@ -43,6 +53,8 @@ export interface SubmitProjectRequest {
   description: string;
   repositoryUrl: string;
   demoUrl: string;
+  pitchDeckUrl?: string;
+  demoVideoUrl?: string;
 }
 
 export type TeamResponse = ApiResponse<TeamData>;
@@ -56,6 +68,21 @@ export interface ChallengeMyTeamSummary {
   submissionStatus: string;
 }
 
+export interface PrizeTierItem {
+  position: string;
+  reward: string;
+}
+
+export interface SubmissionRequirements {
+  requireSourceCode: boolean;
+  requireLiveDemoUrl: boolean;
+  requireProjectDescription: boolean;
+  requirePitchDeck: boolean;
+  requirePitchVideoUrl: boolean;
+  requireDemoVideo: boolean;
+  requireAdditionalDocuments: boolean;
+}
+
 export interface ChallengeDetailData {
   id: string;
   title: string;
@@ -67,8 +94,19 @@ export interface ChallengeDetailData {
   venue: string;
   organizerName: string;
   registered: boolean;
+  applicationsOpen?: boolean;
   resourceCount: number;
   tracks?: string[];
+  minTeamSize?: number;
+  maxTeamSize?: number;
+  problemStatement?: string;
+  expectedDeliverable?: string;
+  eligibilityCriteria?: string;
+  allowedTechStack?: string;
+  participationType?: string;
+  applicationDeadline?: string;
+  prizeTiers?: PrizeTierItem[];
+  submissionRequirements?: SubmissionRequirements;
   myTeam: ChallengeMyTeamSummary | null;
 }
 
