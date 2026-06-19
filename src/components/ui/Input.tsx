@@ -17,10 +17,7 @@ export const Input = forwardRef<HTMLInputElement, Props>(function Input(
   return (
     <div className="space-y-1.5">
       {label && (
-        <label
-          htmlFor={inputId}
-          className="text-sm font-medium text-foreground"
-        >
+        <label htmlFor={inputId} className="text-sm font-medium text-foreground">
           {label}
         </label>
       )}
@@ -44,9 +41,7 @@ export const Input = forwardRef<HTMLInputElement, Props>(function Input(
           {...props}
         />
       </div>
-      {hint && !error && (
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      )}
+      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );

@@ -6,18 +6,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function formatShortDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-  });
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 export function formatRelativeTime(d: string) {
@@ -46,4 +39,13 @@ export function greetingByHour() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+// Normalise backend/mock event formats (IN_PERSON / virtual / HYBRID) to a label.
+export function formatEventFormat(f: string) {
+  const key = (f || "").toLowerCase();
+  if (key === "in_person" || key === "in-person") return "In-person";
+  if (key === "virtual") return "Virtual";
+  if (key === "hybrid") return "Hybrid";
+  return key.replace(/_/g, "-");
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -10,11 +11,11 @@ import {
   ShieldCheck,
   Radio,
 } from "lucide-react";
-import { MOCK_EVENTS } from "@/lib/mock-data";
 import { useGetMe } from "@/api/auth/hooks";
+import { useGetEvents } from "@/api/events/hooks";
+import { EventListItem } from "@/types";
 import { useUserStore } from "@/lib/user-store";
-import { Badge } from "@/components/ui/Badge";
-import { cn, formatDate, greetingByHour, initialsFor } from "@/lib/utils";
+import { cn, formatDate, greetingByHour, initialsFor, formatEventFormat } from "@/lib/utils";
 
 const TILES = [
   {
@@ -22,7 +23,7 @@ const TILES = [
     description: "Vote at shareholder meetings",
     href: "/agm",
     icon: Building2,
-    gradient: "from-blue-600 to-blue-800",
+    gradient: "from-gray-800 to-gray-950",
   },
   {
     label: "Launches",
@@ -33,7 +34,7 @@ const TILES = [
   },
   {
     label: "Innovation",
-    description: "Hackathons & challenges",
+    description: "Innovation challenges",
     href: "/hackathon",
     icon: Lightbulb,
     gradient: "from-purple-600 to-fuchsia-600",
@@ -47,71 +48,131 @@ const TILES = [
   },
 ];
 
-const ANNOUNCEMENTS = [
-  {
-    title: "Vote opens for Zenith Bank AGM",
-    body: "Resolutions 1–4 will be available for voting from 10:00am on May 28.",
-    tag: "AGM",
-  },
-  {
-    title: "MeriHack 2026 applications closing",
-    body: "Get your team submission in before July 18 to qualify for the ₦5m grand prize.",
-    tag: "Innovation",
-  },
-  {
-    title: "MeriSave Launch — set a reminder",
-    body: "The MeriSave digital savings product launches virtually on June 15.",
-    tag: "Launch",
-  },
-];
+const CAROUSEL_IMAGES: Record<string, string> = {
+  LAUNCH:   "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&q=80",
+  HACKATHON:"https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=900&q=80",
+  GENERAL:  "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=900&q=80",
+};
+
+const MODULE_BADGE: Record<string, { label: string; bg: string }> = {
+  LAUNCH:   { label: "Product Launch",      bg: "#ea6c00" },
+  HACKATHON:{ label: "Innovation Challenge", bg: "#7c22c9" },
+  GENERAL:  { label: "General Event",        bg: "#0891b2" },
+};
+
+const EVENT_COLOR: Record<string, string> = {
+  AGM: "#1a6b3c",
+  PRODUCT_LAUNCH: "#f97316",
+  LAUNCH: "#f97316",
+  HACKATHON: "#9333ea",
+  INNOVATION_CHALLENGE: "#9333ea",
+  GENERAL_EVENT: "#2563eb",
+  GENERAL: "#2563eb",
+};
+
+// Normalise an API event into the shape the design JSX consumes.
+interface HomeEvent {
+  id: string;
+  module: string;
+  organiser: string;
+  title: string;
+  date: string;
+  format: string;
+  startTime: string;
+  rsvpCount: number;
+  thumbnailColor: string;
+  rsvpStatus?: boolean;
+}
+function toHomeEvent(e: EventListItem): HomeEvent {
+  return {
+    id: e.id,
+    module: e.eventType,
+    organiser: e.registerName || e.organizerName,
+    title: e.title,
+    date: e.date,
+    format: e.format,
+    startTime: e.startTime,
+    rsvpCount: e.maximumCapacity || 0,
+    thumbnailColor: EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb",
+    rsvpStatus: e.registered,
+  };
+}
 
 export default function HomePage() {
+  const { data: meResp } = useGetMe();
+  const me = meResp?.data;
+  const displayName = me?.fullName || "there";
+  const firstName = displayName.split(" ")[0];
+
   const { kycStatus } = useUserStore();
-  const { data: userResponse, isLoading } = useGetMe();
-  const currentUser = userResponse?.data;
   const verified = kycStatus === "full";
 
-  const liveEvent = MOCK_EVENTS.find((e) => e.status === "live");
-  const upcoming = MOCK_EVENTS.filter((e) => e.status === "upcoming").slice(
-    0,
-    4,
-  );
+  const { data: evResp } = useGetEvents();
+  const apiEvents = evResp?.data?.events ?? [];
+
+  const liveEvent: HomeEvent | undefined = (() => {
+    const live = apiEvents.find((e) => e.status === "LIVE");
+    return live ? toHomeEvent(live) : undefined;
+  })();
+
+  const upcoming: HomeEvent[] = apiEvents
+    .filter((e) => e.status === "PUBLISHED")
+    .slice(0, 4)
+    .map(toHomeEvent);
+
+  // Featured events come straight from the endpoint (admin marks an event
+  // featured → EventItem.featured === true).
+  const carouselEvents: HomeEvent[] = apiEvents
+    .filter((e) => e.featured)
+    .slice(0, 5)
+    .map(toHomeEvent);
+
+  const [activeSlide, setActiveSlide] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (carouselEvents.length <= 1) return;
+    timerRef.current = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % carouselEvents.length);
+    }, 4000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [carouselEvents.length]);
 
   return (
     <div className="space-y-8">
       {/* Hero / user card */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1d4ed8] via-[#2563eb] to-[#3b82f6] p-6 text-white md:p-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#111827] via-[#1f2937] to-[#374151] p-6 text-white md:p-8">
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/5" />
-        {isLoading || !currentUser ? (
-          <div>Loading...</div>
-        ) : (
-          <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-xl font-bold backdrop-blur">
-                {currentUser.initials || initialsFor(currentUser.fullName)}
-              </div>
-              <div>
-                <p className="text-sm text-white/80">{greetingByHour()},</p>
-                <h1 className="text-2xl font-bold leading-tight md:text-3xl">
-                  {currentUser.fullName.split(" ")[0]}
-                </h1>
-                <p className="mt-0.5 text-xs text-white/70">Shareholder</p>
-              </div>
+        <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-xl font-bold backdrop-blur">
+              {me?.initials || initialsFor(displayName)}
             </div>
-            <div className="flex flex-col items-start gap-2 md:items-end">
-              {verified ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur">
-                  <ShieldCheck className="h-3.5 w-3.5" /> KYC verified
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 backdrop-blur">
-                  <AlertCircle className="h-3.5 w-3.5" /> KYC pending
-                </span>
-              )}
+            <div>
+              <p className="text-sm text-white/80">
+                {greetingByHour()},
+              </p>
+              <h1 className="text-2xl font-bold leading-tight md:text-3xl">
+                {firstName}
+              </h1>
+              <p className="mt-0.5 text-xs text-white/70">
+                {me?.role || "Member"}
+              </p>
             </div>
           </div>
-        )}
+          <div className="flex flex-col items-start gap-2 md:items-end">
+            {verified ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur">
+                <ShieldCheck className="h-3.5 w-3.5" /> KYC verified
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 backdrop-blur">
+                <AlertCircle className="h-3.5 w-3.5" /> KYC pending
+              </span>
+            )}
+          </div>
+        </div>
 
         {!verified && (
           <Link
@@ -127,21 +188,37 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Live banner */}
+      {/* Live AGM card */}
       {liveEvent && (
-        <Link
-          href={`/agm/live`}
-          className="flex items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-100"
-        >
-          <span className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-600" />
-            </span>
-            <Radio className="h-4 w-4" /> Live now — {liveEvent.title}
-          </span>
-          <ChevronRight className="h-4 w-4" />
-        </Link>
+        <section>
+          <Link
+            href={(liveEvent.module === "AGM" || liveEvent.module === "AGM_EGM") ? `/agm/live?eventId=${liveEvent.id}` : `/events/${liveEvent.id}`}
+            className="group block overflow-hidden rounded-2xl bg-[#1e293b] p-5 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                    Live Now
+                  </span>
+                  {(liveEvent.module === "AGM" || liveEvent.module === "AGM_EGM") && (
+                    <span className="text-xs text-white/50">AGM · {liveEvent.organiser}</span>
+                  )}
+                </div>
+                <p className="text-base font-bold text-white leading-snug md:text-lg">
+                  {liveEvent.title.split("—")[1]?.trim() ?? liveEvent.title}
+                </p>
+                <p className="mt-1 text-xs text-white/50">
+                  {(liveEvent.module === "AGM" || liveEvent.module === "AGM_EGM") ? "Voting is open · Click to join and vote" : `${liveEvent.rsvpCount.toLocaleString()} watching`}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition-colors group-hover:bg-white/20">
+                <Radio className="h-4 w-4" /> Join
+              </div>
+            </div>
+          </Link>
+        </section>
       )}
 
       {/* Module tiles */}
@@ -176,28 +253,91 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Announcements */}
+      {/* Featured Events Carousel */}
+      {carouselEvents.length > 0 && (
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Announcements
+            Featured Events
           </h2>
+          <Link href="/events" className="text-xs font-semibold text-primary hover:underline">
+            See all
+          </Link>
         </div>
-        <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-          {ANNOUNCEMENTS.map((a, i) => (
-            <article
-              key={i}
-              className="min-w-[260px] max-w-xs rounded-2xl border border-border bg-white p-4 shadow-sm"
-            >
-              <Badge variant="default">{a.tag}</Badge>
-              <h3 className="mt-3 text-sm font-semibold leading-snug text-foreground">
-                {a.title}
-              </h3>
-              <p className="mt-1 text-xs text-muted-foreground">{a.body}</p>
-            </article>
-          ))}
+
+        <div className="relative overflow-hidden rounded-3xl" style={{ height: 240 }}>
+          <div
+            className="flex h-full transition-transform duration-500 ease-in-out"
+            style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+          >
+            {carouselEvents.map((event) => {
+              const badge = MODULE_BADGE[event.module] ?? MODULE_BADGE.GENERAL;
+              const imageUri = CAROUSEL_IMAGES[event.module] ?? CAROUSEL_IMAGES.GENERAL;
+              const href = event.module === "HACKATHON" ? "/hackathon" : `/events/${event.id}`;
+              return (
+                <Link
+                  key={event.id}
+                  href={href}
+                  className="relative h-full w-full flex-shrink-0"
+                  style={{ minWidth: "100%" }}
+                >
+                  {/* Photo */}
+                  <img
+                    src={imageUri}
+                    alt={event.title}
+                    className="h-full w-full object-cover"
+                  />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80" />
+
+                  {/* Module badge */}
+                  <div className="absolute left-4 top-4">
+                    <span
+                      className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white"
+                      style={{ backgroundColor: badge.bg }}
+                    >
+                      {badge.label}
+                    </span>
+                  </div>
+
+                  {/* Bottom content */}
+                  <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-3 p-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-bold text-white leading-snug">
+                        {event.title.split("—")[1]?.trim() ?? event.title}
+                      </p>
+                      <p className="mt-0.5 text-xs text-white/75">{event.organiser}</p>
+                      <p className="text-xs text-white/60">
+                        {formatDate(event.date)} · {event.format}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-xl border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
+                      {event.rsvpStatus ? "Registered" : "Register"}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
+
+        {/* Dot indicators */}
+        {carouselEvents.length > 1 && (
+          <div className="mt-3 flex justify-center gap-1.5">
+            {carouselEvents.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveSlide(i)}
+                className={cn(
+                  "h-1.5 rounded-full transition-all duration-300",
+                  i === activeSlide ? "w-5 bg-foreground" : "w-1.5 bg-gray-300"
+                )}
+              />
+            ))}
+          </div>
+        )}
       </section>
+      )}
 
       {/* Upcoming */}
       <section>
@@ -205,10 +345,7 @@ export default function HomePage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Upcoming events
           </h2>
-          <Link
-            href="/events"
-            className="text-xs font-semibold text-primary hover:underline"
-          >
+          <Link href="/events" className="text-xs font-semibold text-primary hover:underline">
             View all
           </Link>
         </div>
@@ -230,7 +367,7 @@ export default function HomePage() {
                   {e.title}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDate(e.date)} · {e.format} · {e.startTime}
+                  {formatDate(e.date)} · {formatEventFormat(e.format)} · {e.startTime}
                 </p>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />

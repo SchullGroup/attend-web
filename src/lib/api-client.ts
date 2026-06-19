@@ -14,14 +14,14 @@ const publicEndpoints = [
 ];
 
 export const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL: typeof window !== "undefined" ? "" : API_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 apiClient.interceptors.request.use(
-  (config) => {
+  (config: any) => {
     const isPublic = publicEndpoints.some((endpoint) =>
       config.url?.includes(endpoint),
     );
@@ -34,7 +34,7 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
+  (error: any) => {
     return Promise.reject(error);
   },
 );
@@ -57,13 +57,13 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 apiClient.interceptors.response.use(
-  (response) => {
+  (response: any) => {
     return response;
   },
-  async (error) => {
+  async (error: any) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -84,7 +84,8 @@ apiClient.interceptors.response.use(
         // Call the local Next.js proxy route which automatically sends the HttpOnly refresh token cookie
         const { data } = await axios.post("/api/auth/refresh");
 
-        const newAccessToken = data.data.token;
+        const newAccessToken = data?.data?.token;
+        if (!newAccessToken) throw new Error("No token in refresh response");
         Cookies.set("accessToken", newAccessToken, {
           secure: process.env.NODE_ENV === "production",
           sameSite: "strict",

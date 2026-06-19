@@ -23,9 +23,8 @@ export function Button({
   const base =
     "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none";
   const variants = {
-    default: "bg-primary text-white hover:bg-primary/90",
-    outline:
-      "border border-border bg-transparent hover:bg-muted text-foreground",
+    default: "bg-gray-900 text-white hover:bg-gray-800",
+    outline: "border border-border bg-transparent hover:bg-muted text-foreground",
     ghost: "bg-transparent hover:bg-muted text-foreground",
     destructive: "bg-destructive text-white hover:bg-destructive/90",
   };
@@ -37,13 +36,7 @@ export function Button({
   return (
     <button
       disabled={disabled || loading}
-      className={cn(
-        base,
-        variants[variant],
-        sizes[size],
-        fullWidth && "w-full",
-        className,
-      )}
+      className={cn(base, variants[variant], sizes[size], fullWidth && "w-full", className)}
       {...props}
     >
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}

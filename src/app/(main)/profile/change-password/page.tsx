@@ -5,12 +5,15 @@ import Link from "next/link";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useChangePassword } from "@/api/auth/hooks";
+import Cookies from "js-cookie";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
+  const { mutate: changePassword, isPending } = useChangePassword();
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
-  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function update<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -21,20 +24,32 @@ export default function ChangePasswordPage() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setSuccess(true);
-      setTimeout(() => router.push("/profile"), 1200);
-    }, 1500);
+    setErrorMsg(null);
+    changePassword(
+      { currentPassword: form.current, newPassword: form.next },
+      {
+        onSuccess: () => {
+          setSuccess(true);
+          // Changing the password invalidates the current session.
+          Cookies.remove("accessToken");
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 1500);
+        },
+        onError: (err: any) => {
+          setErrorMsg(
+            err?.response?.data?.message ||
+              err?.message ||
+              "Could not change password. Check your current password and try again.",
+          );
+        },
+      },
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/profile"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
@@ -49,6 +64,12 @@ export default function ChangePasswordPage() {
         onSubmit={submit}
         className="mx-auto max-w-lg space-y-5 rounded-2xl border border-border bg-white p-6 shadow-sm"
       >
+        {errorMsg && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+            {errorMsg}
+          </div>
+        )}
+
         <Input
           name="current"
           label="Current password"
@@ -73,22 +94,25 @@ export default function ChangePasswordPage() {
           leftIcon={<Lock className="h-4 w-4" />}
           value={form.confirm}
           onChange={(e) => update("confirm", e.target.value)}
-          error={
-            form.confirm && !matches ? "Passwords do not match" : undefined
-          }
+          error={form.confirm && !matches ? "Passwords do not match" : undefined}
         />
 
         {success && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-            Password updated. Redirecting…
+            Password updated. Please sign in again…
           </div>
         )}
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={isPending || success}
+          >
             Cancel
           </Button>
-          <Button type="submit" loading={loading} disabled={!valid}>
+          <Button type="submit" loading={isPending} disabled={!valid || success}>
             Update password
           </Button>
         </div>

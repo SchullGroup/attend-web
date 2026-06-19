@@ -5,12 +5,7 @@ interface Props extends HTMLAttributes<HTMLSpanElement> {
   variant?: "default" | "success" | "warning" | "danger" | "muted" | "info";
 }
 
-export function Badge({
-  variant = "default",
-  className,
-  children,
-  ...props
-}: Props) {
+export function Badge({ variant = "default", className, children, ...props }: Props) {
   const variants = {
     default: "bg-primary/10 text-primary",
     success: "bg-emerald-100 text-emerald-700",

@@ -2,7 +2,7 @@
 @plugin "tailwindcss-animate";
 
 :root {
-  --primary: 221 83% 53%;
+  --primary: 222 39% 11%;
   --primary-foreground: 0 0% 100%;
   --background: 0 0% 100%;
   --foreground: 222 47% 11%;
@@ -12,7 +12,7 @@
   --muted-foreground: 215 14% 47%;
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 221 83% 53%;
+  --ring: 222 39% 11%;
   --destructive: 0 72% 51%;
   --radius: 0.5rem;
 }
@@ -39,6 +39,7 @@ body {
   font-family: "Outfit", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+input, textarea, select, button { font-family: "Outfit", ui-sans-serif, system-ui, sans-serif; }
 
 /* Custom scrollbar utility */
 .no-scrollbar::-webkit-scrollbar { display: none; }
