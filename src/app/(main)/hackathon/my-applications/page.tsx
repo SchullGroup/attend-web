@@ -1,55 +1,45 @@
 "use client";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight } from "lucide-react";
-import { useGetMyTeams } from "@/api/hackathon/hooks";
+import { useGetMyApplications } from "@/api/innovation/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 
 type Tone = "info" | "warning" | "success" | "muted";
 
 const STATUS_TONE: Record<string, Tone> = {
-  submitted: "success",
-  not_submitted: "warning",
-  draft: "muted",
+  submitted: "info",
   under_review: "warning",
   shortlisted: "success",
   selected: "success",
+  not_progressed: "muted",
+  rejected: "muted",
+  withdrawn: "muted",
 };
 const STATUS_LABEL: Record<string, string> = {
   submitted: "Submitted",
-  not_submitted: "Not submitted",
-  draft: "Draft",
   under_review: "Under review",
   shortlisted: "Shortlisted",
   selected: "Selected",
+  not_progressed: "Not progressed",
+  rejected: "Not progressed",
+  withdrawn: "Withdrawn",
 };
 
-interface AppRow {
-  id: string;
-  eventId: string;
-  challengeTitle: string;
-  teamName: string;
-  track: string;
-  submittedAt: string;
-  statusKey: string;
-}
-
-const fmtType = (t: string) => (t || "").replace(/_/g, " ").toLowerCase();
 const labelFor = (k: string) => STATUS_LABEL[k] ?? (k ? k.replace(/_/g, " ") : "—");
 const toneFor = (k: string): Tone => STATUS_TONE[k] ?? "muted";
 
 export default function MyApplicationsPage() {
-  const { data, isLoading } = useGetMyTeams();
-  const apiTeams = data?.data?.teams ?? [];
-
-  const apps: AppRow[] = apiTeams.map((t) => ({
-    id: t.teamId,
-    eventId: t.eventId,
-    challengeTitle: t.eventTitle,
-    teamName: t.teamName,
-    track: fmtType(t.eventType),
-    submittedAt: t.eventDate ? formatDate(t.eventDate) : "—",
-    statusKey: (t.submissionStatus || "").toLowerCase(),
+  const { data, isLoading } = useGetMyApplications();
+  const apps = (data?.data ?? []).map((a) => ({
+    id: a.id,
+    challengeId: a.challengeId,
+    challengeName: a.challengeName,
+    applicationCode: a.applicationCode,
+    teamName: a.teamName,
+    track: a.track,
+    submittedAt: a.submittedAt ? formatDate(a.submittedAt) : "—",
+    statusKey: (a.status || "").toLowerCase().replace(/[\s-]+/g, "_"),
   }));
 
   return (
@@ -79,8 +69,8 @@ export default function MyApplicationsPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Challenge</th>
                 <th className="px-4 py-3 text-left font-semibold">Team</th>
-                <th className="px-4 py-3 text-left font-semibold">Type</th>
-                <th className="px-4 py-3 text-left font-semibold">Date</th>
+                <th className="px-4 py-3 text-left font-semibold">Track</th>
+                <th className="px-4 py-3 text-left font-semibold">Submitted</th>
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
               </tr>
             </thead>
@@ -88,12 +78,15 @@ export default function MyApplicationsPage() {
               {apps.map((a) => (
                 <tr key={a.id} className="hover:bg-muted/30">
                   <td className="px-4 py-3 font-medium text-foreground">
-                    <Link href={`/hackathon/${a.eventId}`} className="hover:text-primary">
-                      {a.challengeTitle}
+                    <Link href={`/hackathon/${a.challengeId}`} className="hover:text-primary">
+                      {a.challengeName}
                     </Link>
+                    {a.applicationCode && (
+                      <span className="block text-xs font-normal text-muted-foreground">{a.applicationCode}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.teamName}</td>
-                  <td className="px-4 py-3 capitalize text-muted-foreground">{a.track}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{a.track}</td>
                   <td className="px-4 py-3 text-muted-foreground">{a.submittedAt}</td>
                   <td className="px-4 py-3">
                     <Badge variant={toneFor(a.statusKey)}>{labelFor(a.statusKey)}</Badge>
@@ -107,13 +100,15 @@ export default function MyApplicationsPage() {
           <ul className="divide-y divide-border md:hidden">
             {apps.map((a) => (
               <li key={a.id}>
-                <Link href={`/hackathon/${a.eventId}`} className="flex items-start gap-3 p-4 hover:bg-muted/30">
+                <Link href={`/hackathon/${a.challengeId}`} className="flex items-start gap-3 p-4 hover:bg-muted/30">
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-foreground">{a.challengeTitle}</p>
-                    <p className="text-xs capitalize text-muted-foreground">
+                    <p className="text-sm font-semibold text-foreground">{a.challengeName}</p>
+                    <p className="text-xs text-muted-foreground">
                       {a.teamName} · {a.track}
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">{a.submittedAt}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {a.submittedAt}{a.applicationCode ? ` · ${a.applicationCode}` : ""}
+                    </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <Badge variant={toneFor(a.statusKey)}>{labelFor(a.statusKey)}</Badge>

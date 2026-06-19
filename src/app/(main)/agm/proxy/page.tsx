@@ -44,7 +44,7 @@ function ProxyPageInner() {
         : { proxyName: name.trim(), proxyEmail: email.trim(), proxyPhone: phone.trim() };
 
     assignProxy(payload, {
-      onSuccess: () => router.push("/agm/receipt"),
+      onSuccess: () => router.push(`/agm/receipt?eventId=${eventId}`),
       onError: (err: any) =>
         setErrorMsg(
           err?.response?.data?.message || err?.message || "Failed to assign proxy.",

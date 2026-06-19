@@ -2,9 +2,11 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Download, Copy, Check } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, Copy, Check, Building2, ChevronRight, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useGetVoteReceipt } from "@/api/agm/hooks";
+import { useGetVoteReceipt, useGetProxy } from "@/api/agm/hooks";
+import { useGetEvents } from "@/api/events/hooks";
+import { EventListItem } from "@/types";
 import { formatDate } from "@/lib/utils";
 
 function voteLabel(c: string) {
@@ -19,8 +21,16 @@ function ReceiptInner() {
 
   const { data, isLoading } = useGetVoteReceipt(eventId);
   const receipt = data?.data;
+  const { data: proxyData } = useGetProxy(eventId);
+  const proxy = proxyData?.data;
 
-  if (eventId && isLoading) {
+  // No event selected → let the user pick which AGM's receipt to view. There's no
+  // "list all receipts" endpoint, so we list the AGMs they're registered for.
+  if (!eventId) {
+    return <ReceiptPicker />;
+  }
+
+  if (isLoading) {
     return (
       <div className="mx-auto max-w-2xl">
         <div className="h-72 animate-pulse rounded-3xl border border-border bg-muted" />
@@ -28,11 +38,11 @@ function ReceiptInner() {
     );
   }
 
-  if (!eventId || !receipt) {
+  if (!receipt) {
     return (
       <div className="space-y-6">
-        <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back to AGMs
+        <Link href="/agm/receipt" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> All receipts
         </Link>
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           No vote receipt found. Cast your votes at an AGM and your receipt will appear here.
@@ -129,6 +139,32 @@ function ReceiptInner() {
               )}
             </div>
 
+            {proxy && proxy.proxyName && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Proxy
+                </p>
+                <div className="flex items-start gap-3 rounded-xl border border-border p-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50">
+                    <UserCheck className="h-4.5 w-4.5 text-purple-600" />
+                  </div>
+                  <div className="text-sm">
+                    <p className="font-medium text-foreground">{proxy.proxyName}</p>
+                    {(proxy.proxyEmail || proxy.proxyPhone) && (
+                      <p className="text-xs text-muted-foreground">
+                        {[proxy.proxyEmail, proxy.proxyPhone].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                    {proxy.assignedAt && (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Appointed {formatDate(proxy.assignedAt)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
               This receipt is timestamped and serves as evidence of your
               participation and votes at the meeting.
@@ -145,6 +181,62 @@ function ReceiptInner() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReceiptPicker() {
+  const { data, isLoading } = useGetEvents({ eventType: "AGM_EGM", size: 50 });
+  const agms = (data?.data?.events ?? []).filter(
+    (e: EventListItem) => e.eventType === "AGM_EGM" && e.registered,
+  );
+
+  return (
+    <div className="space-y-6">
+      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back to AGMs
+      </Link>
+      <header>
+        <h1 className="text-2xl font-bold text-foreground">My receipts</h1>
+        <p className="text-sm text-muted-foreground">
+          Select an AGM to view your vote receipt.
+        </p>
+      </header>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2].map((n) => (
+            <div key={n} className="h-20 animate-pulse rounded-2xl border border-border bg-muted" />
+          ))}
+        </div>
+      ) : agms.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          You don&apos;t have any AGM receipts yet. Once you vote at an AGM you&apos;re
+          registered for, your receipt will appear here.
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {agms.map((e) => (
+            <li key={e.id}>
+              <Link
+                href={`/agm/receipt?eventId=${e.id}`}
+                className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4 hover:bg-muted/30"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                  <Building2 className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{e.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(e.date)}{e.startTime ? ` · ${e.startTime}` : ""}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -99,19 +99,13 @@ export default function HackathonDetailPage({
           <h1 className="text-2xl font-bold leading-tight md:text-3xl">{challenge.title}</h1>
           {challenge.description && <p className="max-w-2xl text-sm text-white/85">{challenge.description}</p>}
           <div className="flex flex-wrap gap-2 pt-1">
-            {myTeam ? (
-              <Link href={`/hackathon/submit?challengeId=${id}&teamId=${myTeam.id}`}>
-                <button className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
-                  Submit project
-                </button>
-              </Link>
-            ) : (
-              <Link href={`/hackathon/apply?challengeId=${id}`}>
-                <button className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
-                  Apply now
-                </button>
-              </Link>
-            )}
+            {/* One-step application (Door B). The apply page itself gates on whether
+                you've already applied. */}
+            <Link href={`/hackathon/apply?challengeId=${id}`}>
+              <button className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
+                Apply now
+              </button>
+            </Link>
             <Link href={`/hackathon/resources?challengeId=${id}`}>
               <button className="rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/20">
                 Resources{challenge.resourceCount > 0 ? ` (${challenge.resourceCount})` : ""}
