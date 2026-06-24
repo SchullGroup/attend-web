@@ -379,8 +379,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             style={{ backgroundColor: color }}
             onClick={() => {
               if (mod === "AGM") router.push(`/agm/live?eventId=${id}`);
-              else if (event.streamUrl) window.open(event.streamUrl, "_blank");
-              else router.push(`/agm/live?eventId=${id}`);
+              else router.push(`/events/live?eventId=${id}`);
             }}
           >
             <Radio className="h-4 w-4" /> Join Live Session →

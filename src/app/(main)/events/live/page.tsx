@@ -3,16 +3,23 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { LiveRoom } from "@/components/attend/LiveRoom";
 
-function LivePageInner() {
+function EventLiveInner() {
   const searchParams = useSearchParams();
   const eventId = searchParams.get("eventId") ?? "";
-  return <LiveRoom eventId={eventId} showBallot backHref="/agm" backLabel="Leave meeting" />;
+  return (
+    <LiveRoom
+      eventId={eventId}
+      showBallot={false}
+      backHref={`/events/${eventId}`}
+      backLabel="Back to event"
+    />
+  );
 }
 
-export default function LivePage() {
+export default function EventLivePage() {
   return (
     <Suspense>
-      <LivePageInner />
+      <EventLiveInner />
     </Suspense>
   );
 }

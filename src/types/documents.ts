@@ -10,6 +10,7 @@ export interface ParticipantDocument {
   sizeBytes: number;
   sizeLabel: string;
   downloadCount: number;
+  downloadUrl: string;
 }
 
 export interface DocumentsData {

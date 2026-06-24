@@ -36,11 +36,12 @@ export const useSubmitQuestion = (eventId: string) => {
   });
 };
 
-export const useGetResolutions = (eventId: string, refetchInterval?: number) => {
+export const useGetResolutions = (eventId: string, refetchInterval?: number, enabled = true) => {
   return useQuery({
     queryKey: agmKeys.resolutions(eventId),
     queryFn: () => agmClient.getResolutions(eventId),
-    enabled: !!eventId,
+    // Only AGMs have resolutions — general live events skip this fetch.
+    enabled: !!eventId && enabled,
     // During a live meeting we poll so countdown + tallies stay fresh.
     refetchInterval: refetchInterval ?? false,
   });

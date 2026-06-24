@@ -16,6 +16,7 @@ interface DocRow {
   title: string;
   meta: string;
   eventTitle: string;
+  downloadUrl: string;
 }
 
 export default function DocumentsPage() {
@@ -28,6 +29,7 @@ export default function DocumentsPage() {
     title: d.title,
     meta: d.downloadCount > 0 ? `${d.sizeLabel} · ${d.downloadCount} downloads` : d.sizeLabel,
     eventTitle: d.eventTitle,
+    downloadUrl: d.downloadUrl,
   }));
 
   return (
@@ -74,9 +76,25 @@ export default function DocumentsPage() {
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">{d.eventTitle}</p>
                   )}
                 </div>
-                <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground">
-                  <Download className="h-4 w-4" />
-                </button>
+                {d.downloadUrl ? (
+                  <a
+                    href={d.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Download ${d.title}`}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                ) : (
+                  <button
+                    disabled
+                    aria-label="Download unavailable"
+                    className="inline-flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl border border-border bg-white text-muted-foreground/40"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                )}
               </li>
             );
           })}
