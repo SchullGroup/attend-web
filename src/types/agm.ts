@@ -71,6 +71,8 @@ export interface EventQuestion {
   answeredAt: string;
   anonymous: boolean;
   submittedAt: string;
+  upvoteCount: number;
+  myUpvote: boolean;
 }
 
 export interface QuestionsData {

@@ -26,6 +26,26 @@ export const useGetEvent = (id: string) => {
   });
 };
 
+export const useGetStream = (id: string, enabled = true) => {
+  return useQuery({
+    queryKey: [...eventKeys.all, "stream", id] as const,
+    queryFn: () => eventsClient.getStream(id),
+    enabled: !!id && enabled,
+    retry: false,
+    refetchInterval: 15000,
+  });
+};
+
+export const useGetCountdown = (id: string, enabled = true) => {
+  return useQuery({
+    queryKey: [...eventKeys.all, "countdown", id] as const,
+    queryFn: () => eventsClient.getCountdown(id),
+    enabled: !!id && enabled,
+    retry: false,
+    refetchInterval: 15000,
+  });
+};
+
 export const useGetMyTicket = (id: string) => {
   return useQuery({
     queryKey: eventKeys.ticket(id),

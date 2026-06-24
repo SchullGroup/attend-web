@@ -36,6 +36,16 @@ export const useSubmitQuestion = (eventId: string) => {
   });
 };
 
+export const useUpvoteQuestion = (eventId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (questionId: string) => agmClient.upvoteQuestion(eventId, questionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: agmKeys.questions(eventId) });
+    },
+  });
+};
+
 export const useGetResolutions = (eventId: string, refetchInterval?: number, enabled = true) => {
   return useQuery({
     queryKey: agmKeys.resolutions(eventId),

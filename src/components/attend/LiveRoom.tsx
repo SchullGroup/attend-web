@@ -14,13 +14,16 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle,
+  ThumbsUp,
+  Clock,
 } from "lucide-react";
-import { useGetEvent } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown } from "@/api/events/hooks";
 import {
   useGetResolutions,
   useCastVote,
   useGetQuestions,
   useSubmitQuestion,
+  useUpvoteQuestion,
 } from "@/api/agm/hooks";
 import { Button } from "@/components/ui/Button";
 import { cn, formatRelativeTime, toEmbedUrl } from "@/lib/utils";
@@ -28,6 +31,17 @@ import { Resolution } from "@/types";
 
 type Tab = "qa" | "ballot";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
+
+function fmtCountdown(total: number): string {
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
 
 interface LiveRoomProps {
   eventId: string;
@@ -50,9 +64,20 @@ export function LiveRoom({
   const watching = event?.registeredCount ?? 0;
   const isLive = event?.status === "LIVE";
 
+  // Stream link: prefer the gated /stream endpoint (only resolves when live +
+  // registered); fall back to the streamUrl the admin set on the event.
+  const { data: streamData } = useGetStream(eventId, isLive);
+  const streamUrl = (streamData?.data?.streamUrl as string) || event?.streamUrl || "";
+
+  // Countdown to start — only polled before the event is live.
+  const { data: cdData } = useGetCountdown(eventId, !!event && !isLive);
+  const cdSecs =
+    typeof cdData?.data?.secondsUntilStart === "number" ? cdData.data.secondsUntilStart : null;
+
   // Only AGMs poll resolutions for the live ballot.
   const { data: resData } = useGetResolutions(eventId, showBallot ? 5000 : undefined, showBallot);
   const { mutate: castVote, isPending: voting } = useCastVote(eventId);
+  const { mutate: upvote } = useUpvoteQuestion(eventId);
 
   const resolutions = resData?.data?.resolutions ?? [];
   const openRes = resolutions.find((r) => r.secondsRemaining > 0);
@@ -70,6 +95,8 @@ export function LiveRoom({
     text: x.content,
     answered: !!x.answer || (x.status || "").toUpperCase() === "ANSWERED",
     answer: x.answer || "",
+    upvoteCount: x.upvoteCount ?? 0,
+    myUpvote: !!x.myUpvote,
   }));
 
   const [tab, setTab] = useState<Tab>(showBallot ? "ballot" : "qa");
@@ -80,6 +107,19 @@ export function LiveRoom({
   const [qSent, setQSent] = useState(false);
   const [userQuestion, setUserQuestion] = useState("");
   const [videoHidden, setVideoHidden] = useState(false);
+
+  // Local "starts in" ticker — re-syncs to the backend's secondsUntilStart on
+  // each poll, ticks down locally in between.
+  const [startsIn, setStartsIn] = useState<number | null>(null);
+  useEffect(() => {
+    if (cdSecs == null) {
+      setStartsIn(null);
+      return;
+    }
+    setStartsIn(cdSecs);
+    const t = setInterval(() => setStartsIn((s) => (s == null ? null : Math.max(0, s - 1))), 1000);
+    return () => clearInterval(t);
+  }, [cdSecs]);
 
   // Real countdown: re-sync to the open resolution's secondsRemaining on every
   // poll, tick down locally in between.
@@ -194,9 +234,9 @@ export function LiveRoom({
             </div>
           ) : (
             <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-900">
-              {event?.streamUrl ? (
+              {streamUrl ? (
                 <iframe
-                  src={toEmbedUrl(event.streamUrl)}
+                  src={toEmbedUrl(streamUrl)}
                   title={title}
                   className="absolute inset-0 h-full w-full"
                   allow="autoplay; fullscreen; picture-in-picture"
@@ -207,10 +247,16 @@ export function LiveRoom({
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_40%)]" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center text-white">
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur">
-                      <Play className="h-7 w-7 text-white/70" />
+                      {startsIn != null && startsIn > 0 ? (
+                        <Clock className="h-7 w-7 text-white/70" />
+                      ) : (
+                        <Play className="h-7 w-7 text-white/70" />
+                      )}
                     </div>
                     <p className="mt-4 text-sm font-semibold text-white/85">
-                      {isLive
+                      {startsIn != null && startsIn > 0
+                        ? `Starts in ${fmtCountdown(startsIn)}`
+                        : isLive
                         ? "Waiting for the live stream…"
                         : "The live stream will appear here once the session begins"}
                     </p>
@@ -312,6 +358,22 @@ export function LiveRoom({
                             {item.answer}
                           </div>
                         )}
+                        <div className="mt-2 flex items-center">
+                          <button
+                            type="button"
+                            onClick={() => upvote(item.id)}
+                            aria-pressed={item.myUpvote}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
+                              item.myUpvote
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border text-muted-foreground hover:bg-muted",
+                            )}
+                          >
+                            <ThumbsUp className={cn("h-3.5 w-3.5", item.myUpvote && "fill-current")} />
+                            {item.upvoteCount}
+                          </button>
+                        </div>
                       </li>
                     ))}
                     {qSent && (

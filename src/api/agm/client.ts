@@ -32,6 +32,14 @@ export const agmClient = {
     );
     return response.data;
   },
+
+  // Toggle upvote on a question. Returns { upvoted, upvoteCount }.
+  upvoteQuestion: async (eventId: string, questionId: string) => {
+    const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/participant/events/${eventId}/questions/${questionId}/upvote`,
+    );
+    return response.data;
+  },
   getResolutions: async (eventId: string) => {
     const response = await apiClient.get<ResolutionsResponse>(
       `/api/v1/participant/events/${eventId}/resolutions`,

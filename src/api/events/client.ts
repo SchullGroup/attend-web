@@ -37,6 +37,23 @@ export const eventsClient = {
     return response.data;
   },
 
+  // Live stream — gated by the backend: 403 if not registered, 409 if not live.
+  // Returns a generic map (eventId, eventTitle, streamUrl, status).
+  getStream: async (id: string) => {
+    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/participant/events/${id}/stream`,
+    );
+    return response.data;
+  },
+
+  // Countdown to start — { status, startsAt, secondsUntilStart } (0 when LIVE, null when ended).
+  getCountdown: async (id: string) => {
+    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/participant/events/${id}/countdown`,
+    );
+    return response.data;
+  },
+
   getMyTicket: async (id: string) => {
     const response = await apiClient.get<MyTicketResponse>(
       `/api/v1/participant/events/${id}/my-ticket`,
