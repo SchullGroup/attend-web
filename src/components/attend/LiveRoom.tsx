@@ -80,9 +80,12 @@ export function LiveRoom({
   const { mutate: upvote } = useUpvoteQuestion(eventId);
 
   const resolutions = resData?.data?.resolutions ?? [];
-  const openRes = resolutions.find((r) => r.secondsRemaining > 0);
+  // Status-driven (secondsRemaining is null while a resolution is WAITING).
+  const openRes = resolutions.find(
+    (r) => (r.status || "").toUpperCase() === "OPEN" || r.secondsRemaining > 0,
+  );
   const closedRes = resolutions.filter(
-    (r) => r.secondsRemaining <= 0 && r.forCount + r.againstCount + r.abstainCount > 0,
+    (r) => (r.status || "").toUpperCase() === "CLOSED" && r.forCount + r.againstCount + r.abstainCount > 0,
   );
 
   const { data: qData } = useGetQuestions(eventId);
@@ -470,6 +473,15 @@ export function LiveRoom({
                     <Button fullWidth disabled={!vote || voting} loading={voting} onClick={handleCastVote}>
                       {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
                     </Button>
+
+                    {openRes.forCount + openRes.againstCount + openRes.abstainCount > 0 && (
+                      <div className="border-t border-border pt-3">
+                        <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> Live tally
+                        </p>
+                        <ResolutionResult r={openRes} />
+                      </div>
+                    )}
                   </div>
                 ) : closedRes.length > 0 ? (
                   <div className="space-y-3">
@@ -479,6 +491,33 @@ export function LiveRoom({
                     {closedRes.map((r) => (
                       <ResolutionResult key={r.id} r={r} />
                     ))}
+                  </div>
+                ) : resolutions.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Resolutions
+                    </p>
+                    {[...resolutions]
+                      .sort((a, b) => a.order - b.order)
+                      .map((r) => {
+                        const v = (r.myVote || "").toUpperCase();
+                        const s = (r.status || "").toUpperCase();
+                        const label = v
+                          ? `Voted ${v.charAt(0) + v.slice(1).toLowerCase()}`
+                          : s === "OPEN" ? "Open" : s === "CLOSED" ? "Closed" : s === "WAITING" ? "Waiting" : "Pending";
+                        const tone = v
+                          ? "bg-emerald-100 text-emerald-700"
+                          : s === "OPEN" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600";
+                        return (
+                          <div key={r.id} className="flex items-center justify-between gap-2 rounded-xl border border-border p-3">
+                            <div className="min-w-0">
+                              <p className="text-[11px] text-muted-foreground">Resolution {r.order + 1}</p>
+                              <p className="truncate text-sm font-medium text-foreground">{r.title}</p>
+                            </div>
+                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>
+                          </div>
+                        );
+                      })}
                   </div>
                 ) : (
                   <div className="py-8 text-center text-sm text-muted-foreground">

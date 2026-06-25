@@ -11,6 +11,7 @@ import {
   useGetEvent, useRsvp, useCancelRsvp,
   useGetSavedEvents, useSaveEvent, useUnsaveEvent,
 } from "@/api/events/hooks";
+import { useGetResolutions } from "@/api/agm/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -50,6 +51,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const { mutate: saveEvent } = useSaveEvent(id);
   const { mutate: unsaveEvent } = useUnsaveEvent(id);
   const saved = !!savedResp?.data?.events?.some((e) => e.id === id);
+
+  // Resolutions are a separate array from the agenda — only AGMs have them.
+  const { data: resData } = useGetResolutions(id, undefined, event?.eventType === "AGM_EGM");
+  const resolutions = resData?.data?.resolutions ?? [];
 
   function toggleSave() {
     if (saved) unsaveEvent();
@@ -341,6 +346,48 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Resolutions (AGM only) — separate from the agenda list */}
+      {mod === "AGM" && resolutions.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Resolutions</h2>
+          <ul className="space-y-2">
+            {[...resolutions]
+              .sort((a, b) => a.order - b.order)
+              .map((r) => {
+                const v = (r.myVote || "").toUpperCase();
+                const s = (r.status || "").toUpperCase();
+                const badge = v ? (
+                  <Badge variant="success">Voted {v.charAt(0) + v.slice(1).toLowerCase()}</Badge>
+                ) : s === "OPEN" ? (
+                  <Badge variant="warning">Open</Badge>
+                ) : s === "CLOSED" ? (
+                  <Badge variant="muted">Closed</Badge>
+                ) : s === "WAITING" ? (
+                  <Badge variant="muted">Waiting</Badge>
+                ) : (
+                  <Badge variant="muted">Pending</Badge>
+                );
+                return (
+                  <li key={r.id} className="rounded-2xl border border-border bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Resolution {r.order + 1}{r.specialResolution ? " · Special" : ""}
+                        </p>
+                        <p className="mt-0.5 text-sm font-medium text-foreground">{r.title}</p>
+                        {r.description && (
+                          <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>
+                        )}
+                      </div>
+                      <div className="shrink-0">{badge}</div>
+                    </div>
+                  </li>
+                );
+              })}
+          </ul>
         </section>
       )}
 
