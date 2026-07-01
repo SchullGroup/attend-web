@@ -17,7 +17,7 @@ import {
   ThumbsUp,
   Clock,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum } from "@/api/events/hooks";
 import {
   useGetResolutions,
   useCastVote,
@@ -74,6 +74,16 @@ export function LiveRoom({
   const cdSecs =
     typeof cdData?.data?.secondsUntilStart === "number" ? cdData.data.secondsUntilStart : null;
 
+  // Live quorum (AGM ballot only). Response is a generic map — read the percentage
+  // defensively; show "—" rather than a fabricated number if it's not present.
+  const { data: quorumData } = useGetQuorum(eventId, showBallot && isLive);
+  const quorumPct = (() => {
+    const m = (quorumData?.data ?? {}) as Record<string, unknown>;
+    const raw =
+      m.quorumPercentage ?? m.percentage ?? m.currentPercentage ?? m.presentPercentage ?? m.attendancePercentage;
+    return typeof raw === "number" ? Math.round(raw) : null;
+  })();
+
   // Only AGMs poll resolutions for the live ballot.
   const { data: resData } = useGetResolutions(eventId, showBallot ? 5000 : undefined, showBallot);
   const { mutate: castVote, isPending: voting } = useCastVote(eventId);
@@ -84,11 +94,17 @@ export function LiveRoom({
   const openRes = resolutions.find(
     (r) => (r.status || "").toUpperCase() === "OPEN" || r.secondsRemaining > 0,
   );
-  const closedRes = resolutions.filter(
-    (r) => (r.status || "").toUpperCase() === "CLOSED" && r.forCount + r.againstCount + r.abstainCount > 0,
-  );
+  const allClosed =
+    resolutions.length > 0 && resolutions.every((r) => (r.status || "").toUpperCase() === "CLOSED");
+  // Open while a resolution is live, Closed only when every one has closed,
+  // otherwise Waiting (resolutions exist but none has been opened yet).
+  const ballotStatus = openRes ? "Open" : allClosed ? "Closed" : resolutions.length ? "Waiting" : "—";
+  // Stable 1-based numbering by position — resolution.order isn't reliably 0-based,
+  // which is what produced "6 of 5". Number by index so the count always tallies.
+  const sortedRes = [...resolutions].sort((a, b) => a.order - b.order);
+  const openPos = openRes ? sortedRes.findIndex((r) => r.id === openRes.id) + 1 : null;
 
-  const { data: qData } = useGetQuestions(eventId);
+  const { data: qData } = useGetQuestions(eventId, 6000);
   const { mutate: submitQuestion, isPending: submittingQ } = useSubmitQuestion(eventId);
   const apiQuestions = qData?.data?.questions ?? [];
   const qaItems = apiQuestions.map((x) => ({
@@ -110,6 +126,27 @@ export function LiveRoom({
   const [qSent, setQSent] = useState(false);
   const [userQuestion, setUserQuestion] = useState("");
   const [videoHidden, setVideoHidden] = useState(false);
+
+  // Show the user's just-submitted question optimistically — but only until the
+  // backend's list actually returns it (so it doesn't appear twice).
+  const showMyPending =
+    qSent &&
+    userQuestion.trim().length > 0 &&
+    !qaItems.some((i) => i.text.trim().toLowerCase() === userQuestion.trim().toLowerCase());
+
+  // Remember the active tab so a refresh keeps you where you were.
+  useEffect(() => {
+    const saved = sessionStorage.getItem("attend:liveTab");
+    if (saved === "qa" || (showBallot && saved === "ballot")) setTab(saved as Tab);
+  }, [showBallot]);
+  const selectTab = (t: Tab) => {
+    setTab(t);
+    try {
+      sessionStorage.setItem("attend:liveTab", t);
+    } catch {
+      /* ignore storage errors */
+    }
+  };
 
   // Local "starts in" ticker — re-syncs to the backend's secondsUntilStart on
   // each poll, ticks down locally in between.
@@ -292,16 +329,22 @@ export function LiveRoom({
           )}
 
           {showBallot && (
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="rounded-xl border border-border bg-white p-3 text-center">
+                <p className="text-xs text-muted-foreground">Quorum</p>
+                <p className="text-base font-semibold text-foreground">
+                  {quorumPct != null ? `${quorumPct}%` : "—"}
+                </p>
+              </div>
               <div className="rounded-xl border border-border bg-white p-3 text-center">
                 <p className="text-xs text-muted-foreground">Resolution</p>
                 <p className="text-base font-semibold text-foreground">
-                  {openRes ? openRes.order + 1 : "—"} of {resolutions.length || "—"}
+                  {openPos ?? "—"} of {resolutions.length || "—"}
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-white p-3 text-center">
                 <p className="text-xs text-muted-foreground">Status</p>
-                <p className="text-base font-semibold text-foreground">{openRes ? "Open" : "Closed"}</p>
+                <p className="text-base font-semibold text-foreground">{ballotStatus}</p>
               </div>
             </div>
           )}
@@ -318,7 +361,7 @@ export function LiveRoom({
                 ].map(({ id, label, icon: Icon }) => (
                   <button
                     key={id}
-                    onClick={() => setTab(id)}
+                    onClick={() => selectTab(id)}
                     className={cn(
                       "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-semibold",
                       tab === id ? "border-b-2 border-primary text-primary" : "text-muted-foreground",
@@ -379,7 +422,7 @@ export function LiveRoom({
                         </div>
                       </li>
                     ))}
-                    {qSent && (
+                    {showMyPending && (
                       <li className="rounded-xl border border-primary/20 bg-primary/5 p-3">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <p className="text-xs font-semibold text-primary">You</p>
@@ -415,7 +458,7 @@ export function LiveRoom({
                   <div className="space-y-4">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                        Resolution {openRes.order + 1}
+                        Resolution {openPos}
                       </p>
                       <h3 className="mt-0.5 text-base font-semibold text-foreground">
                         {openRes.title}
@@ -479,49 +522,47 @@ export function LiveRoom({
                         <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> Live tally
                         </p>
-                        <ResolutionResult r={openRes} />
+                        <ResolutionBars r={openRes} />
                       </div>
                     )}
                   </div>
-                ) : closedRes.length > 0 ? (
-                  <div className="space-y-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Results
-                    </p>
-                    {closedRes.map((r) => (
-                      <ResolutionResult key={r.id} r={r} />
-                    ))}
-                  </div>
-                ) : resolutions.length > 0 ? (
+                ) : sortedRes.length > 0 ? (
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Resolutions
+                      {allClosed ? "Results" : "Resolutions"}
                     </p>
-                    {[...resolutions]
-                      .sort((a, b) => a.order - b.order)
-                      .map((r) => {
-                        const v = (r.myVote || "").toUpperCase();
-                        const s = (r.status || "").toUpperCase();
-                        const label = v
-                          ? `Voted ${v.charAt(0) + v.slice(1).toLowerCase()}`
-                          : s === "OPEN" ? "Open" : s === "CLOSED" ? "Closed" : s === "WAITING" ? "Waiting" : "Pending";
-                        const tone = v
-                          ? "bg-emerald-100 text-emerald-700"
-                          : s === "OPEN" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600";
-                        return (
-                          <div key={r.id} className="flex items-center justify-between gap-2 rounded-xl border border-border p-3">
+                    {sortedRes.map((r, idx) => {
+                      const v = (r.myVote || "").toUpperCase();
+                      const s = (r.status || "").toUpperCase();
+                      const label = v
+                        ? `Voted ${v.charAt(0) + v.slice(1).toLowerCase()}`
+                        : s === "OPEN" ? "Open" : s === "CLOSED" ? "Closed" : s === "WAITING" ? "Waiting" : "Pending";
+                      const tone = v
+                        ? "bg-emerald-100 text-emerald-700"
+                        : s === "OPEN" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600";
+                      const showResult =
+                        s === "CLOSED" && r.forCount + r.againstCount + r.abstainCount > 0;
+                      return (
+                        <div key={r.id} className="rounded-xl border border-border p-3">
+                          <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-[11px] text-muted-foreground">Resolution {r.order + 1}</p>
-                              <p className="truncate text-sm font-medium text-foreground">{r.title}</p>
+                              <p className="text-[11px] text-muted-foreground">Resolution {idx + 1}</p>
+                              <p className="text-sm font-medium text-foreground">{r.title}</p>
                             </div>
                             <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>
                           </div>
-                        );
-                      })}
+                          {showResult && (
+                            <div className="mt-3 border-t border-border pt-2">
+                              <ResolutionBars r={r} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="py-8 text-center text-sm text-muted-foreground">
-                    Voting is not currently open.
+                    No resolutions for this meeting yet.
                   </div>
                 ))}
             </div>
@@ -532,7 +573,7 @@ export function LiveRoom({
   );
 }
 
-function ResolutionResult({ r }: { r: Resolution }) {
+function ResolutionBars({ r }: { r: Resolution }) {
   const totalShares = r.forShares + r.againstShares + r.abstainShares;
   const pct = (s: number) => (totalShares ? Math.round((s / totalShares) * 100) : 0);
   const rows = [
@@ -541,13 +582,8 @@ function ResolutionResult({ r }: { r: Resolution }) {
     { label: "Abstain", count: r.abstainCount, shares: r.abstainShares, color: "bg-slate-400" },
   ];
   return (
-    <article className="rounded-xl border border-border bg-white p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Resolution {r.order + 1}
-      </p>
-      <h4 className="text-sm font-semibold text-foreground">{r.title}</h4>
-      <div className="mt-2 space-y-1.5">
-        {rows.map((row) => (
+    <div className="space-y-1.5">
+      {rows.map((row) => (
           <div key={row.label}>
             <div className="mb-0.5 flex items-center justify-between text-[11px]">
               <span className="font-medium text-foreground">{row.label}</span>
@@ -560,7 +596,6 @@ function ResolutionResult({ r }: { r: Resolution }) {
             </div>
           </div>
         ))}
-      </div>
-    </article>
+    </div>
   );
 }

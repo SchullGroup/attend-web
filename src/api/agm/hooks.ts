@@ -18,11 +18,14 @@ export const useGetVoteReceipt = (eventId: string) => {
   });
 };
 
-export const useGetQuestions = (eventId: string) => {
+export const useGetQuestions = (eventId: string, refetchInterval?: number) => {
   return useQuery({
     queryKey: agmKeys.questions(eventId),
     queryFn: () => agmClient.getQuestions(eventId),
     enabled: !!eventId,
+    // During a live session we poll so new questions, answers and upvote counts
+    // from other attendees show up without a reload.
+    refetchInterval: refetchInterval ?? false,
   });
 };
 
@@ -73,6 +76,13 @@ export const useGetProxy = (eventId: string) => {
     queryKey: agmKeys.proxy(eventId),
     queryFn: () => agmClient.getProxy(eventId),
     enabled: !!eventId,
+  });
+};
+
+export const useGetProxyHistory = () => {
+  return useQuery({
+    queryKey: ["agm", "proxy-history"] as const,
+    queryFn: () => agmClient.getProxyHistory(),
   });
 };
 

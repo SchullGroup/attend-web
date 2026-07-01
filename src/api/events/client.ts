@@ -54,6 +54,22 @@ export const eventsClient = {
     return response.data;
   },
 
+  // Live quorum — a generic map (percentage + met flag + attendee/share counts).
+  getQuorum: async (id: string) => {
+    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/participant/events/${id}/quorum`,
+    );
+    return response.data;
+  },
+
+  // Join the waitlist for a full event.
+  joinWaitlist: async (id: string) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/participant/events/${id}/waitlist`,
+    );
+    return response.data;
+  },
+
   getMyTicket: async (id: string) => {
     const response = await apiClient.get<MyTicketResponse>(
       `/api/v1/participant/events/${id}/my-ticket`,

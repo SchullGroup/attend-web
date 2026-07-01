@@ -8,7 +8,7 @@ import {
   BookOpen, ShieldAlert, ChevronRight, Radio,
 } from "lucide-react";
 import {
-  useGetEvent, useRsvp, useCancelRsvp,
+  useGetEvent, useRsvp, useCancelRsvp, useJoinWaitlist,
   useGetSavedEvents, useSaveEvent, useUnsaveEvent,
 } from "@/api/events/hooks";
 import { useGetResolutions } from "@/api/agm/hooks";
@@ -25,6 +25,14 @@ const FORMAT_LABEL: Record<string, string> = {
 const FORMAT_ICON: Record<string, typeof Monitor> = {
   VIRTUAL: Monitor, HYBRID: Wifi, IN_PERSON: MapPin,
 };
+
+// Resolution voting window (defaultDurationSeconds) → a short label.
+function fmtWindow(s?: number): string | null {
+  if (!s || s <= 0) return null;
+  if (s % 60 === 0) return `${s / 60} min`;
+  if (s < 60) return `${s}s`;
+  return `${Math.floor(s / 60)}m ${s % 60}s`;
+}
 
 // Map backend eventType → the module groupings the detail UI switches on.
 function moduleOf(eventType: string): "AGM" | "HACKATHON" | "LAUNCH" | "GENERAL" {
@@ -46,6 +54,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const [shared, setShared] = useState(false);
   const { mutate: rsvp, isPending: rsvping } = useRsvp(id);
   const { mutate: cancelRsvp, isPending: cancelling } = useCancelRsvp(id);
+  const { mutate: joinWaitlist, isPending: joiningWaitlist } = useJoinWaitlist(id);
 
   const { data: savedResp } = useGetSavedEvents();
   const { mutate: saveEvent } = useSaveEvent(id);
@@ -77,6 +86,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     rsvp(undefined, {
       onError: (err: any) =>
         setRsvpError(err?.response?.data?.message || err?.message || "RSVP failed. Please try again."),
+    });
+  }
+
+  function handleJoinWaitlist() {
+    setRsvpError(null);
+    joinWaitlist(undefined, {
+      onError: (err: any) =>
+        setRsvpError(err?.response?.data?.message || err?.message || "Could not join the waitlist."),
     });
   }
 
@@ -119,6 +136,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const fill = event.maximumCapacity
     ? Math.round((event.registeredCount / event.maximumCapacity) * 100)
     : 0;
+  const isFull = event.maximumCapacity > 0 && event.registeredCount >= event.maximumCapacity;
 
   return (
     <div className="pb-28 space-y-6">
@@ -349,71 +367,72 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
-      {/* Resolutions (AGM only) — separate from the agenda list */}
-      {mod === "AGM" && resolutions.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Resolutions</h2>
-          <ul className="space-y-2">
-            {[...resolutions]
-              .sort((a, b) => a.order - b.order)
-              .map((r) => {
-                const v = (r.myVote || "").toUpperCase();
-                const s = (r.status || "").toUpperCase();
-                const badge = v ? (
-                  <Badge variant="success">Voted {v.charAt(0) + v.slice(1).toLowerCase()}</Badge>
-                ) : s === "OPEN" ? (
-                  <Badge variant="warning">Open</Badge>
-                ) : s === "CLOSED" ? (
-                  <Badge variant="muted">Closed</Badge>
-                ) : s === "WAITING" ? (
-                  <Badge variant="muted">Waiting</Badge>
-                ) : (
-                  <Badge variant="muted">Pending</Badge>
-                );
-                return (
-                  <li key={r.id} className="rounded-2xl border border-border bg-white p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Resolution {r.order + 1}{r.specialResolution ? " · Special" : ""}
-                        </p>
-                        <p className="mt-0.5 text-sm font-medium text-foreground">{r.title}</p>
-                        {r.description && (
-                          <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>
-                        )}
-                      </div>
-                      <div className="shrink-0">{badge}</div>
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-        </section>
-      )}
-
-      {/* Agenda / Resolutions (from backend) */}
-      {event.agenda && event.agenda.length > 0 && (
+      {/* Resolutions & Agenda — one combined dot timeline (resolutions carry a badge) */}
+      {((event.agenda && event.agenda.length > 0) || (mod === "AGM" && resolutions.length > 0)) && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-foreground">
             {mod === "AGM" ? "Resolutions & Agenda" : "Agenda"}
           </h2>
-          <div className="relative space-y-0">
-            {[...event.agenda]
+          <div className="space-y-4">
+            {[...(event.agenda ?? [])]
               .sort((a, b) => a.orderIndex - b.orderIndex)
-              .map((item, idx, arr) => (
-                <div key={item.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="h-2.5 w-2.5 rounded-full shrink-0 mt-3" style={{ backgroundColor: color }} />
-                    {idx < arr.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
-                  </div>
-                  <div className="pb-4">
+              .map((item) => (
+                <div key={`agenda-${item.id}`} className="flex gap-3">
+                  <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                  <div>
                     <p className="text-sm text-foreground/90">{item.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {[item.time, item.speaker].filter(Boolean).join(" · ")}
+                      {[item.time, item.durationMinutes ? `${item.durationMinutes} min` : null, item.speaker]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                 </div>
               ))}
+
+            {mod === "AGM" &&
+              [...resolutions]
+                .sort((a, b) => a.order - b.order)
+                .map((r) => {
+                  const v = (r.myVote || "").toUpperCase();
+                  const s = (r.status || "").toUpperCase();
+                  const badge = v ? (
+                    <Badge variant="success">Voted {v.charAt(0) + v.slice(1).toLowerCase()}</Badge>
+                  ) : s === "OPEN" ? (
+                    <Badge variant="warning">Open</Badge>
+                  ) : s === "CLOSED" ? (
+                    <Badge variant="muted">Closed</Badge>
+                  ) : s === "WAITING" ? (
+                    <Badge variant="muted">Waiting</Badge>
+                  ) : (
+                    <Badge variant="muted">Pending</Badge>
+                  );
+                  return (
+                    <div key={`res-${r.id}`} className="flex gap-3">
+                      <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-foreground/90">
+                            Resolution {r.order + 1}{r.specialResolution ? " · Special" : ""}: {r.title}
+                          </p>
+                          <div className="shrink-0">{badge}</div>
+                        </div>
+                        {(r.description || fmtWindow(r.defaultDurationSeconds)) && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {[
+                              r.description,
+                              fmtWindow(r.defaultDurationSeconds)
+                                ? `${fmtWindow(r.defaultDurationSeconds)} voting window`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
           </div>
         </section>
       )}
@@ -449,6 +468,15 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               </Link>
             )}
           </div>
+        ) : isFull ? (
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={handleJoinWaitlist}
+            disabled={joiningWaitlist}
+          >
+            {joiningWaitlist ? "Joining…" : "Event full — Join waitlist"}
+          </Button>
         ) : (
           <Button
             className="w-full"

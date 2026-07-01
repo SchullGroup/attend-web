@@ -69,7 +69,7 @@ export default function MyApplicationsPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Challenge</th>
                 <th className="px-4 py-3 text-left font-semibold">Team</th>
-                <th className="px-4 py-3 text-left font-semibold">Track</th>
+                <th className="px-4 py-3 text-left font-semibold">Pathway</th>
                 <th className="px-4 py-3 text-left font-semibold">Submitted</th>
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
               </tr>

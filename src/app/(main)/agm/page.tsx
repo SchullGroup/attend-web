@@ -32,9 +32,14 @@ export default function AgmPage() {
             </p>
           </div>
         </div>
-        <Link href="/agm/receipt">
-          <Button variant="outline" size="sm">My receipts</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/agm/proxy-history">
+            <Button variant="outline" size="sm">Proxy history</Button>
+          </Link>
+          <Link href="/agm/receipt">
+            <Button variant="outline" size="sm">My receipts</Button>
+          </Link>
+        </div>
       </header>
 
       {isLoading ? (
