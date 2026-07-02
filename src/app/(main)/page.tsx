@@ -141,7 +141,7 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       {/* Hero / user card */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#111827] via-[#1f2937] to-[#374151] p-6 text-white md:p-8">
+      <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-[#111827] via-[#1f2937] to-[#374151] p-6 text-white md:p-8">
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/5" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -234,7 +234,7 @@ export default function HomePage() {
                 key={t.label}
                 href={t.href}
                 className={cn(
-                  "group relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg",
+                  "group relative overflow-hidden rounded-2xl bg-linear-to-br p-5 text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg",
                   t.gradient,
                 )}
               >
@@ -278,7 +278,7 @@ export default function HomePage() {
                 <Link
                   key={event.id}
                   href={href}
-                  className="relative h-full w-full flex-shrink-0"
+                  className="relative h-full w-full shrink-0"
                   style={{ minWidth: "100%" }}
                 >
                   {/* Photo */}
@@ -288,7 +288,7 @@ export default function HomePage() {
                     className="h-full w-full object-cover"
                   />
                   {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80" />
+                  <div className="absolute inset-0 bg-linear-to-b from-transparent via-black/20 to-black/80" />
 
                   {/* Module badge */}
                   <div className="absolute left-4 top-4">

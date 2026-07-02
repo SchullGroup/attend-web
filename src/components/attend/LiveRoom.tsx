@@ -18,6 +18,9 @@ import {
   Clock,
 } from "lucide-react";
 import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum } from "@/api/events/hooks";
+import { useGetMe } from "@/api/auth/hooks";
+import { ZoomStage } from "@/components/attend/ZoomStage";
+import { parseZoomUrl } from "@/lib/zoom";
 import {
   useGetResolutions,
   useCastVote,
@@ -25,6 +28,7 @@ import {
   useSubmitQuestion,
   useUpvoteQuestion,
 } from "@/api/agm/hooks";
+import { useQaSocket } from "@/api/agm/qa-socket";
 import { Button } from "@/components/ui/Button";
 import { cn, formatRelativeTime, toEmbedUrl } from "@/lib/utils";
 import { Resolution } from "@/types";
@@ -68,6 +72,10 @@ export function LiveRoom({
   // registered); fall back to the streamUrl the admin set on the event.
   const { data: streamData } = useGetStream(eventId, isLive);
   const streamUrl = (streamData?.data?.streamUrl as string) || event?.streamUrl || "";
+  // If the stream is a Zoom meeting we render the Zoom SDK; otherwise the iframe.
+  const zoom = parseZoomUrl(streamUrl);
+  const { data: meResp } = useGetMe();
+  const displayName = meResp?.data?.fullName || "Participant";
 
   // Countdown to start — only polled before the event is live.
   const { data: cdData } = useGetCountdown(eventId, !!event && !isLive);
@@ -104,7 +112,9 @@ export function LiveRoom({
   const sortedRes = [...resolutions].sort((a, b) => a.order - b.order);
   const openPos = openRes ? sortedRes.findIndex((r) => r.id === openRes.id) + 1 : null;
 
-  const { data: qData } = useGetQuestions(eventId, 6000);
+  // Real-time Q&A over WebSocket; polling stays as a slow (30s) fallback.
+  useQaSocket(eventId);
+  const { data: qData } = useGetQuestions(eventId, 30000);
   const { mutate: submitQuestion, isPending: submittingQ } = useSubmitQuestion(eventId);
   const apiQuestions = qData?.data?.questions ?? [];
   const qaItems = apiQuestions.map((x) => ({
@@ -274,7 +284,13 @@ export function LiveRoom({
             </div>
           ) : (
             <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-900">
-              {streamUrl ? (
+              {zoom ? (
+                <ZoomStage
+                  meetingNumber={zoom.meetingNumber}
+                  passcode={zoom.passcode}
+                  userName={displayName}
+                />
+              ) : streamUrl ? (
                 <iframe
                   src={toEmbedUrl(streamUrl)}
                   title={title}
@@ -377,7 +393,7 @@ export function LiveRoom({
               )}
             </div>
 
-            <div className="max-h-[420px] overflow-y-auto p-4">
+            <div className="max-h-105 overflow-y-auto p-4">
               {tab === "qa" && (
                 <div className="flex flex-col gap-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

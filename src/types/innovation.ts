@@ -46,6 +46,13 @@ export interface InnovationApplicationData {
   members: ApplicationMemberResponse[];
 }
 
+export interface TeamMemberItem {
+  name: string;
+  email: string;
+  role: string;
+  lead: boolean;
+}
+
 export interface MyApplicationSummary {
   id: string;
   applicationCode: string;
@@ -55,6 +62,11 @@ export interface MyApplicationSummary {
   track: string;
   status: string;
   submittedAt: string;
+  ideaTitle?: string;
+  ideaDescription?: string;
+  memberRole?: string;
+  lead?: boolean;
+  teamMembers?: TeamMemberItem[];
 }
 
 export type ChallengeApplicationConfigResponse = ApiResponse<ChallengeApplicationConfigData>;
