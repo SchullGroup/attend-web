@@ -1,55 +1,111 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, UserCheck, UserPlus, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
+import { useAssignProxy, useGetProxy } from "@/api/agm/hooks";
+import { useGetEvent } from "@/api/events/hooks";
 
 type ProxyType = "chairman" | "named";
+const CHAIRMAN_NAME = "Chairman of the Meeting";
 
-export default function ProxyPage() {
+function ProxyPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const eventId = searchParams.get("eventId") ?? "";
+
   const [type, setType] = useState<ProxyType>("chairman");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const valid = type === "chairman" || (name.trim() && /.+@.+\..+/.test(email));
+  const { data: existingProxy } = useGetProxy(eventId);
+  const { mutate: assignProxy, isPending } = useAssignProxy(eventId);
+  const { data: eventData } = useGetEvent(eventId);
+  const isVirtual = eventData?.data?.format === "VIRTUAL";
+
+  useEffect(() => {
+    if (!eventId) router.replace("/agm");
+  }, [eventId, router]);
+
+  const valid =
+    type === "chairman" || (name.trim().length > 0 && /.+@.+\..+/.test(email));
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => router.push("/agm/receipt"), 1500);
+    setErrorMsg(null);
+    const payload =
+      type === "chairman"
+        ? { proxyName: CHAIRMAN_NAME, proxyEmail: "", proxyPhone: "" }
+        : { proxyName: name.trim(), proxyEmail: email.trim(), proxyPhone: phone.trim() };
+
+    assignProxy(payload, {
+      onSuccess: () => router.push(`/agm/receipt?eventId=${eventId}`),
+      onError: (err: any) =>
+        setErrorMsg(
+          err?.response?.data?.message || err?.message || "Failed to assign proxy.",
+        ),
+    });
+  }
+
+  // Proxy voting is only for in-person/hybrid meetings — block it for virtual.
+  if (isVirtual) {
+    return (
+      <div className="space-y-6">
+        <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back to AGMs
+        </Link>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+            <WifiOff className="h-5 w-5 text-amber-700" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1">
+              {eventData?.data?.title ?? "AGM"}
+            </p>
+            <h2 className="text-lg font-bold text-foreground">Proxy not available</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Proxy appointments are not available for virtual meetings. All shareholders can
+              attend and vote directly online.
+            </p>
+            <Link href="/agm" className="mt-4 inline-block">
+              <Button variant="outline" size="sm">Back to AGMs</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/agm"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to AGMs
       </Link>
 
       <header>
-        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          Zenith Bank Plc — 2026 AGM
-        </p>
-        <h1 className="mt-1 text-2xl font-bold text-foreground">
-          Appoint a proxy
-        </h1>
+        <h1 className="mt-1 text-2xl font-bold text-foreground">Appoint a proxy</h1>
         <p className="text-sm text-muted-foreground">
-          If you can&apos;t attend the meeting, appoint someone to vote on your
-          behalf.
+          If you can&apos;t attend the meeting, appoint someone to vote on your behalf.
         </p>
+        {existingProxy?.data && (
+          <p className="mt-2 text-xs font-medium text-primary">
+            Current proxy: {existingProxy.data.proxyName}
+          </p>
+        )}
       </header>
 
-      <form
-        onSubmit={submit}
-        className="space-y-5 rounded-2xl border border-border bg-white p-5 shadow-sm"
-      >
+      <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-white p-5 shadow-sm">
+        {errorMsg && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+            {errorMsg}
+          </div>
+        )}
+
         <div className="grid gap-3 md:grid-cols-2">
           <Choice
             active={type === "chairman"}
@@ -84,23 +140,27 @@ export default function ProxyPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            <Input
+              name="phone"
+              label="Proxy phone (optional)"
+              type="tel"
+              placeholder="+234 800 000 0000"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
           </div>
         )}
 
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-          Proxy appointments must be submitted at least 48 hours before the
-          meeting. You can revoke this anytime before voting opens.
+          Proxy appointments must be submitted at least 48 hours before the meeting.
+          You can revoke this anytime before voting opens.
         </div>
 
         <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/agm")}
-          >
+          <Button type="button" variant="outline" onClick={() => router.push("/agm")}>
             Cancel
           </Button>
-          <Button type="submit" loading={loading} disabled={!valid}>
+          <Button type="submit" loading={isPending} disabled={!valid || !eventId}>
             Submit proxy
           </Button>
         </div>
@@ -110,11 +170,7 @@ export default function ProxyPage() {
 }
 
 function Choice({
-  active,
-  onClick,
-  icon: Icon,
-  title,
-  body,
+  active, onClick, icon: Icon, title, body,
 }: {
   active: boolean;
   onClick: () => void;
@@ -128,9 +184,7 @@ function Choice({
       onClick={onClick}
       className={cn(
         "flex items-start gap-3 rounded-2xl border-2 p-4 text-left transition-colors",
-        active
-          ? "border-primary bg-primary/5"
-          : "border-border bg-white hover:border-primary/40",
+        active ? "border-primary bg-primary/5" : "border-border bg-white hover:border-primary/40",
       )}
     >
       <div
@@ -146,5 +200,13 @@ function Choice({
         <p className="mt-0.5 text-xs text-muted-foreground">{body}</p>
       </div>
     </button>
+  );
+}
+
+export default function ProxyPage() {
+  return (
+    <Suspense>
+      <ProxyPageInner />
+    </Suspense>
   );
 }

@@ -1,8 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, BellRing, MessageSquare, Mail, Clock } from "lucide-react";
+import { ArrowLeft, BellRing, MessageSquare, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  useGetNotificationPreferences,
+  useSaveNotificationPreferences,
+} from "@/api/notifications/hooks";
+import { NotificationPreferences } from "@/types";
 
 interface PrefRow {
   key: string;
@@ -11,92 +16,79 @@ interface PrefRow {
   icon: typeof BellRing;
 }
 
+// Design's channel model. Each channel is a master switch over the backend's
+// three notification types (RSVP confirmation, event reminder, new document):
+//   Email → email* fields, Push → inApp* fields, SMS → no backend field yet.
 const CHANNELS: PrefRow[] = [
-  {
-    key: "push",
-    label: "Push notifications",
-    description: "On-device alerts for new activity.",
-    icon: BellRing,
-  },
-  {
-    key: "sms",
-    label: "SMS",
-    description: "Critical updates by text message.",
-    icon: MessageSquare,
-  },
-  {
-    key: "email",
-    label: "Email",
-    description: "Notices, agendas and receipts by email.",
-    icon: Mail,
-  },
+  { key: "push", label: "Push notifications", description: "On-device alerts for new activity.", icon: BellRing },
+  { key: "sms", label: "SMS", description: "Critical updates by text message.", icon: MessageSquare },
+  { key: "email", label: "Email", description: "Notices, agendas and receipts by email.", icon: Mail },
 ];
 
-const REMINDERS: PrefRow[] = [
-  {
-    key: "r7",
-    label: "7 days before",
-    description: "Long-range planning reminder.",
-    icon: Clock,
-  },
-  {
-    key: "r1",
-    label: "24 hours before",
-    description: "Day-before nudge.",
-    icon: Clock,
-  },
-  {
-    key: "r30",
-    label: "30 minutes before",
-    description: "Last-call reminder.",
-    icon: Clock,
-  },
-];
+const DEFAULT_PREFS: NotificationPreferences = {
+  emailRsvpConfirmation: true,
+  emailEventReminder: true,
+  emailNewDocument: true,
+  inAppRsvpConfirmation: true,
+  inAppEventReminder: true,
+  inAppNewDocument: true,
+};
 
 export default function NotificationPreferencesPage() {
-  const [prefs, setPrefs] = useState<Record<string, boolean>>({
-    push: true,
-    sms: false,
-    email: true,
-    r7: true,
-    r1: true,
-    r30: false,
-  });
+  const { data, isLoading } = useGetNotificationPreferences();
+  const { mutate: savePreferences, isPending: saving } = useSaveNotificationPreferences();
+  const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
+  const [sms, setSms] = useState(false); // no backend field yet
 
-  function toggle(k: string) {
-    setPrefs((p) => ({ ...p, [k]: !p[k] }));
+  useEffect(() => {
+    if (data?.data) setPrefs(data.data);
+  }, [data]);
+
+  const emailOn =
+    prefs.emailRsvpConfirmation && prefs.emailEventReminder && prefs.emailNewDocument;
+  const pushOn =
+    prefs.inAppRsvpConfirmation && prefs.inAppEventReminder && prefs.inAppNewDocument;
+
+  const channelState: Record<string, boolean> = { email: emailOn, push: pushOn, sms };
+
+  function toggle(key: string) {
+    if (key === "sms") {
+      setSms((v) => !v);
+      return;
+    }
+    let next = prefs;
+    if (key === "email") {
+      const v = !emailOn;
+      next = { ...prefs, emailRsvpConfirmation: v, emailEventReminder: v, emailNewDocument: v };
+    } else {
+      const v = !pushOn;
+      next = { ...prefs, inAppRsvpConfirmation: v, inAppEventReminder: v, inAppNewDocument: v };
+    }
+    setPrefs(next);
+    savePreferences(next);
   }
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/profile"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">
-          Notification preferences
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Choose how and when you&apos;d like to hear from Attend.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Notification preferences</h1>
+          <p className="text-sm text-muted-foreground">
+            Choose how and when you&apos;d like to hear from Attend.
+          </p>
+        </div>
+        {saving && <span className="text-xs text-muted-foreground">Saving…</span>}
       </header>
 
-      <Section
-        title="Delivery channels"
-        rows={CHANNELS}
-        prefs={prefs}
-        toggle={toggle}
-      />
-      <Section
-        title="Event reminders"
-        rows={REMINDERS}
-        prefs={prefs}
-        toggle={toggle}
-      />
+      {isLoading ? (
+        <div className="h-40 animate-pulse rounded-2xl border border-border bg-muted" />
+      ) : (
+        <Section title="Delivery channels" rows={CHANNELS} prefs={channelState} toggle={toggle} />
+      )}
     </div>
   );
 }
@@ -134,12 +126,8 @@ function Section({
                   <Icon className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {r.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.description}
-                  </p>
+                  <p className="text-sm font-semibold text-foreground">{r.label}</p>
+                  <p className="text-xs text-muted-foreground">{r.description}</p>
                 </div>
               </div>
               <button
@@ -153,8 +141,8 @@ function Section({
               >
                 <span
                   className={cn(
-                    "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                    on ? "translate-x-5" : "translate-x-0.5",
+                    "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                    on ? "translate-x-5" : "translate-x-0",
                   )}
                 />
               </button>

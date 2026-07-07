@@ -5,24 +5,53 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// The backend returns UTC timestamps with no timezone marker (e.g.
+// "2026-06-19T13:30:15.8163"). JS parses a bare date-time as LOCAL time, so in a
+// UTC+ offset (e.g. Nigeria, UTC+1) every time reads ~1h in the past. Append "Z"
+// to date-time strings that have no timezone so they're parsed as UTC.
+export function parseApiDate(d: string): Date {
+  const isDateTime = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(d);
+  const hasTz = /(Z|[+-]\d{2}:?\d{2})$/.test(d);
+  return new Date(isDateTime && !hasTz ? `${d}Z` : d);
+}
+
+// Admins paste whatever stream link they have (often a YouTube/Vimeo *watch*
+// URL). Watch URLs can't be iframed, so convert known providers to their embed
+// form; anything else is returned unchanged (assumed already embeddable).
+export function toEmbedUrl(raw: string): string {
+  if (!raw) return raw;
+  try {
+    const u = new URL(raw.trim());
+    const host = u.hostname.replace(/^www\.|^m\./, "");
+    if (host === "youtube.com") {
+      const id = u.searchParams.get("v") || u.pathname.match(/\/(?:embed|live|shorts)\/([\w-]+)/)?.[1];
+      if (id) return `https://www.youtube.com/embed/${id}`;
+    }
+    if (host === "youtu.be") {
+      const id = u.pathname.split("/").filter(Boolean)[0];
+      if (id) return `https://www.youtube.com/embed/${id}`;
+    }
+    if (host === "vimeo.com") {
+      const id = u.pathname.split("/").filter(Boolean)[0];
+      if (/^\d+$/.test(id)) return `https://player.vimeo.com/video/${id}`;
+    }
+  } catch {
+    // not a parseable URL — fall through and return as-is
+  }
+  return raw;
+}
+
 export function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return parseApiDate(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function formatShortDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-  });
+  return parseApiDate(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 export function formatRelativeTime(d: string) {
   const now = new Date().getTime();
-  const then = new Date(d).getTime();
+  const then = parseApiDate(d).getTime();
   const diff = Math.floor((now - then) / 1000);
   if (diff < 60) return "just now";
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -46,4 +75,13 @@ export function greetingByHour() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+// Normalise backend/mock event formats (IN_PERSON / virtual / HYBRID) to a label.
+export function formatEventFormat(f: string) {
+  const key = (f || "").toLowerCase();
+  if (key === "in_person" || key === "in-person") return "In-person";
+  if (key === "virtual") return "Virtual";
+  if (key === "hybrid") return "Hybrid";
+  return key.replace(/_/g, "-");
 }
