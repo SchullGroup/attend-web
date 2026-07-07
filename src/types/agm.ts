@@ -22,7 +22,10 @@ export interface Resolution {
 export interface ResolutionsData {
   eventId: string;
   votingOpen: boolean;
+  earlyVotingOpen?: boolean;
   hasProxy: boolean;
+  // When false, the *Shares fields are all 0 — show head counts only, hide shares.
+  shareWeightedTalliesEnabled?: boolean;
   resolutions: Resolution[];
 }
 

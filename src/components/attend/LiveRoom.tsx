@@ -53,6 +53,9 @@ interface LiveRoomProps {
   showBallot?: boolean;
   backHref?: string;
   backLabel?: string;
+  // TEMP: force a Zoom meeting (number + plain passcode) instead of the event's
+  // streamUrl — for testing the live room before the backend flow exists.
+  zoomOverride?: { meetingNumber: string; passcode: string };
 }
 
 export function LiveRoom({
@@ -60,6 +63,7 @@ export function LiveRoom({
   showBallot = true,
   backHref = "/agm",
   backLabel = "Leave meeting",
+  zoomOverride,
 }: LiveRoomProps) {
   const { data: eventResp } = useGetEvent(eventId);
   const event = eventResp?.data;
@@ -73,7 +77,8 @@ export function LiveRoom({
   const { data: streamData } = useGetStream(eventId, isLive);
   const streamUrl = (streamData?.data?.streamUrl as string) || event?.streamUrl || "";
   // If the stream is a Zoom meeting we render the Zoom SDK; otherwise the iframe.
-  const zoom = parseZoomUrl(streamUrl);
+  // A zoomOverride (test-only) takes precedence over the event's streamUrl.
+  const zoom = zoomOverride?.meetingNumber ? zoomOverride : parseZoomUrl(streamUrl);
   const { data: meResp } = useGetMe();
   const displayName = meResp?.data?.fullName || "Participant";
 
@@ -98,6 +103,8 @@ export function LiveRoom({
   const { mutate: upvote } = useUpvoteQuestion(eventId);
 
   const resolutions = resData?.data?.resolutions ?? [];
+  // When the register has no share weighting, shares are all 0 — show head counts only.
+  const shareWeighted = !!resData?.data?.shareWeightedTalliesEnabled;
   // Status-driven (secondsRemaining is null while a resolution is WAITING).
   const openRes = resolutions.find(
     (r) => (r.status || "").toUpperCase() === "OPEN" || r.secondsRemaining > 0,
@@ -283,7 +290,7 @@ export function LiveRoom({
               </button>
             </div>
           ) : (
-            <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-900">
+            <div className={cn("relative overflow-hidden rounded-2xl bg-slate-900", !zoom && "aspect-video")}>
               {zoom ? (
                 <ZoomStage
                   meetingNumber={zoom.meetingNumber}
@@ -538,7 +545,7 @@ export function LiveRoom({
                         <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> Live tally
                         </p>
-                        <ResolutionBars r={openRes} />
+                        <ResolutionBars r={openRes} shareWeighted={shareWeighted} />
                       </div>
                     )}
                   </div>
@@ -569,7 +576,7 @@ export function LiveRoom({
                           </div>
                           {showResult && (
                             <div className="mt-3 border-t border-border pt-2">
-                              <ResolutionBars r={r} />
+                              <ResolutionBars r={r} shareWeighted={shareWeighted} />
                             </div>
                           )}
                         </div>
@@ -589,9 +596,14 @@ export function LiveRoom({
   );
 }
 
-function ResolutionBars({ r }: { r: Resolution }) {
+function ResolutionBars({ r, shareWeighted }: { r: Resolution; shareWeighted: boolean }) {
   const totalShares = r.forShares + r.againstShares + r.abstainShares;
-  const pct = (s: number) => (totalShares ? Math.round((s / totalShares) * 100) : 0);
+  const totalCount = r.forCount + r.againstCount + r.abstainCount;
+  // Use shares only when the register supports it and there are shares to show.
+  const useShares = shareWeighted && totalShares > 0;
+  const denom = useShares ? totalShares : totalCount;
+  const pct = (count: number, shares: number) =>
+    denom ? Math.round(((useShares ? shares : count) / denom) * 100) : 0;
   const rows = [
     { label: "For", count: r.forCount, shares: r.forShares, color: "bg-emerald-500" },
     { label: "Against", count: r.againstCount, shares: r.againstShares, color: "bg-red-500" },
@@ -604,11 +616,12 @@ function ResolutionBars({ r }: { r: Resolution }) {
             <div className="mb-0.5 flex items-center justify-between text-[11px]">
               <span className="font-medium text-foreground">{row.label}</span>
               <span className="text-muted-foreground">
-                {row.count} · {row.shares.toLocaleString()} shares · {pct(row.shares)}%
+                {row.count}
+                {useShares ? ` · ${row.shares.toLocaleString()} shares` : ""} · {pct(row.count, row.shares)}%
               </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className={`${row.color} h-full`} style={{ width: `${pct(row.shares)}%` }} />
+              <div className={`${row.color} h-full`} style={{ width: `${pct(row.count, row.shares)}%` }} />
             </div>
           </div>
         ))}

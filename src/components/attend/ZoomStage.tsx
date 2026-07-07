@@ -43,8 +43,25 @@ export function ZoomStage({ meetingNumber, passcode, userName }: Props) {
 
         const client = ZoomMtgEmbedded.createClient();
         clientRef.current = client;
-        await client.init({ zoomAppRoot: rootRef.current, language: "en-US", patchJsMedia: true });
+
+        const el = rootRef.current;
+
+        // Render Zoom's FULL default Component View — the whole console (tiles + video
+        // + controls toolbar), exactly like the admin sees. Zoom sizes itself and the
+        // container grows to fit it, so nothing (especially the toolbar) is clipped.
+        // Extra empty space in the slot is acceptable.
+        await client.init({
+          zoomAppRoot: el,
+          language: "en-US",
+          patchJsMedia: true,
+        });
         if (cancelled) return;
+
+        // Keep our full-box overlay up until we're actually IN the meeting (past the
+        // waiting room), so Zoom's small pre-join/waiting screen is never exposed.
+        client.on("connection-change", (payload: any) => {
+          if (payload?.state === "Connected" && !cancelled) setStatus("joined");
+        });
 
         await client.join({
           sdkKey: data.sdkKey,
@@ -53,11 +70,20 @@ export function ZoomStage({ meetingNumber, passcode, userName }: Props) {
           password: passcode,
           userName,
         });
-        if (!cancelled) setStatus("joined");
+        // Fallback: if the connection event doesn't arrive, reveal the meeting anyway.
+        setTimeout(() => {
+          if (!cancelled) setStatus((s) => (s === "connecting" ? "joined" : s));
+        }, 12000);
       } catch (e: unknown) {
         if (cancelled) return;
         setStatus("error");
-        setErrorMsg(e instanceof Error ? e.message : String(e));
+        // Zoom rejects with an object ({ reason, errorCode, type }), not an Error.
+        const anyE = e as any;
+        const msg =
+          e instanceof Error
+            ? e.message
+            : anyE?.reason || anyE?.errorMessage || anyE?.message || (anyE ? JSON.stringify(anyE) : String(e));
+        setErrorMsg(msg);
       }
     }
 
@@ -73,20 +99,23 @@ export function ZoomStage({ meetingNumber, passcode, userName }: Props) {
   }, [meetingNumber, passcode, userName]);
 
   return (
-    <div className="absolute inset-0">
+    <div className="relative min-h-105 w-full">
       {status !== "joined" && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 px-6 text-center text-white">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-900 px-6 text-center text-white">
           {status === "error" ? (
             <>
               <p className="text-sm font-semibold text-white/90">Couldn&apos;t join the meeting</p>
               <p className="text-xs text-white/60">{errorMsg}</p>
             </>
           ) : (
-            <p className="text-sm font-semibold text-white/85">Connecting to the meeting…</p>
+            <>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/25 border-t-white/80" />
+              <p className="text-sm font-semibold text-white/85">Connecting to the meeting…</p>
+            </>
           )}
         </div>
       )}
-      <div ref={rootRef} className="h-full w-full" />
+      <div ref={rootRef} className="min-h-105 w-full" />
     </div>
   );
 }
