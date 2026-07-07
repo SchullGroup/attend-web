@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import {
   House,
@@ -40,6 +40,18 @@ const NAV = [
 
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
+  const router = useRouter();
+  const onNotifications = pathname === "/notifications";
+  // The bell toggles: open notifications, or (if already there) go back to the page
+  // you were on. Fall back to home if there's no history to return to.
+  function toggleNotifications() {
+    if (onNotifications) {
+      if (typeof window !== "undefined" && window.history.length > 1) router.back();
+      else router.push("/");
+    } else {
+      router.push("/notifications");
+    }
+  }
   const { setKycStatus } = useUserStore();
   const { data: userResponse } = useGetMe();
   const { mutate: logout } = useLogout();
@@ -137,9 +149,14 @@ export function NavShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href="/notifications"
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white hover:bg-muted"
+            <button
+              type="button"
+              onClick={toggleNotifications}
+              aria-label={onNotifications ? "Close notifications" : "Open notifications"}
+              className={cn(
+                "relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border hover:bg-muted",
+                onNotifications ? "bg-muted" : "bg-white",
+              )}
             >
               <Bell className="h-4.5 w-4.5" />
               {unreadCount > 0 && (
@@ -147,7 +164,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
-            </Link>
+            </button>
             <Link
               href="/profile"
               className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-sm font-semibold text-primary md:hidden"

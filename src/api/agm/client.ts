@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api-client";
 import {
   ResolutionsResponse,
   ProxyResponse,
+  ProxyHistoryResponse,
   AssignProxyRequest,
   CastVoteRequest,
   VoteReceiptResponse,
@@ -32,6 +33,14 @@ export const agmClient = {
     );
     return response.data;
   },
+
+  // Toggle upvote on a question. Returns { upvoted, upvoteCount }.
+  upvoteQuestion: async (eventId: string, questionId: string) => {
+    const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/participant/events/${eventId}/questions/${questionId}/upvote`,
+    );
+    return response.data;
+  },
   getResolutions: async (eventId: string) => {
     const response = await apiClient.get<ResolutionsResponse>(
       `/api/v1/participant/events/${eventId}/resolutions`,
@@ -50,6 +59,14 @@ export const agmClient = {
   getProxy: async (eventId: string) => {
     const response = await apiClient.get<ProxyResponse>(
       `/api/v1/participant/events/${eventId}/proxy`,
+    );
+    return response.data;
+  },
+
+  // Every proxy the participant has appointed, across all events.
+  getProxyHistory: async () => {
+    const response = await apiClient.get<ProxyHistoryResponse>(
+      "/api/v1/participant/events/proxies",
     );
     return response.data;
   },

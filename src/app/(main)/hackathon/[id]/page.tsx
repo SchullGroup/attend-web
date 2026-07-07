@@ -147,7 +147,7 @@ export default function HackathonDetailPage({
       {/* Key facts — each tile only when the backend provides it */}
       <section className="grid gap-4 md:grid-cols-2">
         {challenge.tracks && challenge.tracks.length > 0 && (
-          <InfoBlock icon={Target} title="Tracks">
+          <InfoBlock icon={Target} title="Pathways">
             <div className="flex flex-wrap gap-2">
               {challenge.tracks.map((t) => (
                 <span key={t} className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700">

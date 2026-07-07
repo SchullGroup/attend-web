@@ -6,10 +6,11 @@ export interface Resolution {
   title: string;
   description: string;
   specialResolution: boolean;
-  status: string; // PENDING | OPEN | CLOSED
+  status: string; // WAITING | OPEN | CLOSED
   myVote: string | null;
   votingDeadline: string | null;
   secondsRemaining: number;
+  defaultDurationSeconds?: number;
   forCount: number;
   againstCount: number;
   abstainCount: number;
@@ -21,7 +22,10 @@ export interface Resolution {
 export interface ResolutionsData {
   eventId: string;
   votingOpen: boolean;
+  earlyVotingOpen?: boolean;
   hasProxy: boolean;
+  // When false, the *Shares fields are all 0 — show head counts only, hide shares.
+  shareWeightedTalliesEnabled?: boolean;
   resolutions: Resolution[];
 }
 
@@ -44,8 +48,25 @@ export interface CastVoteRequest {
   choice: "FOR" | "AGAINST" | "ABSTAIN";
 }
 
+export interface ProxyHistoryItem {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventStatus: string;
+  proxyName: string;
+  proxyEmail: string;
+  proxyPhone: string;
+  assignedAt: string;
+}
+
+export interface ProxyHistoryData {
+  proxies: ProxyHistoryItem[];
+}
+
 export type ResolutionsResponse = ApiResponse<ResolutionsData>;
 export type ProxyResponse = ApiResponse<ProxyData>;
+export type ProxyHistoryResponse = ApiResponse<ProxyHistoryData>;
 
 export interface VoteReceiptItem {
   resolutionId: string;
@@ -71,6 +92,8 @@ export interface EventQuestion {
   answeredAt: string;
   anonymous: boolean;
   submittedAt: string;
+  upvoteCount: number;
+  myUpvote: boolean;
 }
 
 export interface QuestionsData {

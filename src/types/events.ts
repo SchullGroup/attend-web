@@ -33,6 +33,7 @@ export interface AgendaItemDetail {
   title: string;
   speaker: string;
   orderIndex: number;
+  durationMinutes?: number;
 }
 
 export interface EventDetail {

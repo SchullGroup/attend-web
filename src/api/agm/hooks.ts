@@ -18,11 +18,14 @@ export const useGetVoteReceipt = (eventId: string) => {
   });
 };
 
-export const useGetQuestions = (eventId: string) => {
+export const useGetQuestions = (eventId: string, refetchInterval?: number) => {
   return useQuery({
     queryKey: agmKeys.questions(eventId),
     queryFn: () => agmClient.getQuestions(eventId),
     enabled: !!eventId,
+    // During a live session we poll so new questions, answers and upvote counts
+    // from other attendees show up without a reload.
+    refetchInterval: refetchInterval ?? false,
   });
 };
 
@@ -36,11 +39,22 @@ export const useSubmitQuestion = (eventId: string) => {
   });
 };
 
-export const useGetResolutions = (eventId: string, refetchInterval?: number) => {
+export const useUpvoteQuestion = (eventId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (questionId: string) => agmClient.upvoteQuestion(eventId, questionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: agmKeys.questions(eventId) });
+    },
+  });
+};
+
+export const useGetResolutions = (eventId: string, refetchInterval?: number, enabled = true) => {
   return useQuery({
     queryKey: agmKeys.resolutions(eventId),
     queryFn: () => agmClient.getResolutions(eventId),
-    enabled: !!eventId,
+    // Only AGMs have resolutions — general live events skip this fetch.
+    enabled: !!eventId && enabled,
     // During a live meeting we poll so countdown + tallies stay fresh.
     refetchInterval: refetchInterval ?? false,
   });
@@ -62,6 +76,13 @@ export const useGetProxy = (eventId: string) => {
     queryKey: agmKeys.proxy(eventId),
     queryFn: () => agmClient.getProxy(eventId),
     enabled: !!eventId,
+  });
+};
+
+export const useGetProxyHistory = () => {
+  return useQuery({
+    queryKey: ["agm", "proxy-history"] as const,
+    queryFn: () => agmClient.getProxyHistory(),
   });
 };
 

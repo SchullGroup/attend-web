@@ -251,7 +251,7 @@ function ApplyPageInner() {
               onChange={(e) => setTeamName(e.target.value)}
             />
             <div>
-              <label className="text-sm font-medium text-foreground">Track</label>
+              <label className="text-sm font-medium text-foreground">Pathway</label>
               <select
                 value={track}
                 onChange={(e) => setTrack(e.target.value)}

@@ -40,6 +40,8 @@ export default function MyApplicationsPage() {
     track: a.track,
     submittedAt: a.submittedAt ? formatDate(a.submittedAt) : "—",
     statusKey: (a.status || "").toLowerCase().replace(/[\s-]+/g, "_"),
+    // Backend flags whether you're the team lead or just a member of this application.
+    roleLabel: a.lead ? "Lead" : a.memberRole ? "Member" : null,
   }));
 
   return (
@@ -69,7 +71,7 @@ export default function MyApplicationsPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Challenge</th>
                 <th className="px-4 py-3 text-left font-semibold">Team</th>
-                <th className="px-4 py-3 text-left font-semibold">Track</th>
+                <th className="px-4 py-3 text-left font-semibold">Pathway</th>
                 <th className="px-4 py-3 text-left font-semibold">Submitted</th>
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
               </tr>
@@ -85,7 +87,14 @@ export default function MyApplicationsPage() {
                       <span className="block text-xs font-normal text-muted-foreground">{a.applicationCode}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{a.teamName}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      {a.teamName}
+                      {a.roleLabel && (
+                        <Badge variant={a.roleLabel === "Lead" ? "info" : "muted"}>{a.roleLabel}</Badge>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.track}</td>
                   <td className="px-4 py-3 text-muted-foreground">{a.submittedAt}</td>
                   <td className="px-4 py-3">
@@ -102,7 +111,12 @@ export default function MyApplicationsPage() {
               <li key={a.id}>
                 <Link href={`/hackathon/${a.challengeId}`} className="flex items-start gap-3 p-4 hover:bg-muted/30">
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-foreground">{a.challengeName}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{a.challengeName}</p>
+                      {a.roleLabel && (
+                        <Badge variant={a.roleLabel === "Lead" ? "info" : "muted"}>{a.roleLabel}</Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {a.teamName} · {a.track}
                     </p>
