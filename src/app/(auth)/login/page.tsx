@@ -13,23 +13,31 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [needsVerify, setNeedsVerify] = useState(false);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
+    setNeedsVerify(false);
     loginMutation(
       { email, password },
       {
         onSuccess: () => router.push("/"),
         onError: (err: any) => {
-          setErrorMsg(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Invalid email or password",
-          );
+          const msg =
+            err?.response?.data?.message || err?.message || "Invalid email or password";
+          setErrorMsg(msg);
+          // Backend blocks unverified accounts with a "verify your email" message —
+          // surface a shortcut to the verification page (carrying the email over).
+          setNeedsVerify(/verify/i.test(msg) && /email/i.test(msg));
         },
       },
     );
+  }
+
+  function goVerify() {
+    sessionStorage.setItem("pendingVerifyEmail", email);
+    router.push("/verify");
   }
 
   return (
@@ -49,6 +57,15 @@ export default function LoginPage() {
         {errorMsg && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
             {errorMsg}
+            {needsVerify && (
+              <button
+                type="button"
+                onClick={goVerify}
+                className="mt-2 block font-semibold text-red-700 underline hover:no-underline"
+              >
+                Verify your email now →
+              </button>
+            )}
           </div>
         )}
         <Input

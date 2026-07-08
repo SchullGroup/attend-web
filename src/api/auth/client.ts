@@ -42,6 +42,11 @@ export const authClient = {
     return response.data;
   },
 
+  resendEmailOtp: async (data: { email: string }) => {
+    const response = await apiClient.post<ApiResponse>("/api/v1/auth/resend-email-otp", data);
+    return response.data;
+  },
+
   forgotPassword: async (data: ForgotPasswordRequest) => {
     const response = await apiClient.post<ApiResponse>("/api/v1/auth/forgot-password", data);
     return response.data;

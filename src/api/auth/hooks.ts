@@ -69,6 +69,12 @@ export const useVerifyEmail = () => {
   });
 };
 
+export const useResendEmailOtp = () => {
+  return useMutation({
+    mutationFn: authClient.resendEmailOtp,
+  });
+};
+
 export const useForgotPassword = () => {
   return useMutation({
     mutationFn: authClient.forgotPassword,
