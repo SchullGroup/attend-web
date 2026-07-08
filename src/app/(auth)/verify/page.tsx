@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { Mail } from "lucide-react";
-import { useVerifyEmail } from "@/api/auth/hooks";
+import { useVerifyEmail, useResendEmailOtp } from "@/api/auth/hooks";
 
 function maskEmail(email: string): string {
   if (!email) return "your email";
@@ -15,6 +15,7 @@ function maskEmail(email: string): string {
 function VerifyForm() {
   const router = useRouter();
   const { mutate: verifyMutation, isPending } = useVerifyEmail();
+  const { mutate: resendMutation, isPending: resending } = useResendEmailOtp();
 
   const [email, setEmail] = useState("");
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
@@ -97,10 +98,28 @@ function VerifyForm() {
   }
 
   function handleResend() {
-    setDigits(["", "", "", "", "", ""]);
+    if (!email) {
+      setError("No email found. Please go back and register again.");
+      return;
+    }
     setError("");
-    setResendCooldown(60);
-    refs.current[0]?.focus();
+    resendMutation(
+      { email },
+      {
+        onSuccess: () => {
+          setDigits(["", "", "", "", "", ""]);
+          setResendCooldown(60);
+          refs.current[0]?.focus();
+        },
+        onError: (err: any) => {
+          setError(
+            err?.response?.data?.message ||
+              err?.message ||
+              "Couldn't resend the code. Please try again.",
+          );
+        },
+      },
+    );
   }
 
   const filled = digits.every(Boolean);
@@ -166,9 +185,10 @@ function VerifyForm() {
             <button
               type="button"
               onClick={handleResend}
-              className="font-semibold text-foreground hover:underline"
+              disabled={resending}
+              className="font-semibold text-foreground hover:underline disabled:opacity-50"
             >
-              Resend code
+              {resending ? "Sending…" : "Resend code"}
             </button>
           )}
         </p>
