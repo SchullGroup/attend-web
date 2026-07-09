@@ -10,8 +10,16 @@ const publicEndpoints = [
   "/api/v1/auth/forgot-password",
   "/api/v1/auth/reset-password",
   "/api/v1/auth/verify-email",
+  "/api/v1/auth/resend-email-otp",
+  "/api/v1/auth/resend-phone-otp",
+  "/api/v1/auth/verify-phone",
   "/api/v1/auth/refresh-token",
 ];
+
+// Pre-login endpoints must never attach a token or trigger the 401 → refresh →
+// redirect-to-login flow — the user isn't authenticated yet during verification.
+const isPublicEndpoint = (url?: string) =>
+  publicEndpoints.some((endpoint) => url?.includes(endpoint));
 
 export const apiClient = axios.create({
   baseURL: typeof window !== "undefined" ? "" : API_URL,
@@ -22,11 +30,7 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config: any) => {
-    const isPublic = publicEndpoints.some((endpoint) =>
-      config.url?.includes(endpoint),
-    );
-
-    if (!isPublic) {
+    if (!isPublicEndpoint(config.url)) {
       const token = Cookies.get("accessToken");
       if (token && config.headers) {
         config.headers["Authorization"] = `Bearer ${token}`;
@@ -63,7 +67,11 @@ apiClient.interceptors.response.use(
   async (error: any) => {
     const originalRequest = error.config;
 
-    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+    if (
+      (error.response?.status === 401 || error.response?.status === 403) &&
+      !originalRequest._retry &&
+      !isPublicEndpoint(originalRequest?.url)
+    ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
