@@ -7,6 +7,7 @@ import {
   Building2,
   Lightbulb,
   Rocket,
+  CalendarDays,
   User as UserIcon,
   Bell,
   Search,
@@ -27,6 +28,7 @@ function eventDetailId(pathname: string) {
 }
 const isAgm = (m?: string) => m === "AGM" || m === "AGM_EGM";
 const isInnovation = (m?: string) => m === "HACKATHON" || m === "INNOVATION_CHALLENGE";
+const isGeneral = (m?: string) => m === "GENERAL" || m === "GENERAL_EVENT";
 
 // `m` is the type of the event currently being viewed (if on /events/[id]), so
 // AGM / Innovation detail pages highlight the correct tab instead of Launches.
@@ -34,7 +36,8 @@ const NAV = [
   { label: "Home", href: "/", icon: House, match: (p: string, m?: string) => p === "/" },
   { label: "AGM", href: "/agm", icon: Building2, match: (p: string, m?: string) => p.startsWith("/agm") || isAgm(m) },
   { label: "Innovation", href: "/hackathon", icon: Lightbulb, match: (p: string, m?: string) => p.startsWith("/hackathon") || isInnovation(m) },
-  { label: "Launches", href: "/events", icon: Rocket, match: (p: string, m?: string) => p.startsWith("/events") && !isAgm(m) && !isInnovation(m) },
+  { label: "Launches", href: "/events", icon: Rocket, match: (p: string, m?: string) => p.startsWith("/events") && !isAgm(m) && !isInnovation(m) && !isGeneral(m) },
+  { label: "General", href: "/general", icon: CalendarDays, match: (p: string, m?: string) => p.startsWith("/general") || isGeneral(m) },
   { label: "Profile", href: "/profile", icon: UserIcon, match: (p: string, m?: string) => p.startsWith("/profile") },
 ];
 
@@ -193,7 +196,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex flex-col items-center gap-1 rounded-xl px-3 py-2 text-[10px] font-medium",
+                    "flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >

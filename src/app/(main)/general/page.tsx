@@ -1,25 +1,13 @@
 "use client";
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Search, Image as ImageIcon, Archive } from "lucide-react";
+import { Search } from "lucide-react";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { EventCard, EventCardData } from "@/components/attend/EventCard";
-import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 const FORMATS = ["All", "Virtual", "Hybrid", "In-Person"] as const;
 type Format = (typeof FORMATS)[number];
-
-const EVENT_COLOR: Record<string, string> = {
-  AGM: "#1a6b3c",
-  PRODUCT_LAUNCH: "#f97316",
-  LAUNCH: "#f97316",
-  HACKATHON: "#9333ea",
-  INNOVATION_CHALLENGE: "#9333ea",
-  GENERAL_EVENT: "#2563eb",
-  GENERAL: "#2563eb",
-};
 
 function apiToCard(item: EventListItem): EventCardData {
   return {
@@ -27,7 +15,7 @@ function apiToCard(item: EventListItem): EventCardData {
     title: item.title,
     organiser: item.registerName || item.organizerName,
     module: item.eventType,
-    thumbnailColor: EVENT_COLOR[item.eventType?.toUpperCase()] ?? "#2563eb",
+    thumbnailColor: "#2563eb",
     image: item.organizerLogo || undefined,
     status: item.status,
     date: item.date,
@@ -40,7 +28,7 @@ function apiToCard(item: EventListItem): EventCardData {
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
 
-export default function EventsPage() {
+export default function GeneralEventsPage() {
   const [query, setQuery] = useState("");
   const [fmt, setFmt] = useState<Format>("All");
 
@@ -50,34 +38,18 @@ export default function EventsPage() {
   const visible = useMemo((): EventCardData[] => {
     const fmtKey = norm(fmt);
     return apiEvents
-      .filter(
-        (e) => e.eventType === "PRODUCT_LAUNCH" || e.eventType === "LAUNCH",
-      )
+      .filter((e) => e.eventType === "GENERAL" || e.eventType === "GENERAL_EVENT")
       .filter((e) => (fmt === "All" ? true : norm(e.format) === fmtKey))
       .map(apiToCard);
   }, [apiEvents, fmt, query]);
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Product Launches</h1>
-          <p className="text-sm text-muted-foreground">
-            Product reveals and unveilings.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/events/gallery">
-            <Button variant="outline" size="sm">
-              <ImageIcon className="h-4 w-4" /> Gallery
-            </Button>
-          </Link>
-          <Link href="/events/archive">
-            <Button variant="outline" size="sm">
-              <Archive className="h-4 w-4" /> Archive
-            </Button>
-          </Link>
-        </div>
+      <header>
+        <h1 className="text-2xl font-bold text-foreground">General Events</h1>
+        <p className="text-sm text-muted-foreground">
+          Conferences, meetings and roundtables.
+        </p>
       </header>
 
       <div className="space-y-3">
@@ -116,7 +88,7 @@ export default function EventsPage() {
         </div>
       ) : visible.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          No events match those filters.
+          No general events right now.
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

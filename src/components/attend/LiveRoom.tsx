@@ -82,6 +82,20 @@ export function LiveRoom({
   const { data: meResp } = useGetMe();
   const displayName = meResp?.data?.fullName || "Participant";
 
+  // Zoom's gallery view needs SharedArrayBuffer → the page must be cross-origin
+  // isolated. Isolate ONLY for Zoom meetings by reloading once with `?coi=1`
+  // (next.config applies COOP/COEP for that flag). Non-Zoom pages stay un-isolated,
+  // so YouTube/Vimeo iframe streams keep working on every browser.
+  const zoomMn = zoom?.meetingNumber;
+  useEffect(() => {
+    if (!zoomMn || typeof window === "undefined") return;
+    if (window.crossOriginIsolated) return; // already isolated
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("coi") === "1") return; // already opted in
+    url.searchParams.set("coi", "1");
+    window.location.replace(url.toString());
+  }, [zoomMn]);
+
   // Countdown to start — only polled before the event is live.
   const { data: cdData } = useGetCountdown(eventId, !!event && !isLive);
   const cdSecs =
@@ -290,7 +304,7 @@ export function LiveRoom({
               </button>
             </div>
           ) : (
-            <div className={cn("relative overflow-hidden rounded-2xl bg-slate-900", !zoom && "aspect-video")}>
+            <div className={cn("group relative overflow-hidden rounded-2xl bg-slate-900", !zoom && "aspect-video")}>
               {zoom ? (
                 <ZoomStage
                   meetingNumber={zoom.meetingNumber}
@@ -332,7 +346,7 @@ export function LiveRoom({
               )}
               <button
                 onClick={() => setVideoHidden(true)}
-                className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-lg bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-black/60"
+                className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-lg bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 pointer-events-none transition-opacity hover:bg-black/60 group-hover:opacity-100 group-hover:pointer-events-auto"
               >
                 <ChevronUp className="h-3.5 w-3.5" /> Minimise
               </button>

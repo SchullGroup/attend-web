@@ -13,18 +13,17 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Cross-origin isolation → enables SharedArrayBuffer, which the Zoom Web SDK
-  // needs for gallery view / multi-video (so you can see your own tile). The
-  // `credentialless` COEP variant lets cross-origin subresources (Zoom CDN
-  // scripts, backend/Cloudinary images) still load without requiring CORP headers.
-  //
-  // ⚠️ REVERT NOTE: COEP can block third-party <iframe> embeds — i.e. the
-  // YouTube/Vimeo live-stream fallback for non-Zoom events. If those streams stop
-  // loading, delete this entire headers() block to restore previous behavior.
+  // Cross-origin isolation enables SharedArrayBuffer, which the Zoom Web SDK needs
+  // for gallery view / multi-video (seeing your own tile). We apply it ONLY when a
+  // page opts in with `?coi=1` — the live room adds that flag (and reloads) for Zoom
+  // meetings specifically. Every other page — including non-Zoom events that embed a
+  // YouTube/Vimeo <iframe> — stays un-isolated, so those third-party embeds keep
+  // working on all browsers (Safari/Firefox don't support credentialless iframes).
   async headers() {
     return [
       {
         source: "/:path*",
+        has: [{ type: "query", key: "coi", value: "1" }],
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
