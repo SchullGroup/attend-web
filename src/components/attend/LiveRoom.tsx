@@ -299,6 +299,10 @@ export function LiveRoom({
                 />
               ) : streamUrl ? (
                 <iframe
+                  // `credentialless` lets this cross-origin embed load inside our
+                  // COEP (cross-origin isolated) page — otherwise COEP blocks it.
+                  // See the headers() block in next.config.ts.
+                  {...({ credentialless: "" } as any)}
                   src={toEmbedUrl(streamUrl)}
                   title={title}
                   className="absolute inset-0 h-full w-full"
