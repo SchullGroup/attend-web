@@ -42,7 +42,7 @@ const TILES = [
   {
     label: "General",
     description: "Roundtables & conferences",
-    href: "/events",
+    href: "/general",
     icon: CalendarDays,
     gradient: "from-teal-500 to-cyan-600",
   },

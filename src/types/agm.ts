@@ -68,6 +68,16 @@ export type ResolutionsResponse = ApiResponse<ResolutionsData>;
 export type ProxyResponse = ApiResponse<ProxyData>;
 export type ProxyHistoryResponse = ApiResponse<ProxyHistoryData>;
 
+// AGM minutes. The backend returns `data: null` (with status true) until the client
+// admin has finalised them — that's "not published yet", not an error.
+export interface MinutesData {
+  eventId: string;
+  content: string;
+  finalisedAt: string;
+}
+
+export type MinutesResponse = ApiResponse<MinutesData | null>;
+
 export interface VoteReceiptItem {
   resolutionId: string;
   resolutionTitle: string;

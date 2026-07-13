@@ -39,6 +39,9 @@ export default function AgmPage() {
           <Link href="/agm/receipt">
             <Button variant="outline" size="sm">My receipts</Button>
           </Link>
+          <Link href="/agm/minutes">
+            <Button variant="outline" size="sm">Minutes</Button>
+          </Link>
         </div>
       </header>
 

@@ -86,12 +86,21 @@ export function LiveRoom({
   // isolated. Isolate ONLY for Zoom meetings by reloading once with `?coi=1`
   // (next.config applies COOP/COEP for that flag). Non-Zoom pages stay un-isolated,
   // so YouTube/Vimeo iframe streams keep working on every browser.
+  // "ready" once the page is isolated (or we tried and the browser won't isolate —
+  // e.g. Safari/Firefox, where Zoom still works, just without gallery view). We hold
+  // ZoomStage back until then so the SDK isn't downloaded on a page we're about to
+  // navigate away from (that race left the SDK global unset).
+  const [coiState, setCoiState] = useState<"unknown" | "pending" | "ready">("unknown");
   const zoomMn = zoom?.meetingNumber;
   useEffect(() => {
     if (!zoomMn || typeof window === "undefined") return;
-    if (window.crossOriginIsolated) return; // already isolated
     const url = new URL(window.location.href);
-    if (url.searchParams.get("coi") === "1") return; // already opted in
+    const alreadyTried = url.searchParams.get("coi") === "1";
+    if (window.crossOriginIsolated || alreadyTried) {
+      setCoiState("ready");
+      return;
+    }
+    setCoiState("pending");
     url.searchParams.set("coi", "1");
     window.location.replace(url.toString());
   }, [zoomMn]);
@@ -157,6 +166,9 @@ export function LiveRoom({
   const [qSent, setQSent] = useState(false);
   const [userQuestion, setUserQuestion] = useState("");
   const [videoHidden, setVideoHidden] = useState(false);
+  // Reveal the Minimise button only while the pointer is over the video box, so it
+  // never sits on top of (or blocks) Zoom's own controls.
+  const [videoHover, setVideoHover] = useState(false);
 
   // Show the user's just-submitted question optimistically — but only until the
   // backend's list actually returns it (so it doesn't appear twice).
@@ -288,7 +300,7 @@ export function LiveRoom({
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Stream */}
         <div className="lg:col-span-3">
-          {videoHidden ? (
+          {videoHidden && (
             <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-3">
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
@@ -303,14 +315,32 @@ export function LiveRoom({
                 <ChevronDown className="h-3.5 w-3.5" /> Expand
               </button>
             </div>
-          ) : (
-            <div className={cn("group relative overflow-hidden rounded-2xl bg-slate-900", !zoom && "aspect-video")}>
+          )}
+          {/* Stay mounted while minimised. Unmounting ZoomStage runs its cleanup,
+              which calls leaveMeeting() — that would drop you out of the meeting. */}
+          <div
+            onMouseEnter={() => setVideoHover(true)}
+            onMouseLeave={() => setVideoHover(false)}
+            className={cn(
+              "relative overflow-hidden rounded-2xl bg-slate-900",
+              !zoom && "aspect-video",
+              videoHidden && "hidden",
+            )}
+          >
               {zoom ? (
-                <ZoomStage
-                  meetingNumber={zoom.meetingNumber}
-                  passcode={zoom.passcode}
-                  userName={displayName}
-                />
+                coiState === "ready" ? (
+                  <ZoomStage
+                    meetingNumber={zoom.meetingNumber}
+                    passcode={zoom.passcode}
+                    userName={displayName}
+                  />
+                ) : (
+                  // Isolating (a one-time reload). Don't load the Zoom SDK yet.
+                  <div className="flex min-h-105 w-full flex-col items-center justify-center gap-3 text-white">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/25 border-t-white/80" />
+                    <p className="text-sm font-semibold text-white/85">Preparing the meeting…</p>
+                  </div>
+                )
               ) : streamUrl ? (
                 <iframe
                   // `credentialless` lets this cross-origin embed load inside our
@@ -346,12 +376,14 @@ export function LiveRoom({
               )}
               <button
                 onClick={() => setVideoHidden(true)}
-                className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-lg bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 pointer-events-none transition-opacity hover:bg-black/60 group-hover:opacity-100 group-hover:pointer-events-auto"
+                className={cn(
+                  "absolute right-3 top-3 z-10 flex items-center gap-1 rounded-lg bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white transition-opacity hover:bg-black/60",
+                  videoHover ? "opacity-100" : "pointer-events-none opacity-0",
+                )}
               >
                 <ChevronUp className="h-3.5 w-3.5" /> Minimise
               </button>
-            </div>
-          )}
+          </div>
 
           {/* Countdown strip — driven by the open resolution's secondsRemaining (AGM only) */}
           {showBallot && openRes && (

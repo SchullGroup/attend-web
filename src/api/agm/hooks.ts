@@ -7,6 +7,16 @@ export const agmKeys = {
   proxy: (eventId: string) => ["agm", "proxy", eventId] as const,
   voteReceipt: (eventId: string) => ["agm", "vote-receipt", eventId] as const,
   questions: (eventId: string) => ["agm", "questions", eventId] as const,
+  minutes: (eventId: string) => ["agm", "minutes", eventId] as const,
+};
+
+export const useGetMinutes = (eventId: string) => {
+  return useQuery({
+    queryKey: agmKeys.minutes(eventId),
+    queryFn: () => agmClient.getMinutes(eventId),
+    enabled: !!eventId,
+    retry: false,
+  });
 };
 
 export const useGetVoteReceipt = (eventId: string) => {
