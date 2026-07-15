@@ -5,6 +5,8 @@ import {
   EventsQueryParams,
   MyTicketResponse,
   ApiResponse,
+  ApiResponseActivePollResponse,
+  ApiResponsePressKitResponse,
 } from "@/types";
 
 export const eventsClient = {
@@ -94,6 +96,28 @@ export const eventsClient = {
   getSavedEvents: async () => {
     const response = await apiClient.get<EventsListResponse>(
       "/api/v1/participant/events/saved",
+    );
+    return response.data;
+  },
+
+  getActivePoll: async (id: string) => {
+    const response = await apiClient.get<ApiResponseActivePollResponse>(
+      `/api/v1/participant/events/${id}/polls`,
+    );
+    return response.data;
+  },
+
+  respondToPoll: async (eventId: string, pollId: string, optionId: string) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/participant/events/${eventId}/polls/${pollId}/respond`,
+      { optionId }
+    );
+    return response.data;
+  },
+
+  getPressKit: async (id: string) => {
+    const response = await apiClient.get<ApiResponsePressKitResponse>(
+      `/api/v1/participant/events/${id}/press-kit`,
     );
     return response.data;
   },

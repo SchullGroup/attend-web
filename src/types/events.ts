@@ -98,3 +98,37 @@ export interface EventsQueryParams {
 export type EventsListResponse = ApiResponse<EventsListData>;
 export type EventDetailResponse = ApiResponse<EventDetail>;
 export type MyTicketResponse = ApiResponse<MyTicket>;
+
+export interface ActivePollOption {
+  id: string;
+  text: string;
+}
+
+export interface ActivePollResponse {
+  id: string;
+  question: string;
+  options: ActivePollOption[];
+  myResponse: string | null;
+  status: "OPEN" | "CLOSED";
+}
+
+export interface FileItem {
+  id: string;
+  title: string;
+  sizeLabel: string;
+  status: "RELEASED" | "EMBARGOED";
+  releaseMode: "MANUAL" | "SCHEDULED";
+  scheduledReleaseAt: string | null;
+  releasedAt: string | null;
+  uploadedAt: string;
+  downloadUrl: string;
+}
+
+export interface PressKitResponse {
+  releasedCount: number;
+  totalCount: number;
+  files: FileItem[];
+}
+
+export type ApiResponseActivePollResponse = ApiResponse<ActivePollResponse>;
+export type ApiResponsePressKitResponse = ApiResponse<PressKitResponse>;

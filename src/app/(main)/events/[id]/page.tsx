@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, CalendarDays, Clock, MapPin, Users, Bookmark, Share2,
   QrCode, CheckCircle2, Check, Monitor, Wifi, Vote, FileText,
-  BookOpen, ShieldAlert, ChevronRight, Radio,
+  BookOpen, ShieldAlert, ChevronRight, Radio, DownloadCloud, FileBox
 } from "lucide-react";
 import {
   useGetEvent, useRsvp, useCancelRsvp, useJoinWaitlist,
-  useGetSavedEvents, useSaveEvent, useUnsaveEvent,
+  useGetSavedEvents, useSaveEvent, useUnsaveEvent, useGetPressKit
 } from "@/api/events/hooks";
 import { useGetResolutions } from "@/api/agm/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
@@ -60,6 +60,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const { mutate: saveEvent } = useSaveEvent(id);
   const { mutate: unsaveEvent } = useUnsaveEvent(id);
   const saved = !!savedResp?.data?.events?.some((e) => e.id === id);
+
+  const mod = event ? moduleOf(event.eventType) : "GENERAL";
+  const { data: pressKitResp } = useGetPressKit(id, undefined, mod === "LAUNCH");
+  const pressKit = pressKitResp?.data;
 
   // Resolutions are a separate array from the agenda — only AGMs have them.
   const { data: resData } = useGetResolutions(id, undefined, event?.eventType === "AGM_EGM");
@@ -127,7 +131,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const color = event.organizerPrimaryColor || "#2563eb";
   const organiser = event.registerName || event.organizerName;
-  const mod = moduleOf(event.eventType);
   const isLive = event.status === "LIVE";
   const isEnded = event.status === "ENDED";
   const isUpcoming = !isLive && !isEnded;
@@ -273,9 +276,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   <ActionRow icon={<FileText className="h-5 w-5" style={{ color }} />} label="Appoint a Proxy" />
                 </Link>
               )}
-              <Link href={`/agm/pre-vote?eventId=${id}`}>
-                <ActionRow icon={<Vote className="h-5 w-5" style={{ color }} />} label="Pre-AGM Voting" />
-              </Link>
+              {!isLive && !isEnded && (
+                <Link href={`/agm/pre-vote?eventId=${id}`}>
+                  <ActionRow icon={<Vote className="h-5 w-5" style={{ color }} />} label="Pre-AGM Voting" />
+                </Link>
+              )}
             </div>
           )}
         </section>
@@ -437,6 +442,52 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
+      {/* Press Kit for Product Launch events */}
+      {mod === "LAUNCH" && pressKit && pressKit.totalCount > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">Press Kit</h2>
+            <Badge variant="muted">{pressKit.releasedCount} / {pressKit.totalCount} released</Badge>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {pressKit.files.map((file) => {
+              const isReleased = file.status === "RELEASED";
+              return (
+                <div key={file.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-white p-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                      isReleased ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                    )}>
+                      <FileBox className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground" title={file.title}>
+                        {file.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{file.sizeLabel}</p>
+                    </div>
+                  </div>
+                  {isReleased ? (
+                    <a
+                      href={file.downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 rounded-xl bg-muted p-2 hover:bg-muted/80 transition-colors"
+                      title="Download"
+                    >
+                      <DownloadCloud className="h-4 w-4 text-foreground" />
+                    </a>
+                  ) : (
+                    <Badge variant="warning" className="shrink-0 uppercase text-[10px]">Embargoed</Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Sticky bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur px-4 py-3 md:left-64">
         {isLive ? (
@@ -454,10 +505,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <Button className="w-full" variant="outline" disabled>On waitlist</Button>
         ) : event.registered ? (
           <div className="flex gap-3">
-            <Button className="flex-1" variant="outline" onClick={handleCancelRsvp} disabled={cancelling}>
-              {cancelling ? "Cancelling…" : "Cancel RSVP"}
-            </Button>
-            {mod === "AGM" && (
+            {/* AGM RSVP cannot be cancelled once LIVE or ENDED — doing so wipes
+                the shareholder from the admin register and corrupts quorum data. */}
+            {!(mod === "AGM" && (isLive || isEnded)) && (
+              <Button className="flex-1" variant="outline" onClick={handleCancelRsvp} disabled={cancelling}>
+                {cancelling ? "Cancelling…" : "Cancel RSVP"}
+              </Button>
+            )}
+            {mod === "AGM" && !isLive && !isEnded && (
               <Link href={`/agm/pre-vote?eventId=${id}`} className="flex-1">
                 <Button className="w-full" style={{ backgroundColor: color }}>Pre-Vote</Button>
               </Link>

@@ -114,6 +114,7 @@ export interface ChallengeResource {
   id: string;
   title: string;
   description: string;
+  category?: string;
   resourceType: string;
   url: string;
   fileType: string;

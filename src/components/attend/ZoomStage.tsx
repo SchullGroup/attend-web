@@ -1,121 +1,225 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { loadZoomEmbeddedSdk } from "@/lib/zoom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { parseZoomUrl, fetchStreamUrl } from "@/lib/zoom";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+type ZoomStatus = "connecting" | "joined" | "error" | "left";
+
 interface Props {
+  eventId: string;
   meetingNumber: string;
   passcode: string;
   userName: string;
 }
 
-// Renders a live Zoom meeting (Component View) inside the video slot — the Zoom
-// equivalent of the YouTube <iframe>. It fetches a join signature, loads the SDK
-// from the CDN, and joins into its own container.
+// Renders a live Zoom meeting (Client View) inside the video slot via an iframe
+// hosting public/zoom-meeting.html. Communicates over postMessage:
+//   Parent → iframe: ZOOM_JOIN
+//   iframe → Parent: ZOOM_READY, ZOOM_JOINED, ZOOM_ERROR, ZOOM_LEFT
 //
-// TEMPORARY: the signature comes from our local /api/zoom/signature route. Once the
-// backend exposes a real endpoint, swap the fetch URL and pass the ZAK token into
-// client.join({ ..., zak }) (required for joining backend-created meetings).
-export function ZoomStage({ meetingNumber, passcode, userName }: Props) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const clientRef = useRef<any>(null);
-  const [status, setStatus] = useState<"connecting" | "joined" | "error">("connecting");
+// Retry-once: if join fails with a "meeting not found" style error, re-fetches
+// streamUrl from the backend (the meeting may have been rotated) and retries
+// with the fresh values before showing an error.
+export function ZoomStage({ eventId, meetingNumber, passcode, userName }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [status, setStatus] = useState<ZoomStatus>("connecting");
   const [errorMsg, setErrorMsg] = useState("");
+  const retriedRef = useRef(false);
+  const joinSentRef = useRef(false);
+  // Track the current meeting values (may change on retry).
+  const meetingRef = useRef({ meetingNumber, passcode });
+  meetingRef.current = { meetingNumber, passcode };
 
-  useEffect(() => {
-    let cancelled = false;
+  // Fetch the join signature from our BFF route.
+  const getSignature = useCallback(async (mn: string) => {
+    const res = await fetch("/api/zoom/signature", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meetingNumber: mn, role: 0 }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "Could not get join signature");
+    return data as { signature: string; sdkKey: string };
+  }, []);
 
-    async function join() {
-      setStatus("connecting");
-      setErrorMsg("");
-      try {
-        const res = await fetch("/api/zoom/signature", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ meetingNumber, role: 0 }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) throw new Error(data.error || "Could not get join signature");
-
-        const ZoomMtgEmbedded = await loadZoomEmbeddedSdk();
-        if (cancelled || !rootRef.current) return;
-
-        const client = ZoomMtgEmbedded.createClient();
-        clientRef.current = client;
-
-        const el = rootRef.current;
-
-        // Render Zoom's FULL default Component View — the whole console (tiles + video
-        // + controls toolbar), exactly like the admin sees. Zoom sizes itself and the
-        // container grows to fit it, so nothing (especially the toolbar) is clipped.
-        // Extra empty space in the slot is acceptable.
-        await client.init({
-          zoomAppRoot: el,
-          language: "en-US",
-          patchJsMedia: true,
-        });
-        if (cancelled) return;
-
-        // Keep our full-box overlay up until we're actually IN the meeting (past the
-        // waiting room), so Zoom's small pre-join/waiting screen is never exposed.
-        client.on("connection-change", (payload: any) => {
-          if (payload?.state === "Connected" && !cancelled) setStatus("joined");
-        });
-
-        await client.join({
-          sdkKey: data.sdkKey,
-          signature: data.signature,
-          meetingNumber,
-          password: passcode,
+  // Send ZOOM_JOIN to the iframe with the current meeting params + signature.
+  const sendJoin = useCallback(
+    async (mn: string, pwd: string) => {
+      const iframe = iframeRef.current;
+      if (!iframe?.contentWindow) return;
+      const sig = await getSignature(mn);
+      iframe.contentWindow.postMessage(
+        {
+          type: "ZOOM_JOIN",
+          sdkKey: sig.sdkKey,
+          signature: sig.signature,
+          meetingNumber: mn,
+          password: pwd,
           userName,
-        });
-        // Fallback: if the connection event doesn't arrive, reveal the meeting anyway.
-        setTimeout(() => {
-          if (!cancelled) setStatus((s) => (s === "connecting" ? "joined" : s));
-        }, 12000);
-      } catch (e: unknown) {
-        if (cancelled) return;
-        setStatus("error");
-        // Zoom rejects with an object ({ reason, errorCode, type }), not an Error.
-        const anyE = e as any;
-        const msg =
-          e instanceof Error
-            ? e.message
-            : anyE?.reason || anyE?.errorMessage || anyE?.message || (anyE ? JSON.stringify(anyE) : String(e));
-        setErrorMsg(msg);
+        },
+        window.location.origin,
+      );
+    },
+    [getSignature, userName],
+  );
+
+  // Retry logic: fetch fresh streamUrl, re-parse, and send a new ZOOM_JOIN.
+  const retryWithFreshStream = useCallback(async () => {
+    if (retriedRef.current) return false; // only retry once
+    retriedRef.current = true;
+    const freshUrl = await fetchStreamUrl(eventId);
+    const parsed = parseZoomUrl(freshUrl);
+    if (!parsed) return false;
+    meetingRef.current = { meetingNumber: parsed.meetingNumber, passcode: parsed.passcode };
+    setStatus("connecting");
+    setErrorMsg("");
+    // Small delay so the iframe is ready.
+    await new Promise((r) => setTimeout(r, 500));
+    try {
+      await sendJoin(parsed.meetingNumber, parsed.passcode);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [eventId, sendJoin]);
+
+  // Listen for messages from the iframe (ZOOM_JOINED, ZOOM_ERROR, ZOOM_LEFT).
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (!event.data || typeof event.data.type !== "string") return;
+
+      switch (event.data.type) {
+        case "ZOOM_JOINED":
+          setStatus("joined");
+          break;
+
+        case "ZOOM_ERROR": {
+          const msg = (event.data.message || "").toLowerCase();
+          const isRotation =
+            msg.includes("not found") ||
+            msg.includes("invalid") ||
+            msg.includes("ended") ||
+            msg.includes("does not exist");
+          if (isRotation && !retriedRef.current) {
+            retryWithFreshStream().then((ok) => {
+              if (!ok) {
+                setStatus("error");
+                setErrorMsg(event.data.message || "Meeting not found.");
+              }
+            });
+          } else {
+            setStatus("error");
+            setErrorMsg(event.data.message || "Could not join the meeting.");
+          }
+          break;
+        }
+
+        case "ZOOM_LEFT":
+          setStatus("left");
+          break;
       }
     }
 
-    join();
-    return () => {
-      cancelled = true;
-      try {
-        clientRef.current?.leaveMeeting?.();
-      } catch {
-        /* ignore */
-      }
-    };
-  }, [meetingNumber, passcode, userName]);
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [retryWithFreshStream]);
+
+  // When the iframe finishes loading (all synchronous scripts done, ZoomMtg ready),
+  // fetch the signature and post ZOOM_JOIN. This replaces the ZOOM_READY handshake
+  // and eliminates the race condition where the iframe's message arrived before the
+  // parent's listener was attached.
+  const handleIframeLoad = useCallback(() => {
+    // Guard: only send ZOOM_JOIN once. Zoom's Client View navigates
+    // internally which re-fires onLoad — ignore those subsequent loads.
+    if (joinSentRef.current) return;
+    // Don't join if the iframe loaded the ?left=1 page.
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      if (iframe.src.includes('left=1')) return;
+    } catch { /* cross-origin — ignore */ }
+    joinSentRef.current = true;
+    sendJoin(meetingRef.current.meetingNumber, meetingRef.current.passcode)
+      .then(() => {
+        // Fallback: if ZOOM_JOINED never arrives (the Client View's success
+        // callback doesn't always fire in SDK 6.x), reveal the meeting
+        // anyway after 12 seconds — same pattern the old code used.
+        setTimeout(() => {
+          setStatus((s) => (s === "connecting" ? "joined" : s));
+        }, 12000);
+      })
+      .catch((e: any) => {
+        joinSentRef.current = false;
+        setStatus("error");
+        setErrorMsg(e?.message || "Could not get join signature");
+      });
+  }, [sendJoin]);
+
+  // Hold the timestamp in state so it only cache-busts on mount or explicit rejoin.
+  // Using Date.now() directly in the component body caused the iframe to reload
+  // every time the parent (LiveRoom) re-rendered (e.g. from countdown polling).
+  const [sessionTime, setSessionTime] = useState(Date.now());
+  const iframeSrc = `/zoom-meeting.html?t=${sessionTime}`;
+
+  // Rejoin handler: reset the iframe to get a fresh Zoom session.
+  function handleRejoin() {
+    retriedRef.current = false;
+    joinSentRef.current = false;
+    setStatus("connecting");
+    setErrorMsg("");
+    setSessionTime(Date.now());
+  }
 
   return (
-    <div className="relative min-h-105 w-full">
+    <div className="relative w-full h-[450px] bg-slate-900 rounded-2xl">
+      {/* Overlay: connecting / error / left — hides while joined */}
       {status !== "joined" && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-900 px-6 text-center text-white">
           {status === "error" ? (
             <>
-              <p className="text-sm font-semibold text-white/90">Couldn&apos;t join the meeting</p>
+              <p className="text-sm font-semibold text-white/90">
+                Couldn&apos;t join the meeting
+              </p>
               <p className="text-xs text-white/60">{errorMsg}</p>
+              <button
+                onClick={handleRejoin}
+                className="mt-2 rounded-lg bg-white/15 px-4 py-2 text-xs font-semibold text-white hover:bg-white/25 transition-colors"
+              >
+                Try again
+              </button>
+            </>
+          ) : status === "left" ? (
+            <>
+              <p className="text-sm font-semibold text-white/90">
+                You left the meeting
+              </p>
+              <button
+                onClick={handleRejoin}
+                className="mt-2 rounded-lg bg-white/15 px-4 py-2 text-xs font-semibold text-white hover:bg-white/25 transition-colors"
+              >
+                Rejoin
+              </button>
             </>
           ) : (
             <>
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/25 border-t-white/80" />
-              <p className="text-sm font-semibold text-white/85">Connecting to the meeting…</p>
+              <p className="text-sm font-semibold text-white/85">
+                Connecting to the meeting…
+              </p>
             </>
           )}
         </div>
       )}
-      <div ref={rootRef} className="min-h-105 w-full" />
+      <iframe
+        ref={iframeRef}
+        src={iframeSrc}
+        title="Zoom Meeting"
+        className="absolute inset-0 h-full w-full border-0"
+        allow="camera; microphone; autoplay; fullscreen; display-capture"
+        onLoad={handleIframeLoad}
+      />
     </div>
   );
 }

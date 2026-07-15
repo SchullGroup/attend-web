@@ -18,6 +18,7 @@ export interface MeResponse {
   role: string;
   email: string;
   avatarUrl: string | null;
+  phoneNumber?: string;
 }
 
 export type AuthApiResponse = ApiResponse<AuthResponse>;

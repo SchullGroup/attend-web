@@ -16,8 +16,9 @@ import {
   CheckCircle,
   ThumbsUp,
   Clock,
+  BarChart2,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll } from "@/api/events/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { ZoomStage } from "@/components/attend/ZoomStage";
 import { parseZoomUrl } from "@/lib/zoom";
@@ -33,7 +34,7 @@ import { Button } from "@/components/ui/Button";
 import { cn, formatRelativeTime, toEmbedUrl } from "@/lib/utils";
 import { Resolution } from "@/types";
 
-type Tab = "qa" | "ballot";
+type Tab = "qa" | "ballot" | "poll";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
 
 function fmtCountdown(total: number): string {
@@ -126,6 +127,12 @@ export function LiveRoom({
   const { mutate: upvote } = useUpvoteQuestion(eventId);
 
   const resolutions = resData?.data?.resolutions ?? [];
+  const hasProxy = !!resData?.data?.hasProxy;
+
+  const { data: pollResp } = useGetActivePoll(eventId, !showBallot && isLive ? 5000 : undefined, !showBallot && isLive);
+  const { mutate: respondToPoll, isPending: submittingPoll } = useRespondToPoll(eventId);
+  const activePoll = pollResp?.data;
+
   // When the register has no share weighting, shares are all 0 — show head counts only.
   const shareWeighted = !!resData?.data?.shareWeightedTalliesEnabled;
   // Status-driven (secondsRemaining is null while a resolution is WAITING).
@@ -159,6 +166,8 @@ export function LiveRoom({
   }));
 
   const [tab, setTab] = useState<Tab>(showBallot ? "ballot" : "qa");
+  const [pollChoice, setPollChoice] = useState<string | null>(null);
+  const [pollMsg, setPollMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [vote, setVote] = useState<VoteChoice | null>(null);
   const [voteMsg, setVoteMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -180,7 +189,7 @@ export function LiveRoom({
   // Remember the active tab so a refresh keeps you where you were.
   useEffect(() => {
     const saved = sessionStorage.getItem("attend:liveTab");
-    if (saved === "qa" || (showBallot && saved === "ballot")) setTab(saved as Tab);
+    if (saved === "qa" || (!showBallot && saved === "poll") || (showBallot && saved === "ballot")) setTab(saved as Tab);
   }, [showBallot]);
   const selectTab = (t: Tab) => {
     setTab(t);
@@ -330,6 +339,7 @@ export function LiveRoom({
               {zoom ? (
                 coiState === "ready" ? (
                   <ZoomStage
+                    eventId={eventId}
                     meetingNumber={zoom.meetingNumber}
                     passcode={zoom.passcode}
                     userName={displayName}
@@ -427,27 +437,22 @@ export function LiveRoom({
         <div className="lg:col-span-2">
           <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
             <div className="flex border-b border-border">
-              {showBallot ? (
-                [
-                  { id: "qa" as Tab, label: "Q&A", icon: MessageSquare },
-                  { id: "ballot" as Tab, label: "Ballot", icon: Vote },
-                ].map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => selectTab(id)}
-                    className={cn(
-                      "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-semibold",
-                      tab === id ? "border-b-2 border-primary text-primary" : "text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {label}
-                  </button>
-                ))
-              ) : (
-                <div className="flex flex-1 items-center justify-center gap-1.5 border-b-2 border-primary py-3 text-xs font-semibold text-primary">
-                  <MessageSquare className="h-3.5 w-3.5" /> Q&amp;A
-                </div>
-              )}
+              {[
+                { id: "qa" as Tab, label: "Q&A", icon: MessageSquare },
+                ...(showBallot ? [{ id: "ballot" as Tab, label: "Ballot", icon: Vote }] : []),
+                ...(!showBallot ? [{ id: "poll" as Tab, label: "Polls", icon: BarChart2 }] : []),
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => selectTab(id)}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-semibold",
+                    tab === id ? "border-b-2 border-primary text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
             </div>
 
             <div className="max-h-105 overflow-y-auto p-4">
@@ -541,6 +546,15 @@ export function LiveRoom({
                       </p>
                     </div>
 
+                    {hasProxy && (
+                      <div className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-800">
+                        <p className="font-semibold">Voting managed by proxy</p>
+                        <p className="mt-0.5 text-[11px] text-purple-700/80">
+                          You have appointed a proxy to vote on your behalf at this meeting.
+                        </p>
+                      </div>
+                    )}
+
                     {voteMsg && (
                       <div
                         className={cn(
@@ -574,7 +588,7 @@ export function LiveRoom({
                           <button
                             key={opt}
                             onClick={() => setVote(opt)}
-                            disabled={voting}
+                            disabled={voting || hasProxy}
                             className={cn(
                               "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
                               selected ? selectedTone : tone,
@@ -586,7 +600,7 @@ export function LiveRoom({
                         );
                       })}
                     </div>
-                    <Button fullWidth disabled={!vote || voting} loading={voting} onClick={handleCastVote}>
+                    <Button fullWidth disabled={!vote || voting || hasProxy} loading={voting} onClick={handleCastVote}>
                       {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
                     </Button>
 
@@ -638,6 +652,83 @@ export function LiveRoom({
                     No resolutions for this meeting yet.
                   </div>
                 ))}
+              
+              {tab === "poll" && (
+                <div className="space-y-4">
+                  {!activePoll ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      No active poll at the moment.
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+                      <div className="mb-4">
+                        <span className="inline-block rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700">
+                          Live Poll
+                        </span>
+                        <h3 className="mt-2 text-base font-semibold text-foreground">
+                          {activePoll.question}
+                        </h3>
+                      </div>
+                      
+                      {pollMsg && (
+                        <div className={cn(
+                          "mb-4 rounded-xl border px-3 py-2.5 text-sm font-medium",
+                          pollMsg.kind === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-600"
+                        )}>
+                          {pollMsg.text}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        {activePoll.options.map((opt) => {
+                          const isSelected = pollChoice === opt.id || activePoll.myResponse === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              disabled={!!activePoll.myResponse || submittingPoll}
+                              onClick={() => setPollChoice(opt.id)}
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors disabled:opacity-75",
+                                isSelected
+                                  ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                  : "border-border hover:border-primary/50 hover:bg-muted/50"
+                              )}
+                            >
+                              <span className="text-sm font-medium text-foreground">{opt.text}</span>
+                              {isSelected && <CheckCircle className="h-4 w-4 text-primary" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {!activePoll.myResponse && (
+                        <Button
+                          fullWidth
+                          className="mt-4"
+                          disabled={!pollChoice || submittingPoll}
+                          loading={submittingPoll}
+                          onClick={() => {
+                            if (!pollChoice) return;
+                            respondToPoll(
+                              { pollId: activePoll.id, optionId: pollChoice },
+                              {
+                                onSuccess: () => {
+                                  setPollMsg({ kind: "ok", text: "Your response has been recorded." });
+                                },
+                                onError: () => {
+                                  setPollMsg({ kind: "err", text: "Failed to submit response. Please try again." });
+                                },
+                              }
+                            );
+                          }}
+                        >
+                          Submit Response
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

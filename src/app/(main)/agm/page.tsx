@@ -156,11 +156,13 @@ function AgmCard({ event: e }: { event: EventListItem }) {
                     </Button>
                   </Link>
                 )}
-                <Link href={`/agm/pre-vote?eventId=${e.id}`}>
-                  <Button size="sm" className="flex-1 bg-slate-900 text-white hover:bg-slate-800 border-0">
-                    <Vote className="h-3.5 w-3.5 mr-1.5" /> Pre-vote
-                  </Button>
-                </Link>
+                {!isLive && (
+                  <Link href={`/agm/pre-vote?eventId=${e.id}`}>
+                    <Button size="sm" className="flex-1 bg-slate-900 text-white hover:bg-slate-800 border-0">
+                      <Vote className="h-3.5 w-3.5 mr-1.5" /> Pre-vote
+                    </Button>
+                  </Link>
+                )}
                 <Link href={`/events/${e.id}`}>
                   <Button size="sm" className="flex-1 bg-slate-900 text-white hover:bg-slate-800 border-0">
                     <ChevronRight className="h-3.5 w-3.5 mr-1.5" /> View

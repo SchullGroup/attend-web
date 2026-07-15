@@ -133,3 +133,34 @@ export const useUnsaveEvent = (id: string) => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: eventKeys.saved() }),
   });
 };
+
+export const useGetActivePoll = (eventId: string, refetchInterval?: number, enabled = true) => {
+  return useQuery({
+    queryKey: [...eventKeys.detail(eventId), "poll"] as const,
+    queryFn: () => eventsClient.getActivePoll(eventId),
+    refetchInterval,
+    enabled,
+  });
+};
+
+export const useRespondToPoll = (eventId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pollId, optionId }: { pollId: string; optionId: string }) =>
+      eventsClient.respondToPoll(eventId, pollId, optionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...eventKeys.detail(eventId), "poll"] as const,
+      });
+    },
+  });
+};
+
+export const useGetPressKit = (eventId: string, refetchInterval?: number, enabled = true) => {
+  return useQuery({
+    queryKey: [...eventKeys.detail(eventId), "press-kit"] as const,
+    queryFn: () => eventsClient.getPressKit(eventId),
+    refetchInterval,
+    enabled,
+  });
+};

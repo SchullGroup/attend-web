@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   FileText,
   Mail,
+  Phone,
 } from "lucide-react";
 import { useGetMe, useLogout } from "@/api/auth/hooks";
 import { useUserStore } from "@/lib/user-store";
@@ -117,6 +118,11 @@ export default function ProfilePage() {
                 <p className="flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5" /> {currentUser.email}
                 </p>
+                {currentUser.phoneNumber && (
+                  <p className="flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5" /> {currentUser.phoneNumber}
+                  </p>
+                )}
               </div>
             </div>
           </div>

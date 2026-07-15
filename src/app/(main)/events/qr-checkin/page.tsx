@@ -105,10 +105,7 @@ function QrCheckinInner() {
             </div>
           )}
 
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <Button variant="outline" fullWidth disabled={isPending || ticketLoading} onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4" /> Refresh
-            </Button>
+          <div className="mt-5">
             <Button
               fullWidth
               onClick={doCheckIn}

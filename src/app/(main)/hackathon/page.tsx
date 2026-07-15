@@ -85,9 +85,17 @@ export default function HackathonPage() {
             <li key={c.id} className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
               <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-                    {c.registerName || c.organizerName}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
+                      {c.registerName || c.organizerName}
+                    </p>
+                    {(c.status || "").toUpperCase() === "LIVE" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                        Live
+                      </span>
+                    )}
+                  </div>
                   <h2 className="mt-0.5 text-base font-semibold text-foreground md:text-lg">{c.title}</h2>
                   <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">

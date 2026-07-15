@@ -29,6 +29,14 @@ const nextConfig: NextConfig = {
           { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
         ],
       },
+      {
+        // The Zoom iframe page also needs isolation for SharedArrayBuffer.
+        source: "/zoom-meeting.html",
+        headers: [
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
+        ],
+      },
     ];
   },
 };

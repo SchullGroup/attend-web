@@ -66,6 +66,7 @@ export default function EventsPage() {
             Product reveals and unveilings.
           </p>
         </div>
+        {/* Commented out Gallery and Archive links per user request
         <div className="flex gap-2">
           <Link href="/events/gallery">
             <Button variant="outline" size="sm">
@@ -78,6 +79,7 @@ export default function EventsPage() {
             </Button>
           </Link>
         </div>
+        */}
       </header>
 
       <div className="space-y-3">
