@@ -49,6 +49,7 @@ export const agmClient = {
   upvoteQuestion: async (eventId: string, questionId: string) => {
     const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
       `/api/v1/participant/events/${eventId}/questions/${questionId}/upvote`,
+      {}
     );
     return response.data;
   },

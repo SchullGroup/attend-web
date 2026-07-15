@@ -163,6 +163,7 @@ export function LiveRoom({
     answer: x.answer || "",
     upvoteCount: x.upvoteCount ?? 0,
     myUpvote: !!x.myUpvote,
+    status: (x.status || "PENDING").toUpperCase(),
   }));
 
   const [tab, setTab] = useState<Tab>(showBallot ? "ballot" : "qa");
@@ -482,22 +483,31 @@ export function LiveRoom({
                             {item.answer}
                           </div>
                         )}
-                        <div className="mt-2 flex items-center">
-                          <button
-                            type="button"
-                            onClick={() => upvote(item.id)}
-                            aria-pressed={item.myUpvote}
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
-                              item.myUpvote
-                                ? "border-primary bg-primary/10 text-primary"
-                                : "border-border text-muted-foreground hover:bg-muted",
-                            )}
-                          >
-                            <ThumbsUp className={cn("h-3.5 w-3.5", item.myUpvote && "fill-current")} />
-                            {item.upvoteCount}
-                          </button>
-                        </div>
+                        {item.status === "APPROVED" || item.status === "ANSWERED" ? (
+                          <div className="mt-2 flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => upvote(item.id)}
+                              aria-pressed={item.myUpvote}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
+                                item.myUpvote
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border text-muted-foreground hover:bg-muted",
+                              )}
+                            >
+                              <ThumbsUp className={cn("h-3.5 w-3.5", item.myUpvote && "fill-current")} />
+                              {item.upvoteCount}
+                            </button>
+                          </div>
+                        ) : item.status === "PENDING" ? (
+                          <div className="mt-2 flex items-center">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              Pending Approval
+                            </span>
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                     {showMyPending && (
