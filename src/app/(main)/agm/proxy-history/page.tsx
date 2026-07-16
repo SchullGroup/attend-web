@@ -5,11 +5,12 @@ import { useGetProxyHistory } from "@/api/agm/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 
-type Tone = "info" | "success" | "muted";
+type Tone = "info" | "success" | "muted" | "danger";
 const statusTone = (s: string): Tone => {
   const u = (s || "").toUpperCase();
   if (u === "LIVE") return "info";
   if (u === "ENDED") return "muted";
+  if (u === "CANCELLED") return "danger";
   return "success";
 };
 

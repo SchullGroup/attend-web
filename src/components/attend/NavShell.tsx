@@ -1,16 +1,18 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   House,
   Building2,
   Lightbulb,
   Rocket,
+  CalendarDays,
   User as UserIcon,
   Bell,
   Search,
   LogOut,
+  ArrowLeft,
 } from "lucide-react";
 import { cn, initialsFor } from "@/lib/utils";
 import { useGetMe, useLogout } from "@/api/auth/hooks";
@@ -27,6 +29,7 @@ function eventDetailId(pathname: string) {
 }
 const isAgm = (m?: string) => m === "AGM" || m === "AGM_EGM";
 const isInnovation = (m?: string) => m === "HACKATHON" || m === "INNOVATION_CHALLENGE";
+const isGeneral = (m?: string) => m === "GENERAL" || m === "GENERAL_EVENT";
 
 // `m` is the type of the event currently being viewed (if on /events/[id]), so
 // AGM / Innovation detail pages highlight the correct tab instead of Launches.
@@ -34,7 +37,8 @@ const NAV = [
   { label: "Home", href: "/", icon: House, match: (p: string, m?: string) => p === "/" },
   { label: "AGM", href: "/agm", icon: Building2, match: (p: string, m?: string) => p.startsWith("/agm") || isAgm(m) },
   { label: "Innovation", href: "/hackathon", icon: Lightbulb, match: (p: string, m?: string) => p.startsWith("/hackathon") || isInnovation(m) },
-  { label: "Launches", href: "/events", icon: Rocket, match: (p: string, m?: string) => p.startsWith("/events") && !isAgm(m) && !isInnovation(m) },
+  { label: "Launches", href: "/events", icon: Rocket, match: (p: string, m?: string) => p.startsWith("/events") && !isAgm(m) && !isInnovation(m) && !isGeneral(m) },
+  { label: "General", href: "/general", icon: CalendarDays, match: (p: string, m?: string) => p.startsWith("/general") || isGeneral(m) },
   { label: "Profile", href: "/profile", icon: UserIcon, match: (p: string, m?: string) => p.startsWith("/profile") },
 ];
 
@@ -72,11 +76,37 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const { data: notifData } = useGetNotifications({ size: 1 }, hasToken);
   const unreadCount = notifData?.data?.unreadCount ?? 0;
 
-  // Resolve the type of the event being viewed so an /events/[id] page highlights
-  // the correct tab.
-  const detailId = eventDetailId(pathname);
+  const [searchQuery, setSearchQuery] = useState("");
+  function handleSearch(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  }
+
+  // Resolve the event being viewed so its module highlights the right tab. On the
+  // live routes the id is a query param (/events/live?eventId=…), not a path segment
+  // (the segment is "live"), so read it from the URL there. We read via window rather
+  // than useSearchParams to keep this shell out of a Suspense boundary. Keyed on
+  // pathname — covers navigating into a live room, the case that mis-highlighted.
+  const [detailId, setDetailId] = useState("");
+  useEffect(() => {
+    const isLiveRoute = pathname === "/events/live" || pathname === "/agm/live";
+    if (isLiveRoute && typeof window !== "undefined") {
+      setDetailId(new URLSearchParams(window.location.search).get("eventId") ?? "");
+    } else {
+      setDetailId(eventDetailId(pathname));
+    }
+  }, [pathname]);
   const { data: eventDetail } = useGetEvent(detailId);
   const currentModule = eventDetail?.data?.eventType;
+
+  const isExactRoot = NAV.some((item) => item.href === pathname) || pathname === "/notifications";
+  const canGoBack = !isExactRoot && typeof window !== "undefined" && window.history.length > 1;
+
+  function handleBack() {
+    if (canGoBack) router.back();
+    else router.push("/");
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -137,12 +167,20 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-20 border-b border-border bg-white/85 backdrop-blur md:pl-64">
         <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-8">
           <div className="flex items-center gap-3 md:hidden">
+            {!isExactRoot && (
+              <button onClick={handleBack} aria-label="Go back" className="p-2 -ml-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            )}
             <img src="/attend-logo.png" alt="Attend" style={{ height: 22, width: "auto" }} />
           </div>
-          <div className="hidden flex-1 max-w-md md:block">
-            <div className="relative">
+          <div className="hidden flex-1 items-center gap-4 md:flex max-w-md">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearch}
                 className="h-10 w-full rounded-xl border border-input bg-muted/40 pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
                 placeholder="Search events, companies, challenges…"
               />
@@ -193,7 +231,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex flex-col items-center gap-1 rounded-xl px-3 py-2 text-[10px] font-medium",
+                    "flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >

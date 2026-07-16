@@ -52,15 +52,30 @@ function ReceiptInner() {
     );
   }
 
+  const votesList = receipt.votes || [];
+  const preVotesList = (receipt as any).preVotes || (receipt as any).earlyVotes || [];
+
+  // Combine lists, matching by resolutionId to avoid duplicates
+  const combinedVotes = [...votesList];
+  preVotesList.forEach((pv: any) => {
+    if (!combinedVotes.some(v => v.resolutionId === pv.resolutionId)) {
+      combinedVotes.push(pv);
+    }
+  });
+
   const view = {
     reference: data?.referenceId ?? "—",
     meeting: receipt.eventTitle,
-    date: receipt.votes[0]?.votedAt ? formatDate(receipt.votes[0].votedAt) : "—",
-    resolutions: receipt.votes.map((v, i) => ({
-      num: i + 1,
-      title: v.resolutionTitle,
-      vote: voteLabel(v.choice),
-    })),
+    date: combinedVotes[0]?.votedAt ? formatDate(combinedVotes[0].votedAt) : "—",
+    resolutions: combinedVotes.map((v: any, i) => {
+      const isPre = !!v.preVote || !!v.isPreVote || !!v.earlyVote || !!v.early || preVotesList.includes(v);
+      return {
+        num: i + 1,
+        title: v.resolutionTitle,
+        vote: voteLabel(v.choice),
+        isPre,
+      };
+    }),
   };
 
   function copy() {
@@ -116,10 +131,11 @@ function ReceiptInner() {
       view.resolutions.forEach((r) => {
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
-        const title = doc.splitTextToSize(`Resolution ${r.num}: ${r.title}`, pageW - margin * 2 - 70);
+        const title = doc.splitTextToSize(`Resolution ${r.num}: ${r.title}`, pageW - margin * 2 - 100);
         doc.text(title, margin, y);
         doc.setFont("helvetica", "normal");
-        doc.text(r.vote, pageW - margin, y, { align: "right" });
+        const textLabel = r.isPre ? `${r.vote} (Pre-vote)` : r.vote;
+        doc.text(textLabel, pageW - margin, y, { align: "right" });
         y += title.length * 15 + 8;
       });
     }
@@ -225,7 +241,7 @@ function ReceiptInner() {
                             : "bg-slate-100 text-slate-700"
                         }`}
                       >
-                        {r.vote}
+                        {r.vote} {r.isPre && "(Pre-vote)"}
                       </span>
                     </li>
                   ))}

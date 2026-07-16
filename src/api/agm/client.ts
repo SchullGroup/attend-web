@@ -8,6 +8,7 @@ import {
   VoteReceiptResponse,
   QuestionsResponse,
   SubmitQuestionRequest,
+  MinutesResponse,
   ApiResponse,
 } from "@/types";
 
@@ -15,6 +16,16 @@ export const agmClient = {
   getVoteReceipt: async (eventId: string) => {
     const response = await apiClient.get<VoteReceiptResponse>(
       `/api/v1/participant/events/${eventId}/vote-receipt`,
+    );
+    return response.data;
+  },
+
+  // Finalised AGM minutes. Returns `data: null` (status true) when the admin hasn't
+  // published them yet — callers must treat that as "not available", not an error.
+  // 403 if the participant isn't registered for the event.
+  getMinutes: async (eventId: string) => {
+    const response = await apiClient.get<MinutesResponse>(
+      `/api/v1/participant/events/${eventId}/minutes`,
     );
     return response.data;
   },
@@ -38,6 +49,7 @@ export const agmClient = {
   upvoteQuestion: async (eventId: string, questionId: string) => {
     const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
       `/api/v1/participant/events/${eventId}/questions/${questionId}/upvote`,
+      {}
     );
     return response.data;
   },

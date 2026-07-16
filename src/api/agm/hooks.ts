@@ -7,6 +7,16 @@ export const agmKeys = {
   proxy: (eventId: string) => ["agm", "proxy", eventId] as const,
   voteReceipt: (eventId: string) => ["agm", "vote-receipt", eventId] as const,
   questions: (eventId: string) => ["agm", "questions", eventId] as const,
+  minutes: (eventId: string) => ["agm", "minutes", eventId] as const,
+};
+
+export const useGetMinutes = (eventId: string) => {
+  return useQuery({
+    queryKey: agmKeys.minutes(eventId),
+    queryFn: () => agmClient.getMinutes(eventId),
+    enabled: !!eventId,
+    retry: false,
+  });
 };
 
 export const useGetVoteReceipt = (eventId: string) => {
@@ -43,8 +53,35 @@ export const useUpvoteQuestion = (eventId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (questionId: string) => agmClient.upvoteQuestion(eventId, questionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: agmKeys.questions(eventId) });
+    onMutate: async (questionId) => {
+      await queryClient.cancelQueries({ queryKey: agmKeys.questions(eventId) });
+      const previous = queryClient.getQueryData<any>(agmKeys.questions(eventId));
+      
+      if (previous?.data?.questions) {
+        queryClient.setQueryData<any>(agmKeys.questions(eventId), {
+          ...previous,
+          data: {
+            ...previous.data,
+            questions: previous.data.questions.map((q: any) => {
+              if (q.id === questionId) {
+                const wasUpvoted = !!q.myUpvote;
+                return {
+                  ...q,
+                  myUpvote: !wasUpvoted,
+                  upvoteCount: q.upvoteCount + (wasUpvoted ? -1 : 1),
+                };
+              }
+              return q;
+            }),
+          },
+        });
+      }
+      return { previous };
+    },
+    onError: (err, newTodo, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(agmKeys.questions(eventId), context.previous);
+      }
     },
   });
 };

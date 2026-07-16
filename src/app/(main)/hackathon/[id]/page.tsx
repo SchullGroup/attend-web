@@ -3,12 +3,13 @@ import { use } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Users, MapPin, CalendarDays, Trophy, Target,
-  BookOpen, CalendarClock, Cpu,
+  BookOpen, CalendarClock, Cpu, Radio,
 } from "lucide-react";
-import { useGetChallenge, useGetMyTeam } from "@/api/hackathon/hooks";
+import { useGetChallenge, useGetMyTeam, useGetResources } from "@/api/hackathon/hooks";
 import { useGetEvent } from "@/api/events/hooks";
 import { ChallengeDetailData } from "@/types";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/lib/utils";
 
 export default function HackathonDetailPage({
@@ -26,6 +27,8 @@ export default function HackathonDetailPage({
   const challengeFailed = !chLoading && (!!chError || !liveChallenge);
   const { data: evData, isLoading: evLoading } = useGetEvent(challengeFailed ? id : "");
   const { data: myTeamData } = useGetMyTeam(id);
+  const { data: resData } = useGetResources(id);
+  const resources = resData?.data ?? [];
 
   const ev = evData?.data;
   const team = myTeamData?.data;
@@ -86,11 +89,29 @@ export default function HackathonDetailPage({
     !!myTeam?.submissionStatus && myTeam.submissionStatus !== "NOT_SUBMITTED";
   const hasTeamSize = !!challenge.minTeamSize && !!challenge.maxTeamSize;
 
+  const isLive = (challenge.status || "").toUpperCase() === "LIVE";
+
   return (
     <div className="space-y-6">
       <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to Innovation
       </Link>
+
+      {/* LIVE banner — only shown when the session is live */}
+      {isLive && (
+        <Link
+          href={`/events/live?eventId=${id}`}
+          className="flex items-center justify-between gap-3 rounded-2xl border border-purple-200 bg-purple-50 px-5 py-3.5 text-purple-900 shadow-sm transition-colors hover:bg-purple-100"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-purple-600" />
+            <span className="text-sm font-semibold">This session is live now</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-purple-700">
+            <Radio className="h-3.5 w-3.5" /> Join Live
+          </div>
+        </Link>
+      )}
 
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-700 to-fuchsia-700 p-6 text-white md:p-8">
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
@@ -99,13 +120,20 @@ export default function HackathonDetailPage({
           <h1 className="text-2xl font-bold leading-tight md:text-3xl">{challenge.title}</h1>
           {challenge.description && <p className="max-w-2xl text-sm text-white/85">{challenge.description}</p>}
           <div className="flex flex-wrap gap-2 pt-1">
-            {/* One-step application (Door B). The apply page itself gates on whether
-                you've already applied. */}
-            <Link href={`/hackathon/apply?challengeId=${id}`}>
-              <button className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
-                Apply now
-              </button>
-            </Link>
+            {isLive ? (
+              <Link href={`/events/live?eventId=${id}`}>
+                <button className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-purple-600" />
+                  Join Live session
+                </button>
+              </Link>
+            ) : (
+              <Link href={`/hackathon/apply?challengeId=${id}`}>
+                <button className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
+                  Apply now
+                </button>
+              </Link>
+            )}
             <Link href={`/hackathon/resources?challengeId=${id}`}>
               <button className="rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/20">
                 Resources{challenge.resourceCount > 0 ? ` (${challenge.resourceCount})` : ""}
@@ -170,7 +198,7 @@ export default function HackathonDetailPage({
           </InfoBlock>
         )}
         {challenge.applicationDeadline && (
-          <InfoBlock icon={CalendarClock} title="Application deadline">
+          <InfoBlock icon={CalendarClock} title="Submission deadline">
             <p className="text-sm font-semibold text-foreground">{formatDate(challenge.applicationDeadline)}</p>
           </InfoBlock>
         )}
@@ -180,6 +208,43 @@ export default function HackathonDetailPage({
           </InfoBlock>
         )}
       </section>
+
+      {resources.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Resources</h2>
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {resources.map((res) => {
+              const isFile = res.resourceType === "FILE";
+              return (
+                <a
+                  key={res.id}
+                  href={res.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-col justify-between gap-3 rounded-2xl border border-border bg-white p-4 transition-colors hover:border-primary/50 hover:bg-muted/30"
+                >
+                  <div>
+                    <p className="line-clamp-2 text-sm font-semibold text-foreground">{res.title}</p>
+                    {res.description && (
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{res.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between border-t border-border pt-3">
+                    <Badge variant="muted" className="text-[10px] uppercase">
+                      {res.category || (isFile ? res.fileType || "File" : "Link")}
+                    </Badge>
+                    {isFile && res.sizeBytes > 0 && (
+                      <span className="text-[10px] font-medium text-muted-foreground">
+                        {(res.sizeBytes / 1024 / 1024).toFixed(1)} MB
+                      </span>
+                    )}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {myTeam && (
         <section className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
@@ -217,6 +282,33 @@ export default function HackathonDetailPage({
           )}
         </div>
       </section>
+
+      {/* Bottom CTA — mirrors the demo's "Ready to build?" footer */}
+      {!submitted && (
+        <section className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-border bg-white p-5 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Ready to build?</p>
+            {challenge.applicationDeadline && (
+              <p className="text-xs text-muted-foreground">
+                Submissions close {formatDate(challenge.applicationDeadline)}.
+              </p>
+            )}
+          </div>
+          {isLive ? (
+            <Link href={`/events/live?eventId=${id}`}>
+              <button className="rounded-xl bg-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-800">
+                Join Live session
+              </button>
+            </Link>
+          ) : (
+            <Link href={`/hackathon/apply?challengeId=${id}`}>
+              <button className="rounded-xl bg-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-800">
+                Apply now
+              </button>
+            </Link>
+          )}
+        </section>
+      )}
     </div>
   );
 }

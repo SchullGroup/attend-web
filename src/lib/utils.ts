@@ -15,6 +15,28 @@ export function parseApiDate(d: string): Date {
   return new Date(isDateTime && !hasTz ? `${d}Z` : d);
 }
 
+// A display name for a press-kit / document file: its title, else the file name
+// pulled from the download URL, else a generic label. Keeps the UI from showing a
+// blank row when the admin uploaded a file without naming it.
+export function fileDisplayName(
+  file: { name?: string | null; title?: string | null; downloadUrl?: string | null },
+  fallback = "Press kit file",
+): string {
+  const label = file.name?.trim() || file.title?.trim();
+  if (label) return label;
+  const url = file.downloadUrl;
+  if (url) {
+    try {
+      const last = new URL(url).pathname.split("/").filter(Boolean).pop() || "";
+      const name = decodeURIComponent(last).split("?")[0];
+      if (name) return name;
+    } catch {
+      /* not a parseable URL */
+    }
+  }
+  return fallback;
+}
+
 // Admins paste whatever stream link they have (often a YouTube/Vimeo *watch*
 // URL). Watch URLs can't be iframed, so convert known providers to their embed
 // form; anything else is returned unchanged (assumed already embeddable).

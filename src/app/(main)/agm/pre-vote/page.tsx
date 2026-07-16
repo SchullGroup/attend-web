@@ -24,6 +24,7 @@ function PreVotePageInner() {
   const { mutateAsync: castVote } = useCastVote(eventId);
 
   const resolutions = data?.data?.resolutions ?? [];
+  const hasProxy = !!data?.data?.hasProxy;
   const open = resolutions.filter((r) => !r.myVote);
   const voted = resolutions.filter((r) => r.myVote);
 
@@ -72,6 +73,15 @@ function PreVotePageInner() {
         </p>
       </header>
 
+      {hasProxy && (
+        <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-800">
+          <p className="font-bold">Voting Managed by Proxy</p>
+          <p className="mt-1 text-xs text-purple-700/80">
+            You have appointed a proxy for this AGM. Early voting and live voting are managed by your proxy.
+          </p>
+        </div>
+      )}
+
       {errorMsg && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
           {errorMsg}
@@ -95,6 +105,7 @@ function PreVotePageInner() {
                   resolution={r}
                   selected={pendingVotes[r.id] ?? null}
                   onSelect={(choice) => setPendingVotes((v) => ({ ...v, [r.id]: choice }))}
+                  disabled={hasProxy}
                 />
               ))}
             </section>
@@ -126,7 +137,7 @@ function PreVotePageInner() {
                   <Button
                     onClick={submit}
                     loading={submitting}
-                    disabled={!allOpenVoted || Object.keys(pendingVotes).length === 0}
+                    disabled={!allOpenVoted || Object.keys(pendingVotes).length === 0 || hasProxy}
                   >
                     Submit votes
                   </Button>
@@ -141,11 +152,12 @@ function PreVotePageInner() {
 }
 
 function ResolutionCard({
-  resolution: r, selected, onSelect,
+  resolution: r, selected, onSelect, disabled,
 }: {
   resolution: Resolution;
   selected: VoteChoice | null;
   onSelect: (c: VoteChoice) => void;
+  disabled?: boolean;
 }) {
   return (
     <article className="rounded-2xl border-2 border-primary/30 bg-white p-5 shadow-sm">
@@ -179,8 +191,9 @@ function ResolutionCard({
             <button
               key={opt}
               onClick={() => onSelect(opt)}
+              disabled={disabled}
               className={cn(
-                "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize transition-colors",
+                "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize transition-colors disabled:opacity-50",
                 isSelected ? selectedTone : tone,
               )}
             >

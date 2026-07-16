@@ -16,8 +16,11 @@ import {
   CheckCircle,
   ThumbsUp,
   Clock,
+  BarChart2,
+  FileBox,
+  DownloadCloud,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit } from "@/api/events/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { ZoomStage } from "@/components/attend/ZoomStage";
 import { parseZoomUrl } from "@/lib/zoom";
@@ -30,10 +33,10 @@ import {
 } from "@/api/agm/hooks";
 import { useQaSocket } from "@/api/agm/qa-socket";
 import { Button } from "@/components/ui/Button";
-import { cn, formatRelativeTime, toEmbedUrl } from "@/lib/utils";
+import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils";
 import { Resolution } from "@/types";
 
-type Tab = "qa" | "ballot";
+type Tab = "qa" | "ballot" | "poll" | "presskit";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
 
 function fmtCountdown(total: number): string {
@@ -82,6 +85,29 @@ export function LiveRoom({
   const { data: meResp } = useGetMe();
   const displayName = meResp?.data?.fullName || "Participant";
 
+  // Zoom's gallery view needs SharedArrayBuffer → the page must be cross-origin
+  // isolated. Isolate ONLY for Zoom meetings by reloading once with `?coi=1`
+  // (next.config applies COOP/COEP for that flag). Non-Zoom pages stay un-isolated,
+  // so YouTube/Vimeo iframe streams keep working on every browser.
+  // "ready" once the page is isolated (or we tried and the browser won't isolate —
+  // e.g. Safari/Firefox, where Zoom still works, just without gallery view). We hold
+  // ZoomStage back until then so the SDK isn't downloaded on a page we're about to
+  // navigate away from (that race left the SDK global unset).
+  const [coiState, setCoiState] = useState<"unknown" | "pending" | "ready">("unknown");
+  const zoomMn = zoom?.meetingNumber;
+  useEffect(() => {
+    if (!zoomMn || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const alreadyTried = url.searchParams.get("coi") === "1";
+    if (window.crossOriginIsolated || alreadyTried) {
+      setCoiState("ready");
+      return;
+    }
+    setCoiState("pending");
+    url.searchParams.set("coi", "1");
+    window.location.replace(url.toString());
+  }, [zoomMn]);
+
   // Countdown to start — only polled before the event is live.
   const { data: cdData } = useGetCountdown(eventId, !!event && !isLive);
   const cdSecs =
@@ -103,6 +129,21 @@ export function LiveRoom({
   const { mutate: upvote } = useUpvoteQuestion(eventId);
 
   const resolutions = resData?.data?.resolutions ?? [];
+  const hasProxy = !!resData?.data?.hasProxy;
+
+  const { data: pollResp } = useGetActivePoll(eventId, !showBallot && isLive ? 5000 : undefined, !showBallot && isLive);
+  const { mutate: respondToPoll, isPending: submittingPoll } = useRespondToPoll(eventId);
+  const activePoll = pollResp?.data;
+
+  // Press Kit — product launches only. Poll while live so files flip to "released"
+  // as the organiser releases them.
+  const isLaunch = event?.eventType === "PRODUCT_LAUNCH";
+  const { data: pressKitResp, error: pressKitError } = useGetPressKit(eventId, isLaunch && isLive ? 10000 : undefined, isLaunch);
+  const pressKit = pressKitResp?.data;
+  // 403 → the participant isn't registered for this event (press kit is gated).
+  const pressKitForbidden =
+    (pressKitError as { response?: { status?: number } } | null)?.response?.status === 403;
+
   // When the register has no share weighting, shares are all 0 — show head counts only.
   const shareWeighted = !!resData?.data?.shareWeightedTalliesEnabled;
   // Status-driven (secondsRemaining is null while a resolution is WAITING).
@@ -133,9 +174,12 @@ export function LiveRoom({
     answer: x.answer || "",
     upvoteCount: x.upvoteCount ?? 0,
     myUpvote: !!x.myUpvote,
+    status: (x.status || "PENDING").toUpperCase(),
   }));
 
   const [tab, setTab] = useState<Tab>(showBallot ? "ballot" : "qa");
+  const [pollChoice, setPollChoice] = useState<string | null>(null);
+  const [pollMsg, setPollMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [vote, setVote] = useState<VoteChoice | null>(null);
   const [voteMsg, setVoteMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -143,6 +187,9 @@ export function LiveRoom({
   const [qSent, setQSent] = useState(false);
   const [userQuestion, setUserQuestion] = useState("");
   const [videoHidden, setVideoHidden] = useState(false);
+  // Reveal the Minimise button only while the pointer is over the video box, so it
+  // never sits on top of (or blocks) Zoom's own controls.
+  const [videoHover, setVideoHover] = useState(false);
 
   // Show the user's just-submitted question optimistically — but only until the
   // backend's list actually returns it (so it doesn't appear twice).
@@ -154,7 +201,13 @@ export function LiveRoom({
   // Remember the active tab so a refresh keeps you where you were.
   useEffect(() => {
     const saved = sessionStorage.getItem("attend:liveTab");
-    if (saved === "qa" || (showBallot && saved === "ballot")) setTab(saved as Tab);
+    if (
+      saved === "qa" ||
+      (!showBallot && saved === "poll") ||
+      (showBallot && saved === "ballot") ||
+      (isLaunch && saved === "presskit")
+    )
+      setTab(saved as Tab);
   }, [showBallot]);
   const selectTab = (t: Tab) => {
     setTab(t);
@@ -274,7 +327,7 @@ export function LiveRoom({
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Stream */}
         <div className="lg:col-span-3">
-          {videoHidden ? (
+          {videoHidden && (
             <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-3">
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
@@ -289,16 +342,39 @@ export function LiveRoom({
                 <ChevronDown className="h-3.5 w-3.5" /> Expand
               </button>
             </div>
-          ) : (
-            <div className={cn("relative overflow-hidden rounded-2xl bg-slate-900", !zoom && "aspect-video")}>
+          )}
+          {/* Stay mounted while minimised. Unmounting ZoomStage runs its cleanup,
+              which calls leaveMeeting() — that would drop you out of the meeting. */}
+          <div
+            onMouseEnter={() => setVideoHover(true)}
+            onMouseLeave={() => setVideoHover(false)}
+            className={cn(
+              "relative overflow-hidden rounded-2xl bg-slate-900",
+              !zoom && "aspect-video",
+              videoHidden && "hidden",
+            )}
+          >
               {zoom ? (
-                <ZoomStage
-                  meetingNumber={zoom.meetingNumber}
-                  passcode={zoom.passcode}
-                  userName={displayName}
-                />
+                coiState === "ready" ? (
+                  <ZoomStage
+                    eventId={eventId}
+                    meetingNumber={zoom.meetingNumber}
+                    passcode={zoom.passcode}
+                    userName={displayName}
+                  />
+                ) : (
+                  // Isolating (a one-time reload). Don't load the Zoom SDK yet.
+                  <div className="flex min-h-105 w-full flex-col items-center justify-center gap-3 text-white">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/25 border-t-white/80" />
+                    <p className="text-sm font-semibold text-white/85">Preparing the meeting…</p>
+                  </div>
+                )
               ) : streamUrl ? (
                 <iframe
+                  // `credentialless` lets this cross-origin embed load inside our
+                  // COEP (cross-origin isolated) page — otherwise COEP blocks it.
+                  // See the headers() block in next.config.ts.
+                  {...({ credentialless: "" } as any)}
                   src={toEmbedUrl(streamUrl)}
                   title={title}
                   className="absolute inset-0 h-full w-full"
@@ -328,12 +404,14 @@ export function LiveRoom({
               )}
               <button
                 onClick={() => setVideoHidden(true)}
-                className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-lg bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-black/60"
+                className={cn(
+                  "absolute right-3 top-3 z-10 flex items-center gap-1 rounded-lg bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white transition-opacity hover:bg-black/60",
+                  videoHover ? "opacity-100" : "pointer-events-none opacity-0",
+                )}
               >
                 <ChevronUp className="h-3.5 w-3.5" /> Minimise
               </button>
-            </div>
-          )}
+          </div>
 
           {/* Countdown strip — driven by the open resolution's secondsRemaining (AGM only) */}
           {showBallot && openRes && (
@@ -377,27 +455,23 @@ export function LiveRoom({
         <div className="lg:col-span-2">
           <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
             <div className="flex border-b border-border">
-              {showBallot ? (
-                [
-                  { id: "qa" as Tab, label: "Q&A", icon: MessageSquare },
-                  { id: "ballot" as Tab, label: "Ballot", icon: Vote },
-                ].map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => selectTab(id)}
-                    className={cn(
-                      "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-semibold",
-                      tab === id ? "border-b-2 border-primary text-primary" : "text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {label}
-                  </button>
-                ))
-              ) : (
-                <div className="flex flex-1 items-center justify-center gap-1.5 border-b-2 border-primary py-3 text-xs font-semibold text-primary">
-                  <MessageSquare className="h-3.5 w-3.5" /> Q&amp;A
-                </div>
-              )}
+              {[
+                { id: "qa" as Tab, label: "Q&A", icon: MessageSquare },
+                ...(isLaunch ? [{ id: "presskit" as Tab, label: "Press Kit", icon: FileBox }] : []),
+                ...(showBallot ? [{ id: "ballot" as Tab, label: "Ballot", icon: Vote }] : []),
+                ...(!showBallot ? [{ id: "poll" as Tab, label: "Polls", icon: BarChart2 }] : []),
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => selectTab(id)}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-semibold",
+                    tab === id ? "border-b-2 border-primary text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
             </div>
 
             <div className="max-h-105 overflow-y-auto p-4">
@@ -427,22 +501,31 @@ export function LiveRoom({
                             {item.answer}
                           </div>
                         )}
-                        <div className="mt-2 flex items-center">
-                          <button
-                            type="button"
-                            onClick={() => upvote(item.id)}
-                            aria-pressed={item.myUpvote}
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
-                              item.myUpvote
-                                ? "border-primary bg-primary/10 text-primary"
-                                : "border-border text-muted-foreground hover:bg-muted",
-                            )}
-                          >
-                            <ThumbsUp className={cn("h-3.5 w-3.5", item.myUpvote && "fill-current")} />
-                            {item.upvoteCount}
-                          </button>
-                        </div>
+                        {item.status === "APPROVED" || item.status === "ANSWERED" ? (
+                          <div className="mt-2 flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => upvote(item.id)}
+                              aria-pressed={item.myUpvote}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
+                                item.myUpvote
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border text-muted-foreground hover:bg-muted",
+                              )}
+                            >
+                              <ThumbsUp className={cn("h-3.5 w-3.5", item.myUpvote && "fill-current")} />
+                              {item.upvoteCount}
+                            </button>
+                          </div>
+                        ) : item.status === "PENDING" ? (
+                          <div className="mt-2 flex items-center">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              Pending Approval
+                            </span>
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                     {showMyPending && (
@@ -491,6 +574,15 @@ export function LiveRoom({
                       </p>
                     </div>
 
+                    {hasProxy && (
+                      <div className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-800">
+                        <p className="font-semibold">Voting managed by proxy</p>
+                        <p className="mt-0.5 text-[11px] text-purple-700/80">
+                          You have appointed a proxy to vote on your behalf at this meeting.
+                        </p>
+                      </div>
+                    )}
+
                     {voteMsg && (
                       <div
                         className={cn(
@@ -524,7 +616,7 @@ export function LiveRoom({
                           <button
                             key={opt}
                             onClick={() => setVote(opt)}
-                            disabled={voting}
+                            disabled={voting || hasProxy}
                             className={cn(
                               "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
                               selected ? selectedTone : tone,
@@ -536,7 +628,7 @@ export function LiveRoom({
                         );
                       })}
                     </div>
-                    <Button fullWidth disabled={!vote || voting} loading={voting} onClick={handleCastVote}>
+                    <Button fullWidth disabled={!vote || voting || hasProxy} loading={voting} onClick={handleCastVote}>
                       {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
                     </Button>
 
@@ -588,6 +680,152 @@ export function LiveRoom({
                     No resolutions for this meeting yet.
                   </div>
                 ))}
+              
+              {tab === "poll" && (
+                <div className="space-y-4">
+                  {!activePoll ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      No active poll at the moment.
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+                      <div className="mb-4">
+                        <span className="inline-block rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700">
+                          Live Poll
+                        </span>
+                        <h3 className="mt-2 text-base font-semibold text-foreground">
+                          {activePoll.question}
+                        </h3>
+                      </div>
+                      
+                      {pollMsg && (
+                        <div className={cn(
+                          "mb-4 rounded-xl border px-3 py-2.5 text-sm font-medium",
+                          pollMsg.kind === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-600"
+                        )}>
+                          {pollMsg.text}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        {activePoll.options.map((opt) => {
+                          const isSelected = pollChoice === opt.id || activePoll.myResponse === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              disabled={!!activePoll.myResponse || submittingPoll}
+                              onClick={() => setPollChoice(opt.id)}
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors disabled:opacity-75",
+                                isSelected
+                                  ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                  : "border-border hover:border-primary/50 hover:bg-muted/50"
+                              )}
+                            >
+                              <span className="text-sm font-medium text-foreground">{opt.text}</span>
+                              {isSelected && <CheckCircle className="h-4 w-4 text-primary" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {!activePoll.myResponse && (
+                        <Button
+                          fullWidth
+                          className="mt-4"
+                          disabled={!pollChoice || submittingPoll}
+                          loading={submittingPoll}
+                          onClick={() => {
+                            if (!pollChoice) return;
+                            respondToPoll(
+                              { pollId: activePoll.id, optionId: pollChoice },
+                              {
+                                onSuccess: () => {
+                                  setPollMsg({ kind: "ok", text: "Your response has been recorded." });
+                                },
+                                onError: () => {
+                                  setPollMsg({ kind: "err", text: "Failed to submit response. Please try again." });
+                                },
+                              }
+                            );
+                          }}
+                        >
+                          Submit Response
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "presskit" && (
+                <div className="space-y-3">
+                  {pressKitForbidden ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      You must be registered for this event to view the press kit.
+                    </div>
+                  ) : !pressKit || pressKit.totalCount === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      No press kit files have been released yet.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-foreground">Digital Press Kit</h3>
+                        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                          {pressKit.releasedCount} / {pressKit.totalCount} released
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {pressKit.files.map((file) => {
+                          const isReleased = file.status === "RELEASED";
+                          const name = fileDisplayName(file);
+                          return (
+                            <div
+                              key={file.id}
+                              className={cn(
+                                "flex items-center justify-between gap-3 rounded-xl border p-3",
+                                isReleased ? "border-primary/20 bg-primary/5" : "border-border bg-white opacity-60",
+                              )}
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div
+                                  className={cn(
+                                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                                    isReleased ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                                  )}
+                                >
+                                  <FileBox className="h-4.5 w-4.5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-foreground" title={name}>
+                                    {name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{file.sizeLabel}</p>
+                                </div>
+                              </div>
+                              {isReleased ? (
+                                <a
+                                  href={file.downloadUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
+                                >
+                                  <DownloadCloud className="h-3.5 w-3.5" /> Download
+                                </a>
+                              ) : (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                                  <Clock className="h-3 w-3" /> Embargoed
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
