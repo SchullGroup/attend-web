@@ -101,13 +101,13 @@ export default function HackathonDetailPage({
       {isLive && (
         <Link
           href={`/events/live?eventId=${id}`}
-          className="flex items-center justify-between gap-3 rounded-2xl bg-red-600 px-5 py-3.5 text-white shadow-lg hover:bg-red-700 transition-colors"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-purple-200 bg-purple-50 px-5 py-3.5 text-purple-900 shadow-sm transition-colors hover:bg-purple-100"
         >
           <div className="flex items-center gap-2.5">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+            <span className="h-2 w-2 animate-pulse rounded-full bg-purple-600" />
             <span className="text-sm font-semibold">This session is live now</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-1.5 text-sm font-semibold hover:bg-white/30">
+          <div className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-purple-700">
             <Radio className="h-3.5 w-3.5" /> Join Live
           </div>
         </Link>
@@ -122,8 +122,8 @@ export default function HackathonDetailPage({
           <div className="flex flex-wrap gap-2 pt-1">
             {isLive ? (
               <Link href={`/events/live?eventId=${id}`}>
-                <button className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                <button className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-purple-600" />
                   Join Live session
                 </button>
               </Link>

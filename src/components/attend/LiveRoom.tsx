@@ -17,8 +17,10 @@ import {
   ThumbsUp,
   Clock,
   BarChart2,
+  FileBox,
+  DownloadCloud,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit } from "@/api/events/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { ZoomStage } from "@/components/attend/ZoomStage";
 import { parseZoomUrl } from "@/lib/zoom";
@@ -31,10 +33,10 @@ import {
 } from "@/api/agm/hooks";
 import { useQaSocket } from "@/api/agm/qa-socket";
 import { Button } from "@/components/ui/Button";
-import { cn, formatRelativeTime, toEmbedUrl } from "@/lib/utils";
+import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils";
 import { Resolution } from "@/types";
 
-type Tab = "qa" | "ballot" | "poll";
+type Tab = "qa" | "ballot" | "poll" | "presskit";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
 
 function fmtCountdown(total: number): string {
@@ -133,6 +135,15 @@ export function LiveRoom({
   const { mutate: respondToPoll, isPending: submittingPoll } = useRespondToPoll(eventId);
   const activePoll = pollResp?.data;
 
+  // Press Kit — product launches only. Poll while live so files flip to "released"
+  // as the organiser releases them.
+  const isLaunch = event?.eventType === "PRODUCT_LAUNCH";
+  const { data: pressKitResp, error: pressKitError } = useGetPressKit(eventId, isLaunch && isLive ? 10000 : undefined, isLaunch);
+  const pressKit = pressKitResp?.data;
+  // 403 → the participant isn't registered for this event (press kit is gated).
+  const pressKitForbidden =
+    (pressKitError as { response?: { status?: number } } | null)?.response?.status === 403;
+
   // When the register has no share weighting, shares are all 0 — show head counts only.
   const shareWeighted = !!resData?.data?.shareWeightedTalliesEnabled;
   // Status-driven (secondsRemaining is null while a resolution is WAITING).
@@ -190,7 +201,13 @@ export function LiveRoom({
   // Remember the active tab so a refresh keeps you where you were.
   useEffect(() => {
     const saved = sessionStorage.getItem("attend:liveTab");
-    if (saved === "qa" || (!showBallot && saved === "poll") || (showBallot && saved === "ballot")) setTab(saved as Tab);
+    if (
+      saved === "qa" ||
+      (!showBallot && saved === "poll") ||
+      (showBallot && saved === "ballot") ||
+      (isLaunch && saved === "presskit")
+    )
+      setTab(saved as Tab);
   }, [showBallot]);
   const selectTab = (t: Tab) => {
     setTab(t);
@@ -440,6 +457,7 @@ export function LiveRoom({
             <div className="flex border-b border-border">
               {[
                 { id: "qa" as Tab, label: "Q&A", icon: MessageSquare },
+                ...(isLaunch ? [{ id: "presskit" as Tab, label: "Press Kit", icon: FileBox }] : []),
                 ...(showBallot ? [{ id: "ballot" as Tab, label: "Ballot", icon: Vote }] : []),
                 ...(!showBallot ? [{ id: "poll" as Tab, label: "Polls", icon: BarChart2 }] : []),
               ].map(({ id, label, icon: Icon }) => (
@@ -736,6 +754,75 @@ export function LiveRoom({
                         </Button>
                       )}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "presskit" && (
+                <div className="space-y-3">
+                  {pressKitForbidden ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      You must be registered for this event to view the press kit.
+                    </div>
+                  ) : !pressKit || pressKit.totalCount === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      No press kit files have been released yet.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-foreground">Digital Press Kit</h3>
+                        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                          {pressKit.releasedCount} / {pressKit.totalCount} released
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {pressKit.files.map((file) => {
+                          const isReleased = file.status === "RELEASED";
+                          const name = fileDisplayName(file);
+                          return (
+                            <div
+                              key={file.id}
+                              className={cn(
+                                "flex items-center justify-between gap-3 rounded-xl border p-3",
+                                isReleased ? "border-primary/20 bg-primary/5" : "border-border bg-white",
+                              )}
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div
+                                  className={cn(
+                                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                                    isReleased ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                                  )}
+                                >
+                                  <FileBox className="h-4.5 w-4.5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-foreground" title={name}>
+                                    {name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{file.sizeLabel}</p>
+                                </div>
+                              </div>
+                              {isReleased ? (
+                                <a
+                                  href={file.downloadUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
+                                >
+                                  <DownloadCloud className="h-3.5 w-3.5" /> Download
+                                </a>
+                              ) : (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                                  <Clock className="h-3 w-3" /> Embargoed
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
                   )}
                 </div>
               )}

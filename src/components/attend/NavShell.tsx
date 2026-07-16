@@ -83,9 +83,20 @@ export function NavShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Resolve the type of the event being viewed so an /events/[id] page highlights
-  // the correct tab.
-  const detailId = eventDetailId(pathname);
+  // Resolve the event being viewed so its module highlights the right tab. On the
+  // live routes the id is a query param (/events/live?eventId=…), not a path segment
+  // (the segment is "live"), so read it from the URL there. We read via window rather
+  // than useSearchParams to keep this shell out of a Suspense boundary. Keyed on
+  // pathname — covers navigating into a live room, the case that mis-highlighted.
+  const [detailId, setDetailId] = useState("");
+  useEffect(() => {
+    const isLiveRoute = pathname === "/events/live" || pathname === "/agm/live";
+    if (isLiveRoute && typeof window !== "undefined") {
+      setDetailId(new URLSearchParams(window.location.search).get("eventId") ?? "");
+    } else {
+      setDetailId(eventDetailId(pathname));
+    }
+  }, [pathname]);
   const { data: eventDetail } = useGetEvent(detailId);
   const currentModule = eventDetail?.data?.eventType;
 

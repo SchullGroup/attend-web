@@ -114,7 +114,10 @@ export interface ActivePollResponse {
 
 export interface FileItem {
   id: string;
-  title: string;
+  // The live API returns `name`; `title` was in the (outdated) Swagger schema —
+  // keep it optional as a fallback.
+  name: string;
+  title?: string;
   sizeLabel: string;
   status: "RELEASED" | "EMBARGOED";
   releaseMode: "MANUAL" | "SCHEDULED";

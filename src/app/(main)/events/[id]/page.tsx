@@ -15,7 +15,7 @@ import { useGetResolutions } from "@/api/agm/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { cn, formatDate, initialsFor } from "@/lib/utils";
+import { cn, formatDate, initialsFor, fileDisplayName } from "@/lib/utils";
 import { useUserStore } from "@/lib/user-store";
 
 // Backend formats are upper-case (VIRTUAL/HYBRID/IN_PERSON).
@@ -41,6 +41,15 @@ function moduleOf(eventType: string): "AGM" | "HACKATHON" | "LAUNCH" | "GENERAL"
   if (eventType === "PRODUCT_LAUNCH") return "LAUNCH";
   return "GENERAL";
 }
+
+// Hero/accent colour per module — used when the organiser hasn't set a brand colour,
+// so a launch reads orange, an AGM green, etc. (instead of a generic blue).
+const MODULE_COLOR: Record<string, string> = {
+  AGM: "#1a6b3c",
+  HACKATHON: "#7c22c9",
+  LAUNCH: "#ea6c00",
+  GENERAL: "#2563eb",
+};
 
 export default function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -129,7 +138,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const color = event.organizerPrimaryColor || "#2563eb";
+  const color = event.organizerPrimaryColor || MODULE_COLOR[mod] || "#2563eb";
   const organiser = event.registerName || event.organizerName;
   const isLive = event.status === "LIVE";
   const isEnded = event.status === "ENDED";
@@ -452,6 +461,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <div className="grid gap-3 sm:grid-cols-2">
             {pressKit.files.map((file) => {
               const isReleased = file.status === "RELEASED";
+              const name = fileDisplayName(file);
               return (
                 <div key={file.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-white p-4">
                   <div className="flex items-center gap-3 min-w-0">
@@ -462,8 +472,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       <FileBox className="h-5 w-5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground" title={file.title}>
-                        {file.title}
+                      <p className="truncate text-sm font-semibold text-foreground" title={name}>
+                        {name}
                       </p>
                       <p className="text-xs text-muted-foreground">{file.sizeLabel}</p>
                     </div>
