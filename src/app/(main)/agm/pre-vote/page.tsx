@@ -19,6 +19,7 @@ function PreVotePageInner() {
   const [pendingVotes, setPendingVotes] = useState<Record<string, VoteChoice>>({});
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const { data, isLoading } = useGetResolutions(eventId);
   const { mutateAsync: castVote } = useCastVote(eventId);
@@ -39,7 +40,11 @@ function PreVotePageInner() {
       for (const [resolutionId, choice] of Object.entries(pendingVotes)) {
         await castVote({ resolutionId, data: { choice } });
       }
-      router.push(`/agm/receipt?eventId=${eventId}`);
+      // Stay on the page and just confirm — casting invalidates the resolutions
+      // query, so voted items move to "Already voted" on their own. (The receipt is
+      // still available from the AGM hub → "My receipts".)
+      setPendingVotes({});
+      setSuccessMsg("Your vote has been recorded. You can update it until voting closes.");
     } catch (err: any) {
       setErrorMsg(err?.response?.data?.message || err?.message || "Failed to submit votes.");
     } finally {
@@ -88,6 +93,12 @@ function PreVotePageInner() {
         </div>
       )}
 
+      {successMsg && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          {successMsg}
+        </div>
+      )}
+
       {resolutions.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           No resolutions available for this AGM yet.
@@ -104,7 +115,10 @@ function PreVotePageInner() {
                   key={r.id}
                   resolution={r}
                   selected={pendingVotes[r.id] ?? null}
-                  onSelect={(choice) => setPendingVotes((v) => ({ ...v, [r.id]: choice }))}
+                  onSelect={(choice) => {
+                    setSuccessMsg(null);
+                    setPendingVotes((v) => ({ ...v, [r.id]: choice }));
+                  }}
                   disabled={hasProxy}
                 />
               ))}
