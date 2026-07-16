@@ -785,7 +785,7 @@ export function LiveRoom({
                               key={file.id}
                               className={cn(
                                 "flex items-center justify-between gap-3 rounded-xl border p-3",
-                                isReleased ? "border-primary/20 bg-primary/5" : "border-border bg-white",
+                                isReleased ? "border-primary/20 bg-primary/5" : "border-border bg-white opacity-60",
                               )}
                             >
                               <div className="flex min-w-0 items-center gap-3">

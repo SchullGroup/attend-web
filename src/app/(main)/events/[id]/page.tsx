@@ -463,7 +463,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               const isReleased = file.status === "RELEASED";
               const name = fileDisplayName(file);
               return (
-                <div key={file.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-white p-4">
+                <div
+                  key={file.id}
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-2xl border border-border bg-white p-4",
+                    !isReleased && "opacity-60",
+                  )}
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={cn(
                       "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",

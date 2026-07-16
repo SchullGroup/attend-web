@@ -198,7 +198,7 @@ export default function HackathonDetailPage({
           </InfoBlock>
         )}
         {challenge.applicationDeadline && (
-          <InfoBlock icon={CalendarClock} title="Application deadline">
+          <InfoBlock icon={CalendarClock} title="Submission deadline">
             <p className="text-sm font-semibold text-foreground">{formatDate(challenge.applicationDeadline)}</p>
           </InfoBlock>
         )}
@@ -282,6 +282,33 @@ export default function HackathonDetailPage({
           )}
         </div>
       </section>
+
+      {/* Bottom CTA — mirrors the demo's "Ready to build?" footer */}
+      {!submitted && (
+        <section className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-border bg-white p-5 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Ready to build?</p>
+            {challenge.applicationDeadline && (
+              <p className="text-xs text-muted-foreground">
+                Submissions close {formatDate(challenge.applicationDeadline)}.
+              </p>
+            )}
+          </div>
+          {isLive ? (
+            <Link href={`/events/live?eventId=${id}`}>
+              <button className="rounded-xl bg-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-800">
+                Join Live session
+              </button>
+            </Link>
+          ) : (
+            <Link href={`/hackathon/apply?challengeId=${id}`}>
+              <button className="rounded-xl bg-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-800">
+                Apply now
+              </button>
+            </Link>
+          )}
+        </section>
+      )}
     </div>
   );
 }
