@@ -17,7 +17,9 @@ import { useGetResolutions } from "@/api/agm/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { cn, formatDate, initialsFor, fileDisplayName } from "@/lib/utils";
+import { cn, formatDate, initialsFor, fileDisplayName, parseApiDate } from "@/lib/utils";
+import { useEffect } from "react";
+import { getRsvpWindow } from "@/lib/rsvp";
 import { useUserStore } from "@/lib/user-store";
 
 // Backend formats are upper-case (VIRTUAL/HYBRID/IN_PERSON).
@@ -62,6 +64,19 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const event = data?.data;
 
   const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const rsvpWindow = event
+    ? getRsvpWindow(event.startTime, event.lateRsvpMinutes ?? 30)
+    : null;
+
   const [shared, setShared] = useState(false);
   const [showGuestEntry, setShowGuestEntry] = useState(false);
   const [guestCode, setGuestCode] = useState("");
@@ -144,7 +159,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const color = event.branding?.brandColor || event.organizerPrimaryColor || MODULE_COLOR[mod] || "#0B5CFF";
+  const color = event.brandPrimary || event.branding?.brandColor || event.organizerPrimaryColor || MODULE_COLOR[mod] || "#0B5CFF";
   const organiser = event.registerName || event.organizerName;
   const isLive = event.status === "LIVE";
   const isEnded = event.status === "ENDED";
@@ -157,7 +172,17 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const isFull = event.maximumCapacity > 0 && event.registeredCount >= event.maximumCapacity;
 
   return (
-    <div className="pb-28 space-y-6">
+    <div
+      className={cn("pb-28 space-y-6", mod === "HACKATHON" && "challenge-scope")}
+      style={
+        mod === "HACKATHON"
+          ? ({
+              "--brand-primary": event.brandPrimary || "#9333ea",
+              "--brand-accent": event.brandAccent || "#c084fc",
+            } as React.CSSProperties)
+          : undefined
+      }
+    >
       <button
         onClick={() => router.back()}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -166,10 +191,27 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       </button>
 
       {/* Hero header */}
-      <header className="relative overflow-hidden rounded-3xl p-6 text-white md:p-8" style={{ background: color }}>
-        <div className="absolute -right-10 -bottom-12 select-none text-[180px] font-black leading-none text-white/10">
-          {initialsFor(organiser)}
-        </div>
+      <header
+        className="relative overflow-hidden rounded-3xl p-6 text-white md:p-8 flex flex-col justify-end"
+        style={
+          event.bannerUrl
+            ? {
+                backgroundImage: `url(${event.bannerUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                minHeight: "240px",
+              }
+            : { background: color }
+        }
+      >
+        {event.bannerUrl && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
+        )}
+        {!event.bannerUrl && (
+          <div className="absolute -right-10 -bottom-12 select-none text-[180px] font-black leading-none text-white/10">
+            {initialsFor(organiser)}
+          </div>
+        )}
         <div className="relative space-y-4">
           <div className="flex items-center gap-2">
             <ModuleBadge module={event.eventType} solid />
@@ -308,10 +350,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <div className="space-y-2">
             <Link href={`/hackathon/${id}`}>
               <ActionRow
-                icon={<BookOpen className="h-5 w-5 text-purple-600" />}
+                icon={<BookOpen className="h-5 w-5 text-[var(--brand-primary)]" />}
                 label="View Challenge Brief"
-                bg="bg-purple-50"
-                labelColor="text-purple-800"
+                bg="bg-[var(--brand-primary)]/10"
+                labelColor="text-[var(--brand-primary)]"
+                style={{
+                  backgroundColor: `${event.brandPrimary || '#9333ea'}15`,
+                  color: 'var(--brand-primary)',
+                }}
               />
             </Link>
             <Link href="/hackathon/my-applications">
@@ -588,22 +634,35 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             <Radio className="h-4 w-4" /> Join Live Session →
           </Button>
         ) : isLive && !event.registered ? (
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"
-              onClick={handleRsvp}
-              disabled={rsvping}
-              style={{ backgroundColor: color }}
-            >
-              {rsvping ? "Confirming…" : "RSVP & Join"}
-            </Button>
-            <Button
-              className="flex-1"
-              variant="outline"
-              onClick={() => setShowGuestEntry(true)}
-            >
-              <KeyRound className="h-4 w-4 mr-1.5" /> Guest code
-            </Button>
+          <div className="space-y-2 w-full">
+            {rsvpWindow?.isOpen ? (
+              <div className="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 border border-amber-200">
+                <Clock className="h-4 w-4 animate-pulse shrink-0" />
+                Late Registration Open{rsvpWindow.cutoffTime && ` (closes ${formatDate(rsvpWindow.cutoffTime.toISOString())} ${rsvpWindow.cutoffTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 border border-red-200">
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+                Registration Closed{rsvpWindow?.cutoffTime && ` (cutoff was at ${formatDate(rsvpWindow.cutoffTime.toISOString())} ${rsvpWindow.cutoffTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={handleRsvp}
+                disabled={rsvping || !rsvpWindow?.isOpen}
+                style={{ backgroundColor: color }}
+              >
+                {rsvping ? "Confirming…" : "RSVP & Join"}
+              </Button>
+              <Button
+                className="flex-1"
+                variant="outline"
+                onClick={() => setShowGuestEntry(true)}
+              >
+                <KeyRound className="h-4 w-4 mr-1.5" /> Guest code
+              </Button>
+            </div>
           </div>
         ) : event.waitlisted && !event.registered ? (
           <Button className="w-full" variant="outline" disabled>On waitlist</Button>
@@ -637,24 +696,32 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             {joiningWaitlist ? "Joining…" : "Event full — Join waitlist"}
           </Button>
         ) : (
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"
-              onClick={handleRsvp}
-              disabled={rsvping}
-              style={{ backgroundColor: color }}
-            >
-              {rsvping ? "Confirming…" : "Confirm Attendance (RSVP)"}
-            </Button>
-            {!isEnded && (
-              <Button
-                variant="outline"
-                onClick={() => setShowGuestEntry(true)}
-                title="Join as a guest with an access code"
-              >
-                <KeyRound className="h-4 w-4" />
-              </Button>
+          <div className="flex flex-col gap-2 w-full">
+            {rsvpWindow && !rsvpWindow.isOpen && (
+              <div className="flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 border border-red-200">
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+                Registration Closed{rsvpWindow.cutoffTime && ` (cutoff was at ${formatDate(rsvpWindow.cutoffTime.toISOString())} ${rsvpWindow.cutoffTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`}
+              </div>
             )}
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={handleRsvp}
+                disabled={rsvping || !!(rsvpWindow && !rsvpWindow.isOpen)}
+                style={{ backgroundColor: color }}
+              >
+                {rsvping ? "Confirming…" : "Confirm Attendance (RSVP)"}
+              </Button>
+              {!isEnded && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowGuestEntry(true)}
+                  title="Join as a guest with an access code"
+                >
+                  <KeyRound className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -682,12 +749,15 @@ function DetailRow({ icon, children }: { icon: React.ReactNode; children: React.
 }
 
 function ActionRow({
-  icon, label, bg = "bg-muted/50", labelColor = "text-foreground",
+  icon, label, bg = "bg-muted/50", labelColor = "text-foreground", style,
 }: {
-  icon: React.ReactNode; label: string; bg?: string; labelColor?: string;
+  icon: React.ReactNode; label: string; bg?: string; labelColor?: string; style?: React.CSSProperties;
 }) {
   return (
-    <div className={cn("flex items-center justify-between rounded-2xl border border-border px-4 py-3.5 hover:bg-muted/70 transition-colors cursor-pointer", bg)}>
+    <div
+      className={cn("flex items-center justify-between rounded-2xl border border-border px-4 py-3.5 hover:bg-muted/70 transition-colors cursor-pointer", bg)}
+      style={style}
+    >
       <div className="flex items-center gap-3">
         {icon}
         <span className={cn("text-sm font-medium", labelColor)}>{label}</span>

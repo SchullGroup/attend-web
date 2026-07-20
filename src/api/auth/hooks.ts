@@ -47,12 +47,12 @@ export const useLogout = () => {
   });
 };
 
-export const useGetMe = () => {
+export const useGetMe = (enabled = true) => {
   return useQuery({
     queryKey: authKeys.me(),
     queryFn: authClient.getMe,
-    // only fetch if access token exists
-    enabled: !!Cookies.get("accessToken"),
+    // only fetch if access token exists and enabled is true
+    enabled: enabled && !!Cookies.get("accessToken"),
     retry: false,
   });
 };

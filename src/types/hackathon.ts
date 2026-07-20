@@ -109,6 +109,9 @@ export interface ChallengeDetailData {
   submissionRequirements?: SubmissionRequirements;
   myTeam: ChallengeMyTeamSummary | null;
   branding?: EventBranding;
+  bannerUrl?: string | null;
+  brandPrimary?: string | null;
+  brandAccent?: string | null;
 }
 
 export interface ChallengeResource {

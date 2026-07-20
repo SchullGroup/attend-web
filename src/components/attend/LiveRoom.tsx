@@ -35,6 +35,9 @@ import { useQaSocket } from "@/api/agm/qa-socket";
 import { Button } from "@/components/ui/Button";
 import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils";
 import { Resolution } from "@/types";
+import { useSession } from "@/hooks/useSession";
+import { NomineeBallot } from "@/components/attend/NomineeBallot";
+import { SourceBreakdown } from "@/components/attend/SourceBreakdown";
 
 type Tab = "qa" | "ballot" | "poll" | "presskit";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
@@ -82,8 +85,10 @@ export function LiveRoom({
   // If the stream is a Zoom meeting we render the Zoom SDK; otherwise the iframe.
   // A zoomOverride (test-only) takes precedence over the event's streamUrl.
   const zoom = zoomOverride?.meetingNumber ? zoomOverride : parseZoomUrl(streamUrl);
-  const { data: meResp } = useGetMe();
-  const displayName = meResp?.data?.fullName || "Participant";
+  const session = useSession();
+  const displayName = session.user?.fullName || "Participant";
+  const canVote = session.user ? session.user.capabilities.includes("VOTE") : true;
+  const canSubmitQA = session.user ? session.user.capabilities.includes("QA") : true;
 
   // Zoom's gallery view needs SharedArrayBuffer → the page must be cross-origin
   // isolated. Isolate ONLY for Zoom meetings by reloading once with `?coi=1`
@@ -285,6 +290,25 @@ export function LiveRoom({
               status === 409
                 ? "You've already voted on this resolution."
                 : err?.response?.data?.message || "Could not record your vote. Please try again.",
+          });
+        },
+      },
+    );
+  }
+
+  function handleCastNomineeVote(nomineeVotes: { nomineeId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) {
+    if (!openRes) return;
+    setVoteMsg(null);
+    castVote(
+      { resolutionId: openRes.id, data: { nomineeVotes } },
+      {
+        onSuccess: () => {
+          setVoteMsg({ kind: "ok", text: "Your nominee ballot has been recorded." });
+        },
+        onError: (err: any) => {
+          setVoteMsg({
+            kind: "err",
+            text: err?.response?.data?.message || "Could not record your nominee votes. Please try again.",
           });
         },
       },
@@ -541,17 +565,23 @@ export function LiveRoom({
                   <p className="text-xs text-muted-foreground">
                     Questions are reviewed by the moderator before being shown to the Chair.
                   </p>
-                  <form onSubmit={sendQuestion} className="flex gap-2">
-                    <input
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
-                      placeholder="Submit a question..."
-                      className="h-10 flex-1 rounded-xl border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                    <Button type="submit" size="sm" loading={submittingQ} disabled={!q.trim()} className="bg-slate-900 hover:bg-slate-800">
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </form>
+                  {!canSubmitQA ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                      Q&A submissions are disabled for your current role.
+                    </div>
+                  ) : (
+                    <form onSubmit={sendQuestion} className="flex gap-2">
+                      <input
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        placeholder="Submit a question..."
+                        className="h-10 flex-1 rounded-xl border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      <Button type="submit" size="sm" loading={submittingQ} disabled={!q.trim()} className="bg-slate-900 hover:bg-slate-800">
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </form>
+                  )}
                   {qSent && (
                     <p className="text-xs text-emerald-700">Your question was submitted for review.</p>
                   )}
@@ -574,14 +604,21 @@ export function LiveRoom({
                       </p>
                     </div>
 
-                    {hasProxy && (
+                    {!canVote ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800 space-y-1">
+                        <p className="font-semibold">Voting Restricted</p>
+                        <p className="text-[11px] text-amber-700/80">
+                          Your current role does not have voting privileges for this event.
+                        </p>
+                      </div>
+                    ) : hasProxy ? (
                       <div className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-800">
                         <p className="font-semibold">Voting managed by proxy</p>
                         <p className="mt-0.5 text-[11px] text-purple-700/80">
                           You have appointed a proxy to vote on your behalf at this meeting.
                         </p>
                       </div>
-                    )}
+                    ) : null}
 
                     {voteMsg && (
                       <div
@@ -596,48 +633,60 @@ export function LiveRoom({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-2">
-                      {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
-                        const selected = vote === opt;
-                        const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
-                        const tone =
-                          opt === "FOR"
-                            ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                            : opt === "AGAINST"
-                            ? "border-red-200 text-red-700 hover:bg-red-50"
-                            : "border-border text-muted-foreground hover:bg-muted";
-                        const selectedTone =
-                          opt === "FOR"
-                            ? "bg-emerald-600 text-white border-emerald-600"
-                            : opt === "AGAINST"
-                            ? "bg-red-600 text-white border-red-600"
-                            : "bg-slate-700 text-white border-slate-700";
-                        return (
-                          <button
-                            key={opt}
-                            onClick={() => setVote(opt)}
-                            disabled={voting || hasProxy}
-                            className={cn(
-                              "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
-                              selected ? selectedTone : tone,
-                            )}
-                          >
-                            <Icon className="h-4 w-4" />
-                            {opt.charAt(0) + opt.slice(1).toLowerCase()}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <Button fullWidth disabled={!vote || voting || hasProxy} loading={voting} onClick={handleCastVote}>
-                      {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
-                    </Button>
+                    {canVote && !hasProxy && openRes.nominees && openRes.nominees.length > 0 ? (
+                      <NomineeBallot
+                        nominees={openRes.nominees}
+                        title={openRes.title}
+                        onVoteCast={handleCastNomineeVote}
+                        isPending={voting}
+                      />
+                    ) : canVote && !hasProxy ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
+                            const selected = vote === opt;
+                            const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
+                            const tone =
+                              opt === "FOR"
+                                ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                : opt === "AGAINST"
+                                ? "border-red-200 text-red-700 hover:bg-red-50"
+                                : "border-border text-muted-foreground hover:bg-muted";
+                            const selectedTone =
+                              opt === "FOR"
+                                ? "bg-emerald-600 text-white border-emerald-600"
+                                : opt === "AGAINST"
+                                ? "bg-red-600 text-white border-red-600"
+                                : "bg-slate-700 text-white border-slate-700";
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => setVote(opt)}
+                                disabled={voting}
+                                className={cn(
+                                  "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
+                                  selected ? selectedTone : tone,
+                                )}
+                              >
+                                <Icon className="h-4 w-4" />
+                                {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <Button fullWidth disabled={!vote || voting} loading={voting} onClick={handleCastVote}>
+                          {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
+                        </Button>
+                      </>
+                    ) : null}
 
                     {openRes.forCount + openRes.againstCount + openRes.abstainCount > 0 && (
-                      <div className="border-t border-border pt-3">
+                      <div className="border-t border-border pt-3 space-y-3">
                         <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> Live tally
                         </p>
                         <ResolutionBars r={openRes} shareWeighted={shareWeighted} />
+                        {openRes.bySource && <SourceBreakdown bySource={openRes.bySource} />}
                       </div>
                     )}
                   </div>
@@ -667,8 +716,9 @@ export function LiveRoom({
                             <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>
                           </div>
                           {showResult && (
-                            <div className="mt-3 border-t border-border pt-2">
+                            <div className="mt-3 border-t border-border pt-2 space-y-3">
                               <ResolutionBars r={r} shareWeighted={shareWeighted} />
+                              {r.bySource && <SourceBreakdown bySource={r.bySource} />}
                             </div>
                           )}
                         </div>

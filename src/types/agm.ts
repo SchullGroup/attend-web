@@ -17,6 +17,37 @@ export interface Resolution {
   forShares: number;
   againstShares: number;
   abstainShares: number;
+  nominees?: {
+    id: string;
+    name: string;
+    bio?: string;
+  }[];
+  bySource?: {
+    ONLINE?: {
+      for: number;
+      against: number;
+      abstain: number;
+      forShares?: number;
+      againstShares?: number;
+      abstainShares?: number;
+    };
+    IN_ROOM?: {
+      for: number;
+      against: number;
+      abstain: number;
+      forShares?: number;
+      againstShares?: number;
+      abstainShares?: number;
+    };
+    PROXY?: {
+      for: number;
+      against: number;
+      abstain: number;
+      forShares?: number;
+      againstShares?: number;
+      abstainShares?: number;
+    };
+  };
 }
 
 export interface ResolutionsData {
@@ -45,7 +76,11 @@ export interface AssignProxyRequest {
 }
 
 export interface CastVoteRequest {
-  choice: "FOR" | "AGAINST" | "ABSTAIN";
+  choice?: "FOR" | "AGAINST" | "ABSTAIN";
+  nomineeVotes?: {
+    nomineeId: string;
+    choice: "FOR" | "AGAINST" | "ABSTAIN";
+  }[];
 }
 
 export interface ProxyHistoryItem {
@@ -60,6 +95,12 @@ export interface ProxyHistoryItem {
   assignedAt: string;
   status?: string; // PENDING | ACCEPTED | ATTENDED
   sharesRepresented?: number;
+  directions?: {
+    resolutionId: string;
+    resolutionTitle?: string;
+    direction: "FOR" | "AGAINST" | "ABSTAIN" | "LET_PROXY_DECIDE";
+    castOutcome?: string;
+  }[];
 }
 
 export interface ProxyHistoryData {

@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft, Check, X, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useGetResolutions, useCastVote } from "@/api/agm/hooks";
+import { useGetResolutions, useCastVote, useRevokeProxy } from "@/api/agm/hooks";
 import { Resolution } from "@/types";
+import { NomineeBallot } from "@/components/attend/NomineeBallot";
 
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
 
@@ -17,12 +18,14 @@ function PreVotePageInner() {
   const eventId = searchParams.get("eventId") ?? "";
 
   const [pendingVotes, setPendingVotes] = useState<Record<string, VoteChoice>>({});
+  const [pendingNomineeVotes, setPendingNomineeVotes] = useState<Record<string, { nomineeId: string; choice: VoteChoice }[]>>({});
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const { data, isLoading } = useGetResolutions(eventId);
   const { mutateAsync: castVote } = useCastVote(eventId);
+  const { mutate: revokeProxy, isPending: revoking } = useRevokeProxy(eventId);
 
   const resolutions = data?.data?.resolutions ?? [];
   const hasProxy = !!data?.data?.hasProxy;
@@ -33,17 +36,36 @@ function PreVotePageInner() {
     if (!eventId) router.replace("/agm");
   }, [eventId, router]);
 
+  function handleRevoke() {
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    revokeProxy(undefined, {
+      onSuccess: () => {
+        setSuccessMsg("Proxy has been successfully revoked. You can now vote directly.");
+      },
+      onError: (err: any) => {
+        setErrorMsg(err?.response?.data?.message || "Failed to revoke proxy.");
+      },
+    });
+  }
+
   async function submit() {
     setSubmitting(true);
     setErrorMsg(null);
     try {
+      // Submit regular resolution votes
       for (const [resolutionId, choice] of Object.entries(pendingVotes)) {
         await castVote({ resolutionId, data: { choice } });
+      }
+      // Submit nominee votes
+      for (const [resolutionId, nomineeVotes] of Object.entries(pendingNomineeVotes)) {
+        await castVote({ resolutionId, data: { nomineeVotes } });
       }
       // Stay on the page and just confirm — casting invalidates the resolutions
       // query, so voted items move to "Already voted" on their own. (The receipt is
       // still available from the AGM hub → "My receipts".)
       setPendingVotes({});
+      setPendingNomineeVotes({});
       setSuccessMsg("Your vote has been recorded. You can update it until voting closes.");
     } catch (err: any) {
       setErrorMsg(err?.response?.data?.message || err?.message || "Failed to submit votes.");
@@ -62,7 +84,14 @@ function PreVotePageInner() {
     );
   }
 
-  const allOpenVoted = open.every((r) => pendingVotes[r.id]);
+  const selectedCount = Object.keys(pendingVotes).length + Object.keys(pendingNomineeVotes).length;
+  const allOpenVoted = open.every((r) => {
+    if (r.nominees && r.nominees.length > 0) {
+      const votes = pendingNomineeVotes[r.id] || [];
+      return votes.length === r.nominees.length;
+    }
+    return !!pendingVotes[r.id];
+  });
 
   return (
     <div className="space-y-6">
@@ -79,11 +108,23 @@ function PreVotePageInner() {
       </header>
 
       {hasProxy && (
-        <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-800">
-          <p className="font-bold">Voting Managed by Proxy</p>
-          <p className="mt-1 text-xs text-purple-700/80">
-            You have appointed a proxy for this AGM. Early voting and live voting are managed by your proxy.
-          </p>
+        <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="font-bold">Voting Managed by Proxy</p>
+            <p className="mt-1 text-xs text-purple-700/85">
+              You have appointed a proxy for this AGM. Early voting and live voting are managed by your proxy.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleRevoke}
+            loading={revoking}
+            className="border-purple-300 hover:bg-purple-100 hover:text-purple-900 text-purple-800 bg-white self-start sm:self-auto"
+          >
+            Revoke Proxy
+          </Button>
         </div>
       )}
 
@@ -119,6 +160,10 @@ function PreVotePageInner() {
                     setSuccessMsg(null);
                     setPendingVotes((v) => ({ ...v, [r.id]: choice }));
                   }}
+                  onNomineeSelect={(votes) => {
+                    setSuccessMsg(null);
+                    setPendingNomineeVotes((v) => ({ ...v, [r.id]: votes }));
+                  }}
                   disabled={hasProxy}
                 />
               ))}
@@ -142,7 +187,7 @@ function PreVotePageInner() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm">
                     <p className="font-semibold text-foreground">
-                      {Object.keys(pendingVotes).length} of {open.length} selected
+                      {selectedCount} of {open.length} selected
                     </p>
                     <p className="text-xs text-muted-foreground">
                       You can update your vote until voting closes.
@@ -151,7 +196,7 @@ function PreVotePageInner() {
                   <Button
                     onClick={submit}
                     loading={submitting}
-                    disabled={!allOpenVoted || Object.keys(pendingVotes).length === 0 || hasProxy}
+                    disabled={!allOpenVoted || selectedCount === 0 || hasProxy}
                   >
                     Submit votes
                   </Button>
@@ -166,17 +211,22 @@ function PreVotePageInner() {
 }
 
 function ResolutionCard({
-  resolution: r, selected, onSelect, disabled,
+  resolution: r,
+  selected,
+  onSelect,
+  disabled,
+  onNomineeSelect,
 }: {
   resolution: Resolution;
   selected: VoteChoice | null;
   onSelect: (c: VoteChoice) => void;
   disabled?: boolean;
+  onNomineeSelect: (votes: { nomineeId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) => void;
 }) {
   return (
-    <article className="rounded-2xl border-2 border-primary/30 bg-white p-5 shadow-sm">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
+    <article className="rounded-2xl border-2 border-primary/30 bg-white p-5 shadow-sm space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
             Resolution {r.order + 1}{r.specialResolution ? " (Special)" : ""}
           </p>
@@ -185,38 +235,51 @@ function ResolutionCard({
         </div>
         <Badge variant="default">Open</Badge>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
-          const isSelected = selected === opt;
-          const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
-          const tone =
-            opt === "FOR"
-              ? "border-emerald-200 hover:bg-emerald-50 text-emerald-700"
-              : opt === "AGAINST"
-              ? "border-red-200 hover:bg-red-50 text-red-700"
-              : "border-border hover:bg-muted text-muted-foreground";
-          const selectedTone =
-            opt === "FOR"
-              ? "border-emerald-600 bg-emerald-600 text-white"
-              : opt === "AGAINST"
-              ? "border-red-600 bg-red-600 text-white"
-              : "border-slate-700 bg-slate-700 text-white";
-          return (
-            <button
-              key={opt}
-              onClick={() => onSelect(opt)}
-              disabled={disabled}
-              className={cn(
-                "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize transition-colors disabled:opacity-50",
-                isSelected ? selectedTone : tone,
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {opt.charAt(0) + opt.slice(1).toLowerCase()}
-            </button>
-          );
-        })}
-      </div>
+
+      {r.nominees && r.nominees.length > 0 ? (
+        <div className="-mx-5 -mb-5 border-t border-slate-100 bg-slate-50/30 p-5 rounded-b-2xl">
+          <NomineeBallot
+            nominees={r.nominees}
+            title={r.title}
+            isPending={!!disabled}
+            showSubmitButton={false}
+            onChange={onNomineeSelect}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
+            const isSelected = selected === opt;
+            const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
+            const tone =
+              opt === "FOR"
+                ? "border-emerald-200 hover:bg-emerald-50 text-emerald-700"
+                : opt === "AGAINST"
+                ? "border-red-200 hover:bg-red-50 text-red-700"
+                : "border-border hover:bg-muted text-muted-foreground";
+            const selectedTone =
+              opt === "FOR"
+                ? "border-emerald-600 bg-emerald-600 text-white"
+                : opt === "AGAINST"
+                ? "border-red-600 bg-red-600 text-white"
+                : "border-slate-700 bg-slate-700 text-white";
+            return (
+              <button
+                key={opt}
+                onClick={() => onSelect(opt)}
+                disabled={disabled}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize transition-colors disabled:opacity-50",
+                  isSelected ? selectedTone : tone,
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {opt.charAt(0) + opt.slice(1).toLowerCase()}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </article>
   );
 }

@@ -132,3 +132,30 @@ export const useAssignProxy = (eventId: string) => {
     },
   });
 };
+
+export const useAssignProxyDirections = (eventId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      directions: {
+        resolutionId: string;
+        direction: "FOR" | "AGAINST" | "ABSTAIN" | "LET_PROXY_DECIDE";
+      }[];
+    }) => agmClient.assignProxyDirections(eventId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: agmKeys.proxy(eventId) });
+    },
+  });
+};
+
+export const useRevokeProxy = (eventId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => agmClient.revokeProxy(eventId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: agmKeys.resolutions(eventId) });
+      queryClient.invalidateQueries({ queryKey: agmKeys.proxy(eventId) });
+      queryClient.invalidateQueries({ queryKey: ["agm", "proxy-history"] });
+    },
+  });
+};

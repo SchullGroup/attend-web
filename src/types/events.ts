@@ -24,6 +24,10 @@ export interface EventListItem {
   featured?: boolean;
   registered: boolean;
   branding?: EventBranding;
+  bannerUrl?: string | null;
+  brandPrimary?: string | null;
+  brandAccent?: string | null;
+  lateRsvpMinutes?: number;
 }
 
 export interface SpeakerItem {
@@ -71,6 +75,10 @@ export interface EventDetail {
   waitlisted?: boolean;
   pressKitReleased?: boolean;
   branding?: EventBranding;
+  bannerUrl?: string | null;
+  brandPrimary?: string | null;
+  brandAccent?: string | null;
+  lateRsvpMinutes?: number;
 }
 
 export interface MyTicket {

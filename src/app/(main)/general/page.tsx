@@ -16,7 +16,7 @@ function apiToCard(item: EventListItem): EventCardData {
     organiser: item.registerName || item.organizerName,
     module: item.eventType,
     thumbnailColor: item.branding?.brandColor || "#2563eb",
-    image: item.branding?.logoUrl || item.organizerLogo || undefined,
+    image: item.bannerUrl || undefined,
     status: item.status,
     date: item.date,
     startTime: item.startTime,

@@ -96,7 +96,7 @@ function toHomeEvent(e: EventListItem): HomeEvent {
     rsvpCount: e.maximumCapacity || 0,
     thumbnailColor: e.branding?.brandColor || (EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb"),
     rsvpStatus: e.registered,
-    image: e.branding?.logoUrl || e.organizerLogo || undefined,
+    image: e.bannerUrl || undefined,
   };
 }
 

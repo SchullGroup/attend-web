@@ -14,6 +14,8 @@ const publicEndpoints = [
   "/api/v1/auth/resend-phone-otp",
   "/api/v1/auth/verify-phone",
   "/api/v1/auth/refresh-token",
+  "/api/v1/guest/invites",
+  "/api/v1/guest/redeem",
 ];
 
 // Pre-login endpoints must never attach a token or trigger the 401 → refresh →
@@ -72,6 +74,15 @@ apiClient.interceptors.response.use(
       !originalRequest._retry &&
       !isPublicEndpoint(originalRequest?.url)
     ) {
+      if (Cookies.get("isGuest") === "true") {
+        Cookies.remove("accessToken");
+        Cookies.remove("isGuest");
+        if (typeof window !== "undefined") {
+          window.location.reload();
+        }
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

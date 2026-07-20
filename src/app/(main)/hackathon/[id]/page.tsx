@@ -49,6 +49,9 @@ export default function HackathonDetailPage({
         registered: ev.registered,
         resourceCount: 0,
         branding: ev.branding,
+        bannerUrl: ev.bannerUrl,
+        brandPrimary: ev.brandPrimary,
+        brandAccent: ev.brandAccent,
         myTeam: team
           ? {
               id: team.id,
@@ -93,7 +96,13 @@ export default function HackathonDetailPage({
   const isLive = (challenge.status || "").toUpperCase() === "LIVE";
 
   return (
-    <div className="space-y-6">
+    <div
+      className="challenge-scope space-y-6"
+      style={{
+        "--brand-primary": challenge.brandPrimary || "#9333ea",
+        "--brand-accent":  challenge.brandAccent  || "#c084fc",
+      } as React.CSSProperties}
+    >
       <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to Innovation
       </Link>
@@ -102,63 +111,112 @@ export default function HackathonDetailPage({
       {isLive && (
         <Link
           href={`/events/live?eventId=${id}`}
-          className="flex items-center justify-between gap-3 rounded-2xl border border-purple-200 bg-purple-50 px-5 py-3.5 text-purple-900 shadow-sm transition-colors hover:bg-purple-100"
+          className="flex items-center justify-between gap-3 rounded-2xl border px-5 py-3.5 shadow-sm transition-colors"
+          style={{
+            borderColor: `${challenge.brandAccent || '#c084fc'}40`,
+            backgroundColor: `${challenge.brandPrimary || '#9333ea'}08`,
+            color: 'var(--brand-primary)',
+          }}
         >
           <div className="flex items-center gap-2.5">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-purple-600" />
+            <span className="h-2 w-2 animate-pulse rounded-full" style={{ backgroundColor: 'var(--brand-primary)' }} />
             <span className="text-sm font-semibold">This session is live now</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-purple-700">
+          <div
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: 'var(--brand-primary)' }}
+          >
             <Radio className="h-3.5 w-3.5" /> Join Live
           </div>
         </Link>
       )}
 
-      <header
-        className={cn(
-          "relative overflow-hidden rounded-3xl p-6 text-white md:p-8",
-          !challenge.branding?.brandColor && "bg-gradient-to-br from-purple-700 to-fuchsia-700"
-        )}
-        style={
-          challenge.branding?.brandColor
-            ? { backgroundColor: challenge.branding.brandColor }
-            : undefined
-        }
-      >
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
-        <div className="relative space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{challenge.organizerName}</p>
-          <h1 className="text-2xl font-bold leading-tight md:text-3xl">{challenge.title}</h1>
-          {challenge.description && <p className="max-w-2xl text-sm text-white/85">{challenge.description}</p>}
-          <div className="flex flex-wrap gap-2 pt-1">
-            {isLive ? (
-              <Link href={`/events/live?eventId=${id}`}>
-                <button
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
-                  style={challenge.branding?.brandColor ? { color: challenge.branding.brandColor } : { color: '#6b21a8' }}
-                >
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-purple-600" />
-                  Join Live session
+      {challenge.bannerUrl ? (
+        <div
+          className="relative aspect-video w-full overflow-hidden rounded-3xl p-6 text-white md:p-8 flex flex-col justify-end"
+          style={{
+            backgroundImage: `url(${challenge.bannerUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            minHeight: "240px"
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
+          <div className="relative space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{challenge.organizerName}</p>
+            <h1 className="text-2xl font-bold leading-tight md:text-3xl">{challenge.title}</h1>
+            {challenge.description && <p className="max-w-2xl text-sm text-white/85">{challenge.description}</p>}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {isLive ? (
+                <Link href={`/events/live?eventId=${id}`}>
+                  <button
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
+                    style={{ color: "var(--brand-primary)" }}
+                  >
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--brand-primary)]" />
+                    Join Live session
+                  </button>
+                </Link>
+              ) : (
+                <Link href={`/hackathon/apply?challengeId=${id}`}>
+                  <button
+                    className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
+                    style={{ color: "var(--brand-primary)" }}
+                  >
+                    Apply now
+                  </button>
+                </Link>
+              )}
+              <Link href={`/hackathon/resources?challengeId=${id}`}>
+                <button className="rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/20">
+                  Resources{challenge.resourceCount > 0 ? ` (${challenge.resourceCount})` : ""}
                 </button>
               </Link>
-            ) : (
-              <Link href={`/hackathon/apply?challengeId=${id}`}>
-                <button
-                  className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
-                  style={challenge.branding?.brandColor ? { color: challenge.branding.brandColor } : { color: '#6b21a8' }}
-                >
-                  Apply now
-                </button>
-              </Link>
-            )}
-            <Link href={`/hackathon/resources?challengeId=${id}`}>
-              <button className="rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/20">
-                Resources{challenge.resourceCount > 0 ? ` (${challenge.resourceCount})` : ""}
-              </button>
-            </Link>
+            </div>
           </div>
         </div>
-      </header>
+      ) : (
+        <header
+          className="relative overflow-hidden rounded-3xl p-6 text-white md:p-8"
+          style={{
+            background: `linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-accent) 100%)`,
+          }}
+        >
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
+          <div className="relative space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{challenge.organizerName}</p>
+            <h1 className="text-2xl font-bold leading-tight md:text-3xl">{challenge.title}</h1>
+            {challenge.description && <p className="max-w-2xl text-sm text-white/85">{challenge.description}</p>}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {isLive ? (
+                <Link href={`/events/live?eventId=${id}`}>
+                  <button
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
+                    style={{ color: "var(--brand-primary)" }}
+                  >
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--brand-primary)]" />
+                    Join Live session
+                  </button>
+                </Link>
+              ) : (
+                <Link href={`/hackathon/apply?challengeId=${id}`}>
+                  <button
+                    className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
+                    style={{ color: "var(--brand-primary)" }}
+                  >
+                    Apply now
+                  </button>
+                </Link>
+              )}
+              <Link href={`/hackathon/resources?challengeId=${id}`}>
+                <button className="rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/20">
+                  Resources{challenge.resourceCount > 0 ? ` (${challenge.resourceCount})` : ""}
+                </button>
+              </Link>
+            </div>
+          </div>
+        </header>
+      )}
 
       {/* Problem statement */}
       {challenge.problemStatement && (
@@ -179,7 +237,7 @@ export default function HackathonDetailPage({
         <section className="grid gap-4 md:grid-cols-3">
           {challenge.prizeTiers.map((p) => (
             <div key={p.position} className="rounded-2xl border border-border bg-white p-5">
-              <div className="flex items-center gap-2 text-purple-700">
+              <div className="flex items-center gap-2 text-[var(--brand-primary)]">
                 <Trophy className="h-4.5 w-4.5" />
                 <p className="text-xs font-semibold uppercase tracking-wide">{p.position}</p>
               </div>
@@ -195,7 +253,11 @@ export default function HackathonDetailPage({
           <InfoBlock icon={Target} title="Pathways">
             <div className="flex flex-wrap gap-2">
               {challenge.tracks.map((t) => (
-                <span key={t} className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700">
+                <span
+                  key={t}
+                  className="rounded-full px-2.5 py-1 text-xs font-medium text-[var(--brand-primary)]"
+                  style={{ backgroundColor: `${challenge.brandPrimary || '#9333ea'}15` }}
+                >
                   {t}
                 </span>
               ))}
@@ -264,8 +326,14 @@ export default function HackathonDetailPage({
       )}
 
       {myTeam && (
-        <section className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-purple-700">Your team</p>
+        <section
+          className="rounded-2xl border p-5"
+          style={{
+            borderColor: `${challenge.brandAccent || '#c084fc'}40`,
+            backgroundColor: `${challenge.brandPrimary || '#9333ea'}08`,
+          }}
+        >
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--brand-primary)]">Your team</p>
           <p className="text-base font-semibold text-foreground">{myTeam.name}</p>
           {myTeam.description && <p className="mt-1 text-sm text-muted-foreground">{myTeam.description}</p>}
           <div className="mt-3 flex items-center gap-2">
@@ -314,15 +382,8 @@ export default function HackathonDetailPage({
           {isLive ? (
             <Link href={`/events/live?eventId=${id}`}>
               <button
-                className={cn(
-                  "rounded-xl px-5 py-2.5 text-sm font-semibold text-white",
-                  !challenge.branding?.brandColor && "bg-purple-700 hover:bg-purple-800"
-                )}
-                style={
-                  challenge.branding?.brandColor
-                    ? { backgroundColor: challenge.branding.brandColor }
-                    : undefined
-                }
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: 'var(--brand-primary)' }}
               >
                 Join Live session
               </button>
@@ -330,15 +391,8 @@ export default function HackathonDetailPage({
           ) : (
             <Link href={`/hackathon/apply?challengeId=${id}`}>
               <button
-                className={cn(
-                  "rounded-xl px-5 py-2.5 text-sm font-semibold text-white",
-                  !challenge.branding?.brandColor && "bg-purple-700 hover:bg-purple-800"
-                )}
-                style={
-                  challenge.branding?.brandColor
-                    ? { backgroundColor: challenge.branding.brandColor }
-                    : undefined
-                }
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: 'var(--brand-primary)' }}
               >
                 Apply now
               </button>
