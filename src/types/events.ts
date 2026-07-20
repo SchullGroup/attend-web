@@ -1,5 +1,10 @@
 import { ApiResponse } from "./api";
 
+export interface EventBranding {
+  logoUrl?: string | null;
+  brandColor?: string | null;
+}
+
 export interface EventListItem {
   id: string;
   title: string;
@@ -18,6 +23,7 @@ export interface EventListItem {
   rsvpEnabled?: boolean;
   featured?: boolean;
   registered: boolean;
+  branding?: EventBranding;
 }
 
 export interface SpeakerItem {
@@ -64,6 +70,7 @@ export interface EventDetail {
   tags?: string[];
   waitlisted?: boolean;
   pressKitReleased?: boolean;
+  branding?: EventBranding;
 }
 
 export interface MyTicket {

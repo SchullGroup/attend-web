@@ -164,3 +164,20 @@ export const useGetPressKit = (eventId: string, refetchInterval?: number, enable
     enabled,
   });
 };
+
+export const useGuestJoin = (eventId: string) => {
+  return useMutation({
+    mutationFn: ({ code }: { code: string }) =>
+      eventsClient.guestJoinEvent(eventId, code),
+  });
+};
+
+export const useGuestEventView = (eventId: string, guestToken: string, enabled = true) => {
+  return useQuery({
+    queryKey: [...eventKeys.detail(eventId), "guest-view"] as const,
+    queryFn: () => eventsClient.guestGetView(eventId, guestToken),
+    enabled: !!eventId && !!guestToken && enabled,
+    retry: false,
+    refetchInterval: 15000,
+  });
+};

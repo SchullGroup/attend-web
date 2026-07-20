@@ -10,7 +10,7 @@ import { useGetEvent } from "@/api/events/hooks";
 import { ChallengeDetailData } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 
 export default function HackathonDetailPage({
   params,
@@ -48,6 +48,7 @@ export default function HackathonDetailPage({
         organizerName: ev.registerName || ev.organizerName,
         registered: ev.registered,
         resourceCount: 0,
+        branding: ev.branding,
         myTeam: team
           ? {
               id: team.id,
@@ -113,7 +114,17 @@ export default function HackathonDetailPage({
         </Link>
       )}
 
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-700 to-fuchsia-700 p-6 text-white md:p-8">
+      <header
+        className={cn(
+          "relative overflow-hidden rounded-3xl p-6 text-white md:p-8",
+          !challenge.branding?.brandColor && "bg-gradient-to-br from-purple-700 to-fuchsia-700"
+        )}
+        style={
+          challenge.branding?.brandColor
+            ? { backgroundColor: challenge.branding.brandColor }
+            : undefined
+        }
+      >
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
         <div className="relative space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{challenge.organizerName}</p>
@@ -122,14 +133,20 @@ export default function HackathonDetailPage({
           <div className="flex flex-wrap gap-2 pt-1">
             {isLive ? (
               <Link href={`/events/live?eventId=${id}`}>
-                <button className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
+                <button
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
+                  style={challenge.branding?.brandColor ? { color: challenge.branding.brandColor } : { color: '#6b21a8' }}
+                >
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-purple-600" />
                   Join Live session
                 </button>
               </Link>
             ) : (
               <Link href={`/hackathon/apply?challengeId=${id}`}>
-                <button className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-white/90">
+                <button
+                  className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
+                  style={challenge.branding?.brandColor ? { color: challenge.branding.brandColor } : { color: '#6b21a8' }}
+                >
                   Apply now
                 </button>
               </Link>
@@ -296,13 +313,33 @@ export default function HackathonDetailPage({
           </div>
           {isLive ? (
             <Link href={`/events/live?eventId=${id}`}>
-              <button className="rounded-xl bg-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-800">
+              <button
+                className={cn(
+                  "rounded-xl px-5 py-2.5 text-sm font-semibold text-white",
+                  !challenge.branding?.brandColor && "bg-purple-700 hover:bg-purple-800"
+                )}
+                style={
+                  challenge.branding?.brandColor
+                    ? { backgroundColor: challenge.branding.brandColor }
+                    : undefined
+                }
+              >
                 Join Live session
               </button>
             </Link>
           ) : (
             <Link href={`/hackathon/apply?challengeId=${id}`}>
-              <button className="rounded-xl bg-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-800">
+              <button
+                className={cn(
+                  "rounded-xl px-5 py-2.5 text-sm font-semibold text-white",
+                  !challenge.branding?.brandColor && "bg-purple-700 hover:bg-purple-800"
+                )}
+                style={
+                  challenge.branding?.brandColor
+                    ? { backgroundColor: challenge.branding.brandColor }
+                    : undefined
+                }
+              >
                 Apply now
               </button>
             </Link>

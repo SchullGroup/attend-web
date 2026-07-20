@@ -1,5 +1,5 @@
 import { ApiResponse } from "./api";
-import { EventListItem } from "./events";
+import { EventListItem, EventBranding } from "./events";
 
 export interface TeamMember {
   id: string;
@@ -108,6 +108,7 @@ export interface ChallengeDetailData {
   prizeTiers?: PrizeTierItem[];
   submissionRequirements?: SubmissionRequirements;
   myTeam: ChallengeMyTeamSummary | null;
+  branding?: EventBranding;
 }
 
 export interface ChallengeResource {

@@ -86,7 +86,7 @@ export default function HackathonPage() {
               <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
+                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: c.branding?.brandColor || '#6b21a8' }}>
                       {c.registerName || c.organizerName}
                     </p>
                     {(c.status || "").toUpperCase() === "LIVE" && (

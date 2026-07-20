@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, CalendarDays, Clock, MapPin, Users, Bookmark, Share2,
   QrCode, CheckCircle2, Check, Monitor, Wifi, Vote, FileText,
-  BookOpen, ShieldAlert, ChevronRight, Radio, DownloadCloud, FileBox
+  BookOpen, ShieldAlert, ChevronRight, Radio, DownloadCloud, FileBox,
+  KeyRound,
 } from "lucide-react";
 import {
   useGetEvent, useRsvp, useCancelRsvp, useJoinWaitlist,
-  useGetSavedEvents, useSaveEvent, useUnsaveEvent, useGetPressKit
+  useGetSavedEvents, useSaveEvent, useUnsaveEvent, useGetPressKit,
+  useGuestJoin,
 } from "@/api/events/hooks";
 import { useGetResolutions } from "@/api/agm/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
@@ -61,9 +63,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const [rsvpError, setRsvpError] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
+  const [showGuestEntry, setShowGuestEntry] = useState(false);
+  const [guestCode, setGuestCode] = useState("");
+  const [guestError, setGuestError] = useState<string | null>(null);
   const { mutate: rsvp, isPending: rsvping } = useRsvp(id);
   const { mutate: cancelRsvp, isPending: cancelling } = useCancelRsvp(id);
   const { mutate: joinWaitlist, isPending: joiningWaitlist } = useJoinWaitlist(id);
+  const { mutate: guestJoin, isPending: guestJoining } = useGuestJoin(id);
 
   const { data: savedResp } = useGetSavedEvents();
   const { mutate: saveEvent } = useSaveEvent(id);
@@ -138,7 +144,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const color = event.organizerPrimaryColor || MODULE_COLOR[mod] || "#2563eb";
+  const color = event.branding?.brandColor || event.organizerPrimaryColor || MODULE_COLOR[mod] || "#0B5CFF";
   const organiser = event.registerName || event.organizerName;
   const isLive = event.status === "LIVE";
   const isEnded = event.status === "ENDED";
@@ -280,7 +286,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           ) : (
             <div className="space-y-2">
-              {event.agmProxyEnabled && !isVirtual && (
+              {event.agmProxyEnabled && (
                 <Link href={`/agm/proxy?eventId=${id}`}>
                   <ActionRow icon={<FileText className="h-5 w-5" style={{ color }} />} label="Appoint a Proxy" />
                 </Link>
@@ -504,9 +510,73 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
+      {/* Guest access code entry */}
+      {showGuestEntry && (
+        <section className="rounded-2xl border border-border bg-white p-5 space-y-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <KeyRound className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Join as a guest</p>
+              <p className="text-xs text-muted-foreground">Enter the access code provided by the event organiser.</p>
+            </div>
+          </div>
+          {guestError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+              {guestError}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              className="flex-1 rounded-xl border border-border bg-muted/30 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+              placeholder="e.g. 7F3KQXPM"
+              value={guestCode}
+              onChange={(e) => setGuestCode(e.target.value.toUpperCase())}
+              maxLength={12}
+            />
+            <Button
+              disabled={guestCode.length < 3 || guestJoining}
+              loading={guestJoining}
+              onClick={() => {
+                setGuestError(null);
+                guestJoin(
+                  { code: guestCode },
+                  {
+                    onSuccess: (res: any) => {
+                      const token = res?.data?.guestToken;
+                      if (token) {
+                        sessionStorage.setItem("guestToken", token);
+                        sessionStorage.setItem("guestEventId", id);
+                      }
+                      // Navigate to the live stream for the guest
+                      if (mod === "AGM") router.push(`/agm/live?eventId=${id}&guest=true`);
+                      else router.push(`/events/live?eventId=${id}&guest=true`);
+                    },
+                    onError: (err: any) => {
+                      setGuestError(
+                        err?.response?.data?.message || err?.message || "Invalid or expired access code.",
+                      );
+                    },
+                  },
+                );
+              }}
+            >
+              Join
+            </Button>
+          </div>
+          <button
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowGuestEntry(false)}
+          >
+            Cancel
+          </button>
+        </section>
+      )}
+
       {/* Sticky bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur px-4 py-3 md:left-64">
-        {isLive ? (
+        {isLive && event.registered ? (
           <Button
             className="w-full gap-2"
             style={{ backgroundColor: color }}
@@ -517,6 +587,24 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           >
             <Radio className="h-4 w-4" /> Join Live Session →
           </Button>
+        ) : isLive && !event.registered ? (
+          <div className="flex gap-2">
+            <Button
+              className="flex-1"
+              onClick={handleRsvp}
+              disabled={rsvping}
+              style={{ backgroundColor: color }}
+            >
+              {rsvping ? "Confirming…" : "RSVP & Join"}
+            </Button>
+            <Button
+              className="flex-1"
+              variant="outline"
+              onClick={() => setShowGuestEntry(true)}
+            >
+              <KeyRound className="h-4 w-4 mr-1.5" /> Guest code
+            </Button>
+          </div>
         ) : event.waitlisted && !event.registered ? (
           <Button className="w-full" variant="outline" disabled>On waitlist</Button>
         ) : event.registered ? (
@@ -549,14 +637,25 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             {joiningWaitlist ? "Joining…" : "Event full — Join waitlist"}
           </Button>
         ) : (
-          <Button
-            className="w-full"
-            onClick={handleRsvp}
-            disabled={rsvping}
-            style={{ backgroundColor: color }}
-          >
-            {rsvping ? "Confirming…" : "Confirm Attendance (RSVP)"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              className="flex-1"
+              onClick={handleRsvp}
+              disabled={rsvping}
+              style={{ backgroundColor: color }}
+            >
+              {rsvping ? "Confirming…" : "Confirm Attendance (RSVP)"}
+            </Button>
+            {!isEnded && (
+              <Button
+                variant="outline"
+                onClick={() => setShowGuestEntry(true)}
+                title="Join as a guest with an access code"
+              >
+                <KeyRound className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>

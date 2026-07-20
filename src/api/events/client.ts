@@ -1,3 +1,4 @@
+import axios from "axios";
 import { apiClient } from "@/lib/api-client";
 import {
   EventsListResponse,
@@ -132,6 +133,24 @@ export const eventsClient = {
   unsaveEvent: async (id: string) => {
     const response = await apiClient.delete<ApiResponse>(
       `/api/v1/participant/events/${id}/save`,
+    );
+    return response.data;
+  },
+
+  // Guest access — unauthenticated, bypasses the standard auth interceptor.
+  guestJoinEvent: async (eventId: string, code: string) => {
+    const response = await axios.post<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/guest/events/${eventId}/join`,
+      { code },
+      { headers: { "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestGetView: async (eventId: string, guestToken: string) => {
+    const response = await axios.get<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/guest/events/${eventId}/view`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
     );
     return response.data;
   },

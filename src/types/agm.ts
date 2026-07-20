@@ -58,6 +58,8 @@ export interface ProxyHistoryItem {
   proxyEmail: string;
   proxyPhone: string;
   assignedAt: string;
+  status?: string; // PENDING | ACCEPTED | ATTENDED
+  sharesRepresented?: number;
 }
 
 export interface ProxyHistoryData {

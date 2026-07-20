@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserCheck, UserPlus, WifiOff } from "lucide-react";
+import { ArrowLeft, UserCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,6 @@ function ProxyPageInner() {
   const { data: existingProxy } = useGetProxy(eventId);
   const { mutate: assignProxy, isPending } = useAssignProxy(eventId);
   const { data: eventData } = useGetEvent(eventId);
-  const isVirtual = eventData?.data?.format === "VIRTUAL";
 
   useEffect(() => {
     if (!eventId) router.replace("/agm");
@@ -50,35 +49,6 @@ function ProxyPageInner() {
           err?.response?.data?.message || err?.message || "Failed to assign proxy.",
         ),
     });
-  }
-
-  // Proxy voting is only for in-person/hybrid meetings — block it for virtual.
-  if (isVirtual) {
-    return (
-      <div className="space-y-6">
-        <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back to AGMs
-        </Link>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-            <WifiOff className="h-5 w-5 text-amber-700" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1">
-              {eventData?.data?.title ?? "AGM"}
-            </p>
-            <h2 className="text-lg font-bold text-foreground">Proxy not available</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Proxy appointments are not available for virtual meetings. All shareholders can
-              attend and vote directly online.
-            </p>
-            <Link href="/agm" className="mt-4 inline-block">
-              <Button variant="outline" size="sm">Back to AGMs</Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (

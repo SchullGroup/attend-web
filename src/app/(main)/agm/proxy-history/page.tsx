@@ -5,8 +5,15 @@ import { useGetProxyHistory } from "@/api/agm/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 
-type Tone = "info" | "success" | "muted" | "danger";
+type Tone = "info" | "success" | "muted" | "danger" | "warning";
 const statusTone = (s: string): Tone => {
+  const u = (s || "").toUpperCase();
+  if (u === "ATTENDED") return "success";
+  if (u === "ACCEPTED") return "info";
+  if (u === "PENDING") return "warning";
+  return "muted";
+};
+const eventStatusTone = (s: string): Tone => {
   const u = (s || "").toUpperCase();
   if (u === "LIVE") return "info";
   if (u === "ENDED") return "muted";
@@ -53,11 +60,18 @@ export default function ProxyHistoryPage() {
                     {p.assignedAt ? ` · appointed ${formatDate(p.assignedAt)}` : ""}
                   </p>
                 </div>
+              <div className="flex items-center gap-2">
+                {p.status && (
+                  <Badge variant={statusTone(p.status)}>
+                    {p.status.charAt(0) + p.status.slice(1).toLowerCase()}
+                  </Badge>
+                )}
                 {p.eventStatus && (
-                  <Badge variant={statusTone(p.eventStatus)}>
+                  <Badge variant={eventStatusTone(p.eventStatus)}>
                     {p.eventStatus.charAt(0) + p.eventStatus.slice(1).toLowerCase()}
                   </Badge>
                 )}
+              </div>
               </div>
 
               <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3">
@@ -75,6 +89,11 @@ export default function ProxyHistoryPage() {
                     {p.proxyPhone && (
                       <span className="inline-flex items-center gap-1">
                         <Phone className="h-3 w-3" /> {p.proxyPhone}
+                      </span>
+                    )}
+                    {p.sharesRepresented != null && p.sharesRepresented > 0 && (
+                      <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                        {p.sharesRepresented.toLocaleString()} shares
                       </span>
                     )}
                   </div>

@@ -82,6 +82,7 @@ interface HomeEvent {
   rsvpCount: number;
   thumbnailColor: string;
   rsvpStatus?: boolean;
+  image?: string;
 }
 function toHomeEvent(e: EventListItem): HomeEvent {
   return {
@@ -93,8 +94,9 @@ function toHomeEvent(e: EventListItem): HomeEvent {
     format: e.format,
     startTime: e.startTime,
     rsvpCount: e.maximumCapacity || 0,
-    thumbnailColor: EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb",
+    thumbnailColor: e.branding?.brandColor || (EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb"),
     rsvpStatus: e.registered,
+    image: e.branding?.logoUrl || e.organizerLogo || undefined,
   };
 }
 
@@ -283,7 +285,7 @@ export default function HomePage() {
                 >
                   {/* Photo */}
                   <img
-                    src={imageUri}
+                    src={event.image || imageUri}
                     alt={event.title}
                     className="h-full w-full object-cover"
                   />
@@ -294,7 +296,7 @@ export default function HomePage() {
                   <div className="absolute left-4 top-4">
                     <span
                       className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white"
-                      style={{ backgroundColor: badge.bg }}
+                      style={{ backgroundColor: event.thumbnailColor }}
                     >
                       {badge.label}
                     </span>
