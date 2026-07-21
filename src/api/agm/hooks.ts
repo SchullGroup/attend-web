@@ -28,11 +28,11 @@ export const useGetVoteReceipt = (eventId: string) => {
   });
 };
 
-export const useGetQuestions = (eventId: string, refetchInterval?: number) => {
+export const useGetQuestions = (eventId: string, refetchInterval?: number, enabled = true) => {
   return useQuery({
     queryKey: agmKeys.questions(eventId),
     queryFn: () => agmClient.getQuestions(eventId),
-    enabled: !!eventId,
+    enabled: !!eventId && enabled,
     // During a live session we poll so new questions, answers and upvote counts
     // from other attendees show up without a reload.
     refetchInterval: refetchInterval ?? false,

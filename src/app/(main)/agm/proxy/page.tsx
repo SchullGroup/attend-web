@@ -12,6 +12,14 @@ import { useGetEvent } from "@/api/events/hooks";
 type ProxyType = "chairman" | "named";
 const CHAIRMAN_NAME = "Chairman of the Meeting";
 
+// Pre-directed proxy instructions come from the July spec (master §5.5), but the backend
+// never shipped them: POST /agm/{eventId}/proxy/directions returns 404 "No such endpoint",
+// and no directions route exists anywhere in the API (there isn't even an /agm namespace).
+// Appointing the proxy works, so leaving the section visible made submitting look
+// half-successful — the proxy saved, the instructions silently went nowhere.
+// Flip to true once the backend endpoint lands; the UI below is unchanged.
+const PROXY_DIRECTIONS_ENABLED: boolean = false;
+
 function ProxyPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -63,7 +71,7 @@ function ProxyPageInner() {
           resolutionId,
           direction,
         }));
-        if (directionsList.length > 0) {
+        if (PROXY_DIRECTIONS_ENABLED && directionsList.length > 0) {
           assignProxyDirections(
             { directions: directionsList },
             {
@@ -155,7 +163,7 @@ function ProxyPageInner() {
           </div>
         )}
 
-        {resolutions.length > 0 && (
+        {PROXY_DIRECTIONS_ENABLED && resolutions.length > 0 && (
           <div className="space-y-4 pt-4 border-t border-border">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Pre-directed proxy instructions</h3>

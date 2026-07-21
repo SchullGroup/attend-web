@@ -107,6 +107,19 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
+
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">or</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <p className="text-center text-sm text-muted-foreground">
+        Invited to a single event?{" "}
+        <Link href="/guest" className="font-semibold text-foreground hover:underline">
+          Continue as guest
+        </Link>
+      </p>
     </div>
   );
 }

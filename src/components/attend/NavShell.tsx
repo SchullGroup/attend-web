@@ -17,7 +17,8 @@ import {
 import { cn, initialsFor } from "@/lib/utils";
 import { useGetMe, useLogout } from "@/api/auth/hooks";
 import { useGetKycStatus } from "@/api/kyc/hooks";
-import { useGetEvent } from "@/api/events/hooks";
+import { useGetEvent, useGuestEventView } from "@/api/events/hooks";
+import { GUEST_TOKEN_KEY, clearGuestSession } from "@/lib/guest-session";
 import { useGetNotifications } from "@/api/notifications/hooks";
 import { useUserStore, mapKycStatus } from "@/lib/user-store";
 import { useSession } from "@/hooks/useSession";
@@ -70,10 +71,11 @@ export function NavShell({ children }: { children: React.ReactNode }) {
 
   function handleSignOut() {
     if (isGuest) {
-      Cookies.remove("accessToken");
-      Cookies.remove("isGuest");
+      // Must clear the sessionStorage token too — dropping only the cookies left the
+      // guest token behind, so useSession still reported GUEST after "signing out".
+      clearGuestSession();
       if (typeof window !== "undefined") {
-        window.location.href = "/";
+        window.location.href = "/login";
       }
     } else {
       logout();
@@ -111,8 +113,20 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       setDetailId(eventDetailId(pathname));
     }
   }, [pathname]);
-  const { data: eventDetail } = useGetEvent(detailId);
-  const currentModule = eventDetail?.data?.eventType;
+  // A guest can't read the participant event endpoint (401), which left currentModule
+  // undefined and made the nav highlight the wrong section. They have their own view.
+  const [guestToken, setGuestToken] = useState("");
+  useEffect(() => {
+    if (isGuest) setGuestToken(sessionStorage.getItem(GUEST_TOKEN_KEY) ?? "");
+  }, [isGuest]);
+
+  const { data: eventDetail } = useGetEvent(detailId, !isGuest);
+  const { data: guestDetail } = useGuestEventView(
+    detailId,
+    guestToken,
+    isGuest && !!guestToken && !!detailId,
+  );
+  const currentModule = (isGuest ? guestDetail?.data : eventDetail?.data)?.eventType;
 
   const isExactRoot = NAV.some((item) => item.href === pathname) || pathname === "/notifications";
   const canGoBack = !isExactRoot && typeof window !== "undefined" && window.history.length > 1;

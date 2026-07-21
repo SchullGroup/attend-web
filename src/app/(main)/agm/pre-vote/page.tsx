@@ -18,7 +18,7 @@ function PreVotePageInner() {
   const eventId = searchParams.get("eventId") ?? "";
 
   const [pendingVotes, setPendingVotes] = useState<Record<string, VoteChoice>>({});
-  const [pendingNomineeVotes, setPendingNomineeVotes] = useState<Record<string, { nomineeId: string; choice: VoteChoice }[]>>({});
+  const [pendingCandidateVotes, setPendingCandidateVotes] = useState<Record<string, { candidateId: string; choice: VoteChoice }[]>>({});
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -57,15 +57,15 @@ function PreVotePageInner() {
       for (const [resolutionId, choice] of Object.entries(pendingVotes)) {
         await castVote({ resolutionId, data: { choice } });
       }
-      // Submit nominee votes
-      for (const [resolutionId, nomineeVotes] of Object.entries(pendingNomineeVotes)) {
-        await castVote({ resolutionId, data: { nomineeVotes } });
+      // Submit candidate votes — the API needs one entry per candidate
+      for (const [resolutionId, votes] of Object.entries(pendingCandidateVotes)) {
+        await castVote({ resolutionId, data: { votes } });
       }
       // Stay on the page and just confirm — casting invalidates the resolutions
       // query, so voted items move to "Already voted" on their own. (The receipt is
       // still available from the AGM hub → "My receipts".)
       setPendingVotes({});
-      setPendingNomineeVotes({});
+      setPendingCandidateVotes({});
       setSuccessMsg("Your vote has been recorded. You can update it until voting closes.");
     } catch (err: any) {
       setErrorMsg(err?.response?.data?.message || err?.message || "Failed to submit votes.");
@@ -84,14 +84,16 @@ function PreVotePageInner() {
     );
   }
 
-  const selectedCount = Object.keys(pendingVotes).length + Object.keys(pendingNomineeVotes).length;
-  const allOpenVoted = open.every((r) => {
-    if (r.nominees && r.nominees.length > 0) {
-      const votes = pendingNomineeVotes[r.id] || [];
-      return votes.length === r.nominees.length;
-    }
-    return !!pendingVotes[r.id];
-  });
+  // A resolution counts as "selected" only when it's fully answered — for a candidate
+  // resolution that means a choice for every candidate. Count over the OPEN list so the
+  // tally can never exceed it (summing the two maps produced things like "2 of 1").
+  const isFullySelected = (r: Resolution) =>
+    r.candidates && r.candidates.length > 0
+      ? (pendingCandidateVotes[r.id]?.length ?? 0) === r.candidates.length
+      : !!pendingVotes[r.id];
+
+  const selectedCount = open.filter(isFullySelected).length;
+  const allOpenVoted = open.every(isFullySelected);
 
   return (
     <div className="space-y-6">
@@ -160,9 +162,9 @@ function PreVotePageInner() {
                     setSuccessMsg(null);
                     setPendingVotes((v) => ({ ...v, [r.id]: choice }));
                   }}
-                  onNomineeSelect={(votes) => {
+                  onCandidateSelect={(votes) => {
                     setSuccessMsg(null);
-                    setPendingNomineeVotes((v) => ({ ...v, [r.id]: votes }));
+                    setPendingCandidateVotes((v) => ({ ...v, [r.id]: votes }));
                   }}
                   disabled={hasProxy}
                 />
@@ -215,13 +217,13 @@ function ResolutionCard({
   selected,
   onSelect,
   disabled,
-  onNomineeSelect,
+  onCandidateSelect,
 }: {
   resolution: Resolution;
   selected: VoteChoice | null;
   onSelect: (c: VoteChoice) => void;
   disabled?: boolean;
-  onNomineeSelect: (votes: { nomineeId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) => void;
+  onCandidateSelect: (votes: { candidateId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) => void;
 }) {
   return (
     <article className="rounded-2xl border-2 border-primary/30 bg-white p-5 shadow-sm space-y-4">
@@ -236,14 +238,14 @@ function ResolutionCard({
         <Badge variant="default">Open</Badge>
       </div>
 
-      {r.nominees && r.nominees.length > 0 ? (
+      {r.candidates && r.candidates.length > 0 ? (
         <div className="-mx-5 -mb-5 border-t border-slate-100 bg-slate-50/30 p-5 rounded-b-2xl">
           <NomineeBallot
-            nominees={r.nominees}
+            candidates={r.candidates}
             title={r.title}
             isPending={!!disabled}
             showSubmitButton={false}
-            onChange={onNomineeSelect}
+            onChange={onCandidateSelect}
           />
         </div>
       ) : (

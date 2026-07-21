@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import { useGetMe } from "@/api/auth/hooks";
-import { useGetGuestSession } from "@/api/guests/hooks";
+import { GUEST_TOKEN_KEY, clearGuestSession } from "@/lib/guest-session";
 
 export interface Session {
   type: "SHAREHOLDER" | "GUEST" | "ANONYMOUS";
@@ -17,52 +18,71 @@ export interface Session {
 }
 
 export function useSession(): Session {
-  const isGuest = Cookies.get("isGuest") === "true";
-  const hasToken = !!Cookies.get("accessToken");
+  // A guest is identified by the sessionStorage token the join flow writes — not by a
+  // cookie, and never by accessToken (a guest has no account, so there is no accessToken
+  // and the old `isGuest` cookie check could never fire). Read it in an effect so the
+  // first server-rendered pass and the first client pass agree.
+  const [guestToken, setGuestToken] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
-  // Only call getMe if not a guest and token is present
-  const { data: userResp, isLoading: userLoading } = useGetMe(!isGuest && hasToken);
-  // Only call guest session if is guest and token is present
-  const { data: guestResp, isLoading: guestLoading } = useGetGuestSession(isGuest && hasToken);
+  const hasAccount = !!Cookies.get("accessToken");
 
-  if (!hasToken) {
+  useEffect(() => {
+    // A real account always wins. Signing in doesn't touch sessionStorage, so a token
+    // left over from an earlier guest visit in the same tab would otherwise linger and
+    // downgrade a signed-in shareholder to a guest. Clear it on sight.
+    if (hasAccount) {
+      clearGuestSession();
+      setGuestToken(null);
+    } else {
+      setGuestToken(sessionStorage.getItem(GUEST_TOKEN_KEY));
+    }
+    setReady(true);
+  }, [hasAccount]);
+  const { data: userResp, isLoading: userLoading } = useGetMe(hasAccount);
+
+  if (hasAccount) {
+    const user = userResp?.data;
     return {
-      type: "ANONYMOUS",
-      user: null,
-      loading: false,
-      isAuthenticated: false,
+      type: "SHAREHOLDER",
+      user: user
+        ? {
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phoneNumber,
+            role: "Shareholder",
+            capabilities: ["VIEW", "QA", "VOTE"],
+          }
+        : null,
+      loading: userLoading,
+      isAuthenticated: !!user,
     };
   }
 
-  if (isGuest) {
-    const session = guestResp?.data;
+  if (guestToken) {
+    // There is no guest-profile endpoint, so we can't name the guest or read capabilities
+    // back from the server. VIEW is the only capability we can honestly claim; anything
+    // more is decided per-request by the backend against X-Guest-Token.
     return {
       type: "GUEST",
-      user: session ? {
-        id: session.id,
-        fullName: session.fullName,
-        email: session.email,
-        phone: session.phone,
-        role: session.role,
-        capabilities: session.capabilities || [],
-      } : null,
-      loading: guestLoading,
-      isAuthenticated: !!session,
+      user: {
+        id: "guest",
+        fullName: "Guest",
+        email: null,
+        phone: null,
+        role: "Guest",
+        capabilities: ["VIEW"],
+      },
+      loading: false,
+      isAuthenticated: true,
     };
   }
 
-  const user = userResp?.data;
   return {
-    type: "SHAREHOLDER",
-    user: user ? {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phoneNumber,
-      role: "Shareholder",
-      capabilities: ["VIEW", "QA", "VOTE"],
-    } : null,
-    loading: userLoading,
-    isAuthenticated: !!user,
+    type: "ANONYMOUS",
+    user: null,
+    loading: !ready,
+    isAuthenticated: false,
   };
 }

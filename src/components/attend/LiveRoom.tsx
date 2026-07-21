@@ -20,7 +20,7 @@ import {
   FileBox,
   DownloadCloud,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit, useGuestEventView, useGuestResolutions } from "@/api/events/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { ZoomStage } from "@/components/attend/ZoomStage";
 import { parseZoomUrl } from "@/lib/zoom";
@@ -36,8 +36,10 @@ import { Button } from "@/components/ui/Button";
 import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils";
 import { Resolution } from "@/types";
 import { useSession } from "@/hooks/useSession";
+import { GUEST_TOKEN_KEY } from "@/lib/guest-session";
 import { NomineeBallot } from "@/components/attend/NomineeBallot";
 import { SourceBreakdown } from "@/components/attend/SourceBreakdown";
+import Cookies from "js-cookie";
 
 type Tab = "qa" | "ballot" | "poll" | "presskit";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
@@ -71,8 +73,22 @@ export function LiveRoom({
   backLabel = "Leave meeting",
   zoomOverride,
 }: LiveRoomProps) {
-  const { data: eventResp } = useGetEvent(eventId);
-  const event = eventResp?.data;
+  const session = useSession();
+  // Trust useSession alone. This used to also OR in a raw sessionStorage read, which
+  // overrode useSession's precedence: a leftover guest token from an earlier guest visit
+  // made a fully signed-in shareholder register as a guest — and lose the vote.
+  // A real account always wins; useSession enforces that.
+  const isGuest = session.type === "GUEST";
+  const [guestToken, setGuestToken] = useState<string>("");
+
+  useEffect(() => {
+    if (isGuest) setGuestToken(sessionStorage.getItem(GUEST_TOKEN_KEY) ?? "");
+  }, [isGuest]);
+
+  const { data: eventResp } = useGetEvent(eventId, !isGuest);
+  const { data: guestViewResp } = useGuestEventView(eventId, guestToken, isGuest && !!guestToken);
+
+  const event = isGuest ? guestViewResp?.data : eventResp?.data;
   const title = event?.title ?? "Live session";
   const organiser = event?.registerName || event?.organizerName || "";
   const watching = event?.registeredCount ?? 0;
@@ -80,14 +96,20 @@ export function LiveRoom({
 
   // Stream link: prefer the gated /stream endpoint (only resolves when live +
   // registered); fall back to the streamUrl the admin set on the event.
-  const { data: streamData } = useGetStream(eventId, isLive);
-  const streamUrl = (streamData?.data?.streamUrl as string) || event?.streamUrl || "";
+  const { data: streamData } = useGetStream(eventId, isLive && !isGuest);
+  
+  let streamUrl = "";
+  if (isGuest) {
+    streamUrl = (guestViewResp?.data?.streamUrl as string) || event?.streamUrl || "";
+  } else {
+    streamUrl = (streamData?.data?.streamUrl as string) || event?.streamUrl || "";
+  }
+
   // If the stream is a Zoom meeting we render the Zoom SDK; otherwise the iframe.
   // A zoomOverride (test-only) takes precedence over the event's streamUrl.
   const zoom = zoomOverride?.meetingNumber ? zoomOverride : parseZoomUrl(streamUrl);
-  const session = useSession();
   const displayName = session.user?.fullName || "Participant";
-  const canVote = session.user ? session.user.capabilities.includes("VOTE") : true;
+  const canVote = !isGuest && (session.user ? session.user.capabilities.includes("VOTE") : true);
   const canSubmitQA = session.user ? session.user.capabilities.includes("QA") : true;
 
   // Zoom's gallery view needs SharedArrayBuffer → the page must be cross-origin
@@ -114,13 +136,15 @@ export function LiveRoom({
   }, [zoomMn]);
 
   // Countdown to start — only polled before the event is live.
-  const { data: cdData } = useGetCountdown(eventId, !!event && !isLive);
+  // Everything below hits *participant* endpoints, which 401/403 for a guest by design.
+  // They're gated on !isGuest so a guest doesn't fire a burst of doomed requests on entry.
+  const { data: cdData } = useGetCountdown(eventId, !!event && !isLive && !isGuest);
   const cdSecs =
     typeof cdData?.data?.secondsUntilStart === "number" ? cdData.data.secondsUntilStart : null;
 
   // Live quorum (AGM ballot only). Response is a generic map — read the percentage
   // defensively; show "—" rather than a fabricated number if it's not present.
-  const { data: quorumData } = useGetQuorum(eventId, showBallot && isLive);
+  const { data: quorumData } = useGetQuorum(eventId, showBallot && isLive && !isGuest);
   const quorumPct = (() => {
     const m = (quorumData?.data ?? {}) as Record<string, unknown>;
     const raw =
@@ -129,28 +153,49 @@ export function LiveRoom({
   })();
 
   // Only AGMs poll resolutions for the live ballot.
-  const { data: resData } = useGetResolutions(eventId, showBallot ? 5000 : undefined, showBallot);
+  const { data: resData } = useGetResolutions(
+    eventId,
+    showBallot && !isGuest ? 5000 : undefined,
+    showBallot && !isGuest,
+  );
+  // Guests read the same resolutions from their own view-only endpoint, so the ballot
+  // panel shows the live tallies instead of claiming there are none.
+  const { data: guestResData } = useGuestResolutions(
+    eventId,
+    guestToken,
+    showBallot && isGuest,
+    5000,
+  );
   const { mutate: castVote, isPending: voting } = useCastVote(eventId);
   const { mutate: upvote } = useUpvoteQuestion(eventId);
 
-  const resolutions = resData?.data?.resolutions ?? [];
-  const hasProxy = !!resData?.data?.hasProxy;
+  // The guest payload is a bare array; the participant one nests under `resolutions`.
+  const resolutions = (isGuest ? guestResData?.data : resData?.data?.resolutions) ?? [];
+  // A guest can't hold a proxy, and their payload carries no such flag.
+  const hasProxy = !isGuest && !!resData?.data?.hasProxy;
 
-  const { data: pollResp } = useGetActivePoll(eventId, !showBallot && isLive ? 5000 : undefined, !showBallot && isLive);
+  const pollEnabled = !showBallot && isLive && !isGuest;
+  const { data: pollResp } = useGetActivePoll(eventId, pollEnabled ? 5000 : undefined, pollEnabled);
   const { mutate: respondToPoll, isPending: submittingPoll } = useRespondToPoll(eventId);
   const activePoll = pollResp?.data;
 
   // Press Kit — product launches only. Poll while live so files flip to "released"
   // as the organiser releases them.
   const isLaunch = event?.eventType === "PRODUCT_LAUNCH";
-  const { data: pressKitResp, error: pressKitError } = useGetPressKit(eventId, isLaunch && isLive ? 10000 : undefined, isLaunch);
+  const { data: pressKitResp, error: pressKitError } = useGetPressKit(
+    eventId,
+    isLaunch && isLive && !isGuest ? 10000 : undefined,
+    isLaunch && !isGuest,
+  );
   const pressKit = pressKitResp?.data;
   // 403 → the participant isn't registered for this event (press kit is gated).
   const pressKitForbidden =
     (pressKitError as { response?: { status?: number } } | null)?.response?.status === 403;
 
   // When the register has no share weighting, shares are all 0 — show head counts only.
-  const shareWeighted = !!resData?.data?.shareWeightedTalliesEnabled;
+  // The guest payload omits this flag entirely, so we can't know whether the register is
+  // share-weighted — show head counts rather than a column of misleading zeroes.
+  const shareWeighted = !isGuest && !!resData?.data?.shareWeightedTalliesEnabled;
   // Status-driven (secondsRemaining is null while a resolution is WAITING).
   const openRes = resolutions.find(
     (r) => (r.status || "").toUpperCase() === "OPEN" || r.secondsRemaining > 0,
@@ -166,8 +211,11 @@ export function LiveRoom({
   const openPos = openRes ? sortedRes.findIndex((r) => r.id === openRes.id) + 1 : null;
 
   // Real-time Q&A over WebSocket; polling stays as a slow (30s) fallback.
-  useQaSocket(eventId);
-  const { data: qData } = useGetQuestions(eventId, 30000);
+  // The socket authenticates with accessToken, which a guest doesn't have — left
+  // unconnected it would retry every 5s forever. Guest Q&A needs the guest-token
+  // STOMP header before this can be enabled for them.
+  useQaSocket(eventId, !isGuest);
+  const { data: qData } = useGetQuestions(eventId, 30000, !isGuest);
   const { mutate: submitQuestion, isPending: submittingQ } = useSubmitQuestion(eventId);
   const apiQuestions = qData?.data?.questions ?? [];
   const qaItems = apiQuestions.map((x) => ({
@@ -296,11 +344,11 @@ export function LiveRoom({
     );
   }
 
-  function handleCastNomineeVote(nomineeVotes: { nomineeId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) {
+  function handleCastCandidateVote(votes: { candidateId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) {
     if (!openRes) return;
     setVoteMsg(null);
     castVote(
-      { resolutionId: openRes.id, data: { nomineeVotes } },
+      { resolutionId: openRes.id, data: { votes } },
       {
         onSuccess: () => {
           setVoteMsg({ kind: "ok", text: "Your nominee ballot has been recorded." });
@@ -447,7 +495,7 @@ export function LiveRoom({
             >
               <Vote className="h-4 w-4 shrink-0 text-white" />
               <p className="text-sm font-semibold text-white">
-                Voting open · Resolution {openRes.order + 1}
+                Voting open · Resolution {openPos ?? "—"}
                 {countdown > 0 ? ` · ${countdown}s remaining` : ""}
               </p>
             </div>
@@ -633,11 +681,11 @@ export function LiveRoom({
                       </div>
                     )}
 
-                    {canVote && !hasProxy && openRes.nominees && openRes.nominees.length > 0 ? (
+                    {canVote && !hasProxy && openRes.candidates && openRes.candidates.length > 0 ? (
                       <NomineeBallot
-                        nominees={openRes.nominees}
+                        candidates={openRes.candidates}
                         title={openRes.title}
-                        onVoteCast={handleCastNomineeVote}
+                        onVoteCast={handleCastCandidateVote}
                         isPending={voting}
                       />
                     ) : canVote && !hasProxy ? (

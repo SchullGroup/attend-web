@@ -81,6 +81,25 @@ export interface EventDetail {
   lateRsvpMinutes?: number;
 }
 
+// Public guest browse (`GET /guest/events`) returns a deliberately slim event — no
+// module, capacity or registration state, since the caller isn't authenticated yet.
+export interface GuestEventListItem {
+  id: string;
+  title: string;
+  date: string;
+  startTime: string;
+  branding?: EventBranding;
+}
+
+export interface GuestEventsListData {
+  events: GuestEventListItem[];
+  page: number;
+  size: number;
+  totalCount: number;
+}
+
+export type GuestEventsListResponse = ApiResponse<GuestEventsListData>;
+
 export interface MyTicket {
   registrationId: string;
   eventId: string;

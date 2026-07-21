@@ -21,6 +21,7 @@ import { cn, formatDate, initialsFor, fileDisplayName, parseApiDate } from "@/li
 import { useEffect } from "react";
 import { getRsvpWindow } from "@/lib/rsvp";
 import { useUserStore } from "@/lib/user-store";
+import { storeGuestSession, readJoinResult } from "@/lib/guest-session";
 
 // Backend formats are upper-case (VIRTUAL/HYBRID/IN_PERSON).
 const FORMAT_LABEL: Record<string, string> = {
@@ -73,8 +74,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     return () => clearInterval(interval);
   }, []);
 
+  const startDateTimeStr = event
+    ? (event.startTime?.includes("T")
+        ? event.startTime
+        : `${event.date}T${event.startTime || "00:00"}`)
+    : "";
+
   const rsvpWindow = event
-    ? getRsvpWindow(event.startTime, event.lateRsvpMinutes ?? 30)
+    ? getRsvpWindow(startDateTimeStr, event.lateRsvpMinutes ?? 30)
     : null;
 
   const [shared, setShared] = useState(false);
@@ -590,11 +597,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   { code: guestCode },
                   {
                     onSuccess: (res: any) => {
-                      const token = res?.data?.guestToken;
-                      if (token) {
-                        sessionStorage.setItem("guestToken", token);
-                        sessionStorage.setItem("guestEventId", id);
-                      }
+                      const { token } = readJoinResult(res);
+                      // Also sets the isGuest flag cookie — without it the middleware
+                      // bounces the guest to /login on the very next line's redirect.
+                      if (token) storeGuestSession(token, id);
                       // Navigate to the live stream for the guest
                       if (mod === "AGM") router.push(`/agm/live?eventId=${id}&guest=true`);
                       else router.push(`/events/live?eventId=${id}&guest=true`);
@@ -641,16 +647,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 Late Registration Open{rsvpWindow.cutoffTime && ` (closes ${formatDate(rsvpWindow.cutoffTime.toISOString())} ${rsvpWindow.cutoffTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 border border-red-200">
-                <ShieldAlert className="h-4 w-4 shrink-0" />
-                Registration Closed{rsvpWindow?.cutoffTime && ` (cutoff was at ${formatDate(rsvpWindow.cutoffTime.toISOString())} ${rsvpWindow.cutoffTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`}
+              <div className="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 border border-amber-200">
+                <Clock className="h-4 w-4 animate-pulse shrink-0" />
+                Late Registration Re-opened (Live Room Access)
               </div>
             )}
             <div className="flex gap-2">
               <Button
                 className="flex-1"
                 onClick={handleRsvp}
-                disabled={rsvping || !rsvpWindow?.isOpen}
+                disabled={rsvping}
                 style={{ backgroundColor: color }}
               >
                 {rsvping ? "Confirming…" : "RSVP & Join"}

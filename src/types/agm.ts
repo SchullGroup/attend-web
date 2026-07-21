@@ -1,5 +1,22 @@
 import { ApiResponse } from "./api";
 
+export type VoteChoiceValue = "FOR" | "AGAINST" | "ABSTAIN";
+
+// One candidate on a candidate/election resolution, with that candidate's own tally.
+export interface CandidateItem {
+  id: string;
+  name: string;
+  bio?: string;
+  order?: number;
+  myVote?: string | null;
+  forCount?: number;
+  againstCount?: number;
+  abstainCount?: number;
+  forShares?: number;
+  againstShares?: number;
+  abstainShares?: number;
+}
+
 export interface Resolution {
   id: string;
   order: number;
@@ -17,11 +34,11 @@ export interface Resolution {
   forShares: number;
   againstShares: number;
   abstainShares: number;
-  nominees?: {
-    id: string;
-    name: string;
-    bio?: string;
-  }[];
+  // Candidate ("election") resolutions carry a list of candidates; each is voted on
+  // independently. The API calls these `candidates` (the spec's "nominees" naming
+  // was never shipped). A standard resolution has an empty/absent list.
+  resolutionType?: string; // STANDARD | CANDIDATE
+  candidates?: CandidateItem[];
   bySource?: {
     ONLINE?: {
       for: number;
@@ -75,11 +92,14 @@ export interface AssignProxyRequest {
   proxyPhone: string;
 }
 
+// Standard resolution → send `choice`.
+// Candidate resolution → send `votes`, with one entry per candidate. The backend
+// rejects a bare `choice` on a candidate resolution ("Votes required").
 export interface CastVoteRequest {
-  choice?: "FOR" | "AGAINST" | "ABSTAIN";
-  nomineeVotes?: {
-    nomineeId: string;
-    choice: "FOR" | "AGAINST" | "ABSTAIN";
+  choice?: VoteChoiceValue;
+  votes?: {
+    candidateId: string;
+    choice: VoteChoiceValue;
   }[];
 }
 
@@ -108,6 +128,9 @@ export interface ProxyHistoryData {
 }
 
 export type ResolutionsResponse = ApiResponse<ResolutionsData>;
+// The guest endpoint returns a bare array of the same items — no votingOpen / hasProxy /
+// shareWeightedTalliesEnabled wrapper, since none of those apply to a view-only guest.
+export type GuestResolutionsResponse = ApiResponse<Resolution[]>;
 export type ProxyResponse = ApiResponse<ProxyData>;
 export type ProxyHistoryResponse = ApiResponse<ProxyHistoryData>;
 

@@ -18,11 +18,11 @@ export const useGetEvents = (params?: EventsQueryParams) => {
   });
 };
 
-export const useGetEvent = (id: string) => {
+export const useGetEvent = (id: string, enabled = true) => {
   return useQuery({
     queryKey: eventKeys.detail(id),
     queryFn: () => eventsClient.getEvent(id),
-    enabled: !!id,
+    enabled: !!id && enabled,
   });
 };
 
@@ -165,10 +165,33 @@ export const useGetPressKit = (eventId: string, refetchInterval?: number, enable
   });
 };
 
+export const useGuestBrowseEvents = (params: { search?: string; page?: number; size?: number }) => {
+  return useQuery({
+    queryKey: [...eventKeys.all, "guest-browse", params] as const,
+    queryFn: () => eventsClient.guestBrowseEvents(params),
+    retry: false,
+  });
+};
+
 export const useGuestJoin = (eventId: string) => {
   return useMutation({
     mutationFn: ({ code }: { code: string }) =>
       eventsClient.guestJoinEvent(eventId, code),
+  });
+};
+
+export const useGuestResolutions = (
+  eventId: string,
+  guestToken: string,
+  enabled = true,
+  refetchInterval?: number,
+) => {
+  return useQuery({
+    queryKey: [...eventKeys.detail(eventId), "guest-resolutions"] as const,
+    queryFn: () => eventsClient.guestGetResolutions(eventId, guestToken),
+    enabled: !!eventId && !!guestToken && enabled,
+    retry: false,
+    refetchInterval: refetchInterval ?? false,
   });
 };
 

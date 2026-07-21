@@ -3,11 +3,14 @@ import { apiClient } from "@/lib/api-client";
 import {
   EventsListResponse,
   EventDetailResponse,
+  EventDetail,
   EventsQueryParams,
   MyTicketResponse,
   ApiResponse,
   ApiResponseActivePollResponse,
   ApiResponsePressKitResponse,
+  GuestEventsListResponse,
+  GuestResolutionsResponse,
 } from "@/types";
 
 export const eventsClient = {
@@ -147,8 +150,28 @@ export const eventsClient = {
     return response.data;
   },
 
+  // Public — no token of any kind. This is the only guest entry point that doesn't
+  // already require an event id, so it's what "Continue as guest" browses.
+  guestBrowseEvents: async (params: { search?: string; page?: number; size?: number }) => {
+    const response = await axios.get<GuestEventsListResponse>(`/api/v1/guest/events`, {
+      params,
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  },
+
+  // View-only resolutions for a guest. Same items as the participant endpoint, but the
+  // payload is a bare array rather than a { resolutions } object.
+  guestGetResolutions: async (eventId: string, guestToken: string) => {
+    const response = await apiClient.get<GuestResolutionsResponse>(
+      `/api/v1/guest/events/${eventId}/resolutions`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
   guestGetView: async (eventId: string, guestToken: string) => {
-    const response = await axios.get<ApiResponse<Record<string, unknown>>>(
+    const response = await apiClient.get<ApiResponse<EventDetail>>(
       `/api/v1/guest/events/${eventId}/view`,
       { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
     );
