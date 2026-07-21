@@ -96,6 +96,17 @@ export default function HackathonPage() {
               <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
                 <div>
                   <div className="flex items-center gap-2">
+                    {(c.branding?.logoUrl || c.organizerLogo) && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={c.branding?.logoUrl || c.organizerLogo}
+                        alt=""
+                        className="h-5 w-5 rounded object-contain bg-slate-50 p-0.5 shadow-sm border border-slate-100"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    )}
                     <p
                       className="text-xs font-semibold uppercase tracking-wide"
                       style={{ color: c.brandPrimary || c.branding?.brandColor || '#6b21a8' }}
@@ -126,10 +137,10 @@ export default function HackathonPage() {
                     <Button
                       size="sm"
                       style={{
-                        backgroundColor: c.brandPrimary || undefined,
-                        borderColor: c.brandPrimary || undefined,
+                        backgroundColor: c.brandPrimary || c.branding?.brandColor || undefined,
+                        borderColor: c.brandPrimary || c.branding?.brandColor || undefined,
                       }}
-                      className={cn(c.brandPrimary && "hover:opacity-90 text-white")}
+                      className={cn((c.brandPrimary || c.branding?.brandColor) && "hover:opacity-90 text-white")}
                     >
                       Apply <ArrowRight className="h-3.5 w-3.5" />
                     </Button>

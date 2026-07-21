@@ -11,6 +11,11 @@ export default function SavedEventsPage() {
     title: e.title,
     organiser: e.registerName || e.organizerName,
     module: e.eventType,
+    // Saved cards were passing neither branding nor banner, so they always rendered
+    // the default blue — unlike the same event on every other page.
+    thumbnailColor: e.branding?.brandColor || undefined,
+    logoUrl: e.branding?.logoUrl,
+    image: e.bannerUrl || undefined,
     status: e.status,
     date: e.date,
     startTime: e.startTime,

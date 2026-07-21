@@ -81,6 +81,7 @@ interface HomeEvent {
   startTime: string;
   rsvpCount: number;
   thumbnailColor: string;
+  logoUrl?: string | null;
   rsvpStatus?: boolean;
   image?: string;
 }
@@ -95,6 +96,7 @@ function toHomeEvent(e: EventListItem): HomeEvent {
     startTime: e.startTime,
     rsvpCount: e.maximumCapacity || 0,
     thumbnailColor: e.branding?.brandColor || (EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb"),
+    logoUrl: e.branding?.logoUrl,
     rsvpStatus: e.registered,
     image: e.bannerUrl || undefined,
   };
@@ -308,7 +310,19 @@ export default function HomePage() {
                       <p className="truncate text-base font-bold text-white leading-snug">
                         {event.title.split("—")[1]?.trim() ?? event.title}
                       </p>
-                      <p className="mt-0.5 text-xs text-white/75">{event.organiser}</p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/75">
+                        {event.logoUrl && (
+                          <img
+                            src={event.logoUrl}
+                            alt=""
+                            className="h-4 w-4 shrink-0 rounded bg-white/95 object-contain"
+                            onError={(ev) => {
+                              (ev.currentTarget as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        )}
+                        <span className="truncate">{event.organiser}</span>
+                      </p>
                       <p className="text-xs text-white/60">
                         {formatDate(event.date)} · {event.format}
                       </p>

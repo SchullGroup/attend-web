@@ -95,12 +95,16 @@ export default function HackathonDetailPage({
 
   const isLive = (challenge.status || "").toUpperCase() === "LIVE";
 
+  const brandPrimary = challenge.brandPrimary || challenge.branding?.brandColor || "#9333ea";
+  const brandAccent = challenge.brandAccent || challenge.branding?.brandColor || "#c084fc";
+  const logoUrl = challenge.branding?.logoUrl || (challenge as any).organizerLogo || null;
+
   return (
     <div
       className="challenge-scope space-y-6"
       style={{
-        "--brand-primary": challenge.brandPrimary || "#9333ea",
-        "--brand-accent":  challenge.brandAccent  || "#c084fc",
+        "--brand-primary": brandPrimary,
+        "--brand-accent":  brandAccent,
       } as React.CSSProperties}
     >
       <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -113,8 +117,8 @@ export default function HackathonDetailPage({
           href={`/events/live?eventId=${id}`}
           className="flex items-center justify-between gap-3 rounded-2xl border px-5 py-3.5 shadow-sm transition-colors"
           style={{
-            borderColor: `${challenge.brandAccent || '#c084fc'}40`,
-            backgroundColor: `${challenge.brandPrimary || '#9333ea'}08`,
+            borderColor: `${brandAccent}40`,
+            backgroundColor: `${brandPrimary}08`,
             color: 'var(--brand-primary)',
           }}
         >
@@ -143,7 +147,20 @@ export default function HackathonDetailPage({
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
           <div className="relative space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{challenge.organizerName}</p>
+            <div className="flex items-center gap-2">
+              {logoUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="h-6 w-6 rounded bg-white/95 object-contain p-0.5 shadow-sm"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              )}
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{challenge.organizerName}</p>
+            </div>
             <h1 className="text-2xl font-bold leading-tight md:text-3xl">{challenge.title}</h1>
             {challenge.description && <p className="max-w-2xl text-sm text-white/85">{challenge.description}</p>}
             <div className="flex flex-wrap gap-2 pt-1">
@@ -184,7 +201,20 @@ export default function HackathonDetailPage({
         >
           <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
           <div className="relative space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{challenge.organizerName}</p>
+            <div className="flex items-center gap-2">
+              {logoUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="h-6 w-6 rounded bg-white/95 object-contain p-0.5 shadow-sm"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              )}
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{challenge.organizerName}</p>
+            </div>
             <h1 className="text-2xl font-bold leading-tight md:text-3xl">{challenge.title}</h1>
             {challenge.description && <p className="max-w-2xl text-sm text-white/85">{challenge.description}</p>}
             <div className="flex flex-wrap gap-2 pt-1">
@@ -256,7 +286,7 @@ export default function HackathonDetailPage({
                 <span
                   key={t}
                   className="rounded-full px-2.5 py-1 text-xs font-medium text-[var(--brand-primary)]"
-                  style={{ backgroundColor: `${challenge.brandPrimary || '#9333ea'}15` }}
+                  style={{ backgroundColor: `${brandPrimary}15` }}
                 >
                   {t}
                 </span>
@@ -329,8 +359,8 @@ export default function HackathonDetailPage({
         <section
           className="rounded-2xl border p-5"
           style={{
-            borderColor: `${challenge.brandAccent || '#c084fc'}40`,
-            backgroundColor: `${challenge.brandPrimary || '#9333ea'}08`,
+            borderColor: `${brandAccent}40`,
+            backgroundColor: `${brandPrimary}08`,
           }}
         >
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--brand-primary)]">Your team</p>
