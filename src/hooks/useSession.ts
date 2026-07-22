@@ -72,7 +72,7 @@ export function useSession(): Session {
         email: null,
         phone: null,
         role: "Guest",
-        capabilities: ["VIEW"],
+        capabilities: ["VIEW", "QA"],
       },
       loading: false,
       isAuthenticated: true,

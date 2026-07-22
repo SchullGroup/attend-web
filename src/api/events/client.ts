@@ -11,6 +11,8 @@ import {
   ApiResponsePressKitResponse,
   GuestEventsListResponse,
   GuestResolutionsResponse,
+  QuestionsResponse,
+  SubmitQuestionRequest,
 } from "@/types";
 
 export const eventsClient = {
@@ -173,6 +175,32 @@ export const eventsClient = {
   guestGetView: async (eventId: string, guestToken: string) => {
     const response = await apiClient.get<ApiResponse<EventDetail>>(
       `/api/v1/guest/events/${eventId}/view`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestGetQuestions: async (eventId: string, guestToken: string) => {
+    const response = await apiClient.get<QuestionsResponse>(
+      `/api/v1/guest/events/${eventId}/questions`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestSubmitQuestion: async (eventId: string, guestToken: string, data: SubmitQuestionRequest) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/guest/events/${eventId}/questions`,
+      data,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestUpvoteQuestion: async (eventId: string, guestToken: string, questionId: string) => {
+    const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/guest/events/${eventId}/questions/${questionId}/upvote`,
+      {},
       { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
     );
     return response.data;

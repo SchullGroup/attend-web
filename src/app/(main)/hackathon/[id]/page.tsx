@@ -95,9 +95,21 @@ export default function HackathonDetailPage({
 
   const isLive = (challenge.status || "").toUpperCase() === "LIVE";
 
-  const brandPrimary = challenge.brandPrimary || challenge.branding?.brandColor || "#9333ea";
-  const brandAccent = challenge.brandAccent || challenge.branding?.brandColor || "#c084fc";
-  const logoUrl = challenge.branding?.logoUrl || (challenge as any).organizerLogo || null;
+  const brandPrimary =
+    challenge.brandPrimary ||
+    challenge.branding?.brandColor ||
+    (challenge as any).organizerPrimaryColor ||
+    "#9333ea";
+  const brandAccent =
+    challenge.brandAccent ||
+    challenge.branding?.brandColor ||
+    (challenge as any).organizerPrimaryColor ||
+    "#c084fc";
+  const logoUrl =
+    challenge.branding?.logoUrl ||
+    (challenge as any).organizerLogo ||
+    (challenge as any).registerLogo ||
+    null;
 
   return (
     <div

@@ -20,7 +20,7 @@ import {
   FileBox,
   DownloadCloud,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit, useGuestEventView, useGuestResolutions } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit, useGuestEventView, useGuestResolutions, useGuestQuestions, useGuestSubmitQuestion, useGuestUpvoteQuestion } from "@/api/events/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { ZoomStage } from "@/components/attend/ZoomStage";
 import { parseZoomUrl } from "@/lib/zoom";
@@ -167,7 +167,6 @@ export function LiveRoom({
     5000,
   );
   const { mutate: castVote, isPending: voting } = useCastVote(eventId);
-  const { mutate: upvote } = useUpvoteQuestion(eventId);
 
   // The guest payload is a bare array; the participant one nests under `resolutions`.
   const resolutions = (isGuest ? guestResData?.data : resData?.data?.resolutions) ?? [];
@@ -215,8 +214,24 @@ export function LiveRoom({
   // unconnected it would retry every 5s forever. Guest Q&A needs the guest-token
   // STOMP header before this can be enabled for them.
   useQaSocket(eventId, !isGuest);
-  const { data: qData } = useGetQuestions(eventId, 30000, !isGuest);
-  const { mutate: submitQuestion, isPending: submittingQ } = useSubmitQuestion(eventId);
+  const { data: participantQData } = useGetQuestions(eventId, 30000, !isGuest);
+  const { data: guestQData } = useGuestQuestions(eventId, guestToken, 10000, isGuest && !!guestToken);
+  const qData = isGuest ? guestQData : participantQData;
+
+  const { mutate: submitParticipantQ, isPending: submittingParticipantQ } = useSubmitQuestion(eventId);
+  const { mutate: submitGuestQ, isPending: submittingGuestQ } = useGuestSubmitQuestion(eventId, guestToken);
+  const submitQuestion = isGuest ? submitGuestQ : submitParticipantQ;
+  const submittingQ = isGuest ? submittingGuestQ : submittingParticipantQ;
+
+  const { mutate: upvoteParticipant } = useUpvoteQuestion(eventId);
+  const { mutate: upvoteGuest } = useGuestUpvoteQuestion(eventId, guestToken);
+  const upvote = (questionId: string) => {
+    if (isGuest) {
+      upvoteGuest(questionId);
+    } else {
+      upvoteParticipant(questionId);
+    }
+  };
   const apiQuestions = qData?.data?.questions ?? [];
   const qaItems = apiQuestions.map((x) => ({
     id: x.id,

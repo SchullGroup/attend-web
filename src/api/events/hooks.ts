@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { eventsClient } from "./client";
-import { EventsQueryParams } from "@/types";
+import { EventsQueryParams, SubmitQuestionRequest } from "@/types";
 
 export const eventKeys = {
   all: ["events"] as const,
@@ -202,5 +202,79 @@ export const useGuestEventView = (eventId: string, guestToken: string, enabled =
     enabled: !!eventId && !!guestToken && enabled,
     retry: false,
     refetchInterval: 15000,
+  });
+};
+
+export const useGuestQuestions = (
+  eventId: string,
+  guestToken: string,
+  refetchInterval?: number,
+  enabled = true,
+) => {
+  return useQuery({
+    queryKey: [...eventKeys.detail(eventId), "guest-questions", guestToken] as const,
+    queryFn: () => eventsClient.guestGetQuestions(eventId, guestToken),
+    enabled: !!eventId && !!guestToken && enabled,
+    refetchInterval: refetchInterval ?? false,
+  });
+};
+
+export const useGuestSubmitQuestion = (eventId: string, guestToken: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: SubmitQuestionRequest) =>
+      eventsClient.guestSubmitQuestion(eventId, guestToken, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...eventKeys.detail(eventId), "guest-questions"] as const,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["agm", "questions", eventId],
+      });
+    },
+  });
+};
+
+export const useGuestUpvoteQuestion = (eventId: string, guestToken: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (questionId: string) =>
+      eventsClient.guestUpvoteQuestion(eventId, guestToken, questionId),
+    onMutate: async (questionId) => {
+      const qKey = [...eventKeys.detail(eventId), "guest-questions", guestToken] as const;
+      await queryClient.cancelQueries({ queryKey: qKey });
+      const previous = queryClient.getQueryData<any>(qKey);
+      if (previous?.data?.questions) {
+        queryClient.setQueryData<any>(qKey, {
+          ...previous,
+          data: {
+            ...previous.data,
+            questions: previous.data.questions.map((q: any) => {
+              if (q.id === questionId) {
+                const wasUpvoted = !!q.myUpvote;
+                return {
+                  ...q,
+                  myUpvote: !wasUpvoted,
+                  upvoteCount: Math.max(0, (q.upvoteCount ?? 0) + (wasUpvoted ? -1 : 1)),
+                };
+              }
+              return q;
+            }),
+          },
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _questionId, context) => {
+      if (context?.previous) {
+        const qKey = [...eventKeys.detail(eventId), "guest-questions", guestToken] as const;
+        queryClient.setQueryData(qKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...eventKeys.detail(eventId), "guest-questions"] as const,
+      });
+    },
   });
 };

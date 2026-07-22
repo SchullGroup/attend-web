@@ -86,6 +86,12 @@ interface HomeEvent {
   image?: string;
 }
 function toHomeEvent(e: EventListItem): HomeEvent {
+  const brandColor =
+    e.branding?.brandColor ||
+    e.brandPrimary ||
+    (e as any).organizerPrimaryColor ||
+    (EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb");
+  const logoUrl = e.branding?.logoUrl || e.organizerLogo || null;
   return {
     id: e.id,
     module: e.eventType,
@@ -95,8 +101,8 @@ function toHomeEvent(e: EventListItem): HomeEvent {
     format: e.format,
     startTime: e.startTime,
     rsvpCount: e.maximumCapacity || 0,
-    thumbnailColor: e.branding?.brandColor || (EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb"),
-    logoUrl: e.branding?.logoUrl,
+    thumbnailColor: brandColor,
+    logoUrl,
     rsvpStatus: e.registered,
     image: e.bannerUrl || undefined,
   };
@@ -373,10 +379,22 @@ export default function HomePage() {
               className="flex items-center gap-3 rounded-2xl border border-border bg-white p-3 transition-colors hover:bg-muted/40"
             >
               <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
+                className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-xs font-bold text-white shadow-sm"
                 style={{ background: e.thumbnailColor }}
               >
-                {initialsFor(e.organiser)}
+                {e.logoUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={e.logoUrl}
+                    alt=""
+                    className="h-full w-full object-contain p-1 bg-white/95"
+                    onError={(ev) => {
+                      (ev.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  initialsFor(e.organiser)
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">

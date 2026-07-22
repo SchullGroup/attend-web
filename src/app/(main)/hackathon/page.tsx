@@ -109,7 +109,7 @@ export default function HackathonPage() {
                     )}
                     <p
                       className="text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: c.brandPrimary || c.branding?.brandColor || '#6b21a8' }}
+                      style={{ color: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || '#6b21a8' }}
                     >
                       {c.registerName || c.organizerName}
                     </p>
@@ -137,10 +137,10 @@ export default function HackathonPage() {
                     <Button
                       size="sm"
                       style={{
-                        backgroundColor: c.brandPrimary || c.branding?.brandColor || undefined,
-                        borderColor: c.brandPrimary || c.branding?.brandColor || undefined,
+                        backgroundColor: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || undefined,
+                        borderColor: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || undefined,
                       }}
-                      className={cn((c.brandPrimary || c.branding?.brandColor) && "hover:opacity-90 text-white")}
+                      className={cn((c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor) && "hover:opacity-90 text-white")}
                     >
                       Apply <ArrowRight className="h-3.5 w-3.5" />
                     </Button>

@@ -27,8 +27,12 @@ function apiToCard(item: EventListItem): EventCardData {
     title: item.title,
     organiser: item.registerName || item.organizerName,
     module: item.eventType,
-    thumbnailColor: item.branding?.brandColor || (EVENT_COLOR[item.eventType?.toUpperCase()] ?? "#2563eb"),
-    logoUrl: item.branding?.logoUrl,
+    thumbnailColor:
+      item.branding?.brandColor ||
+      item.brandPrimary ||
+      (item as any).organizerPrimaryColor ||
+      (EVENT_COLOR[item.eventType?.toUpperCase()] ?? "#2563eb"),
+    logoUrl: item.branding?.logoUrl || item.organizerLogo || null,
     image: item.bannerUrl || undefined,
     status: item.status,
     date: item.date,
