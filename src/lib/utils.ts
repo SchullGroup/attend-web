@@ -71,6 +71,19 @@ export function formatShortDate(d: string) {
   return parseApiDate(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+export function formatMemberSince(d?: string): string {
+  if (!d) return "Member since 2026";
+  try {
+    const dt = parseApiDate(d);
+    if (isNaN(dt.getTime())) return "Member since 2026";
+    const month = dt.toLocaleDateString("en-US", { month: "long" });
+    const year = dt.getFullYear();
+    return `Member since ${month} ${year}`;
+  } catch {
+    return "Member since 2026";
+  }
+}
+
 export function formatRelativeTime(d: string) {
   const now = new Date().getTime();
   const then = parseApiDate(d).getTime();

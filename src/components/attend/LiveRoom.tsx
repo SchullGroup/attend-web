@@ -20,7 +20,7 @@ import {
   FileBox,
   DownloadCloud,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit, useGuestEventView, useGuestResolutions, useGuestQuestions, useGuestSubmitQuestion, useGuestUpvoteQuestion } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit, useGuestEventView, useGuestResolutions, useGuestQuestions, useGuestSubmitQuestion, useGuestUpvoteQuestion, useGuestPolls, useGuestRespondToPoll, useGuestProxyVote } from "@/api/events/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { ZoomStage } from "@/components/attend/ZoomStage";
 import { parseZoomUrl } from "@/lib/zoom";
@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/Button";
 import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils";
 import { Resolution } from "@/types";
 import { useSession } from "@/hooks/useSession";
-import { GUEST_TOKEN_KEY } from "@/lib/guest-session";
+import { GUEST_TOKEN_KEY, getGuestName } from "@/lib/guest-session";
 import { NomineeBallot } from "@/components/attend/NomineeBallot";
 import { SourceBreakdown } from "@/components/attend/SourceBreakdown";
 import Cookies from "js-cookie";
@@ -108,7 +108,7 @@ export function LiveRoom({
   // If the stream is a Zoom meeting we render the Zoom SDK; otherwise the iframe.
   // A zoomOverride (test-only) takes precedence over the event's streamUrl.
   const zoom = zoomOverride?.meetingNumber ? zoomOverride : parseZoomUrl(streamUrl);
-  const displayName = session.user?.fullName || "Participant";
+  const displayName = session.user?.fullName || (isGuest ? getGuestName() : "Participant");
   const canVote = !isGuest && (session.user ? session.user.capabilities.includes("VOTE") : true);
   const canSubmitQA = session.user ? session.user.capabilities.includes("QA") : true;
 
@@ -173,10 +173,18 @@ export function LiveRoom({
   // A guest can't hold a proxy, and their payload carries no such flag.
   const hasProxy = !isGuest && !!resData?.data?.hasProxy;
 
-  const pollEnabled = !showBallot && isLive && !isGuest;
-  const { data: pollResp } = useGetActivePoll(eventId, pollEnabled ? 5000 : undefined, pollEnabled);
-  const { mutate: respondToPoll, isPending: submittingPoll } = useRespondToPoll(eventId);
-  const activePoll = pollResp?.data;
+  const pollEnabled = !showBallot && isLive;
+  const { data: participantPollResp } = useGetActivePoll(eventId, pollEnabled && !isGuest ? 5000 : undefined, pollEnabled && !isGuest);
+  const { data: guestPollResp } = useGuestPolls(eventId, guestToken, pollEnabled && isGuest ? 5000 : undefined, pollEnabled && isGuest && !!guestToken);
+  const activePoll = isGuest ? guestPollResp?.data : participantPollResp?.data;
+
+  const { mutate: respondToParticipantPoll, isPending: submittingParticipantPoll } = useRespondToPoll(eventId);
+  const { mutate: respondToGuestPoll, isPending: submittingGuestPoll } = useGuestRespondToPoll(eventId, guestToken);
+  const respondToPoll = isGuest ? respondToGuestPoll : respondToParticipantPoll;
+  const submittingPoll = isGuest ? submittingGuestPoll : submittingParticipantPoll;
+
+  const { mutate: guestProxyVote, isPending: guestProxyVoting } = useGuestProxyVote(eventId, guestToken);
+  const [proxyCode, setProxyCode] = useState("");
 
   // Press Kit — product launches only. Poll while live so files flip to "released"
   // as the organiser releases them.
@@ -250,6 +258,7 @@ export function LiveRoom({
   const [pollMsg, setPollMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [vote, setVote] = useState<VoteChoice | null>(null);
   const [voteMsg, setVoteMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [isEditingVote, setIsEditingVote] = useState(false);
 
   const [q, setQ] = useState("");
   const [qSent, setQSent] = useState(false);
@@ -316,6 +325,7 @@ export function LiveRoom({
   // Pre-select the user's existing vote so they can review/change it in the window.
   useEffect(() => {
     setVote((openRes?.myVote as VoteChoice | null) ?? null);
+    setIsEditingVote(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRes?.id]);
 
@@ -343,16 +353,12 @@ export function LiveRoom({
       {
         onSuccess: () => {
           setVoteMsg({ kind: "ok", text: "Your vote has been recorded." });
-          setVote(null);
+          setIsEditingVote(false);
         },
         onError: (err: any) => {
-          const status = err?.response?.status;
           setVoteMsg({
             kind: "err",
-            text:
-              status === 409
-                ? "You've already voted on this resolution."
-                : err?.response?.data?.message || "Could not record your vote. Please try again.",
+            text: err?.response?.data?.message || (err?.response?.status === 409 ? "You've already voted on this resolution." : "Could not record your vote. Please try again."),
           });
         },
       },
@@ -367,11 +373,52 @@ export function LiveRoom({
       {
         onSuccess: () => {
           setVoteMsg({ kind: "ok", text: "Your nominee ballot has been recorded." });
+          setIsEditingVote(false);
         },
         onError: (err: any) => {
           setVoteMsg({
             kind: "err",
             text: err?.response?.data?.message || "Could not record your nominee votes. Please try again.",
+          });
+        },
+      },
+    );
+  }
+
+  function handleGuestProxyVoteChoice(choice: VoteChoice) {
+    if (!openRes || !proxyCode.trim()) return;
+    setVoteMsg(null);
+    guestProxyVote(
+      { resolutionId: openRes.id, proxyCode: proxyCode.trim(), data: { choice } },
+      {
+        onSuccess: () => {
+          setVoteMsg({ kind: "ok", text: "Your proxy vote has been recorded." });
+          setIsEditingVote(false);
+        },
+        onError: (err: any) => {
+          setVoteMsg({
+            kind: "err",
+            text: err?.response?.data?.message || "Could not record your proxy vote. Please verify your proxy code.",
+          });
+        },
+      },
+    );
+  }
+
+  function handleGuestProxyCandidateVote(votes: { candidateId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) {
+    if (!openRes || !proxyCode.trim()) return;
+    setVoteMsg(null);
+    guestProxyVote(
+      { resolutionId: openRes.id, proxyCode: proxyCode.trim(), data: { votes } },
+      {
+        onSuccess: () => {
+          setVoteMsg({ kind: "ok", text: "Your proxy candidate ballot has been recorded." });
+          setIsEditingVote(false);
+        },
+        onError: (err: any) => {
+          setVoteMsg({
+            kind: "err",
+            text: err?.response?.data?.message || "Could not record your proxy candidate vote. Please verify your proxy code.",
           });
         },
       },
@@ -588,7 +635,7 @@ export function LiveRoom({
                             {item.answer}
                           </div>
                         )}
-                        {item.status === "APPROVED" || item.status === "ANSWERED" ? (
+                        {!isGuest && (item.status === "APPROVED" || item.status === "ANSWERED") ? (
                           <div className="mt-2 flex items-center">
                             <button
                               type="button"
@@ -604,6 +651,13 @@ export function LiveRoom({
                               <ThumbsUp className={cn("h-3.5 w-3.5", item.myUpvote && "fill-current")} />
                               {item.upvoteCount}
                             </button>
+                          </div>
+                        ) : item.status === "APPROVED" || item.status === "ANSWERED" ? (
+                          <div className="mt-2 flex items-center">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                              <ThumbsUp className="h-3.5 w-3.5" />
+                              {item.upvoteCount} upvotes
+                            </span>
                           </div>
                         ) : item.status === "PENDING" ? (
                           <div className="mt-2 flex items-center">
@@ -696,52 +750,152 @@ export function LiveRoom({
                       </div>
                     )}
 
-                    {canVote && !hasProxy && openRes.candidates && openRes.candidates.length > 0 ? (
-                      <NomineeBallot
-                        candidates={openRes.candidates}
-                        title={openRes.title}
-                        onVoteCast={handleCastCandidateVote}
-                        isPending={voting}
-                      />
-                    ) : canVote && !hasProxy ? (
-                      <>
-                        <div className="grid grid-cols-3 gap-2">
-                          {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
-                            const selected = vote === opt;
-                            const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
-                            const tone =
-                              opt === "FOR"
-                                ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                                : opt === "AGAINST"
-                                ? "border-red-200 text-red-700 hover:bg-red-50"
-                                : "border-border text-muted-foreground hover:bg-muted";
-                            const selectedTone =
-                              opt === "FOR"
-                                ? "bg-emerald-600 text-white border-emerald-600"
-                                : opt === "AGAINST"
-                                ? "bg-red-600 text-white border-red-600"
-                                : "bg-slate-700 text-white border-slate-700";
-                            return (
+                    {(() => {
+                      const hasRecorded = !!openRes.myVote || (voteMsg?.kind === "ok");
+                      const recordedChoice = (openRes.myVote || "").toUpperCase();
+                      const resolutionIsOpen = openRes.secondsRemaining > 0 || (openRes.status || "").toUpperCase() === "OPEN";
+
+                      if (hasRecorded && !isEditingVote) {
+                        return (
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 space-y-3 shadow-xs">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+                                  <Check className="h-4.5 w-4.5 stroke-[2.5]" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-emerald-950">Vote Recorded</p>
+                                  <p className="text-[11px] text-emerald-700 truncate">
+                                    {recordedChoice ? `Selected choice: ${recordedChoice}` : "Your ballot vote has been saved."}
+                                  </p>
+                                </div>
+                              </div>
+                              {resolutionIsOpen && (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsEditingVote(true)}
+                                  className="shrink-0 rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 shadow-xs hover:bg-emerald-100 transition-colors"
+                                >
+                                  Change vote
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <>
+                          {isEditingVote && resolutionIsOpen && (
+                            <div className="flex items-center justify-between text-xs text-muted-foreground pb-1">
+                              <span>Updating your vote</span>
                               <button
-                                key={opt}
-                                onClick={() => setVote(opt)}
-                                disabled={voting}
-                                className={cn(
-                                  "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
-                                  selected ? selectedTone : tone,
-                                )}
+                                type="button"
+                                onClick={() => setIsEditingVote(false)}
+                                className="font-semibold text-primary hover:underline"
                               >
-                                <Icon className="h-4 w-4" />
-                                {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                                Cancel
                               </button>
-                            );
-                          })}
-                        </div>
-                        <Button fullWidth disabled={!vote || voting} loading={voting} onClick={handleCastVote}>
-                          {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
-                        </Button>
-                      </>
-                    ) : null}
+                            </div>
+                          )}
+
+                          {canVote && !hasProxy && openRes.candidates && openRes.candidates.length > 0 ? (
+                            <NomineeBallot
+                              candidates={openRes.candidates}
+                              title={openRes.title}
+                              onVoteCast={handleCastCandidateVote}
+                              isPending={voting}
+                            />
+                          ) : canVote && !hasProxy ? (
+                            <>
+                              <div className="grid grid-cols-3 gap-2">
+                                {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
+                                  const selected = vote === opt;
+                                  const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
+                                  const tone =
+                                    opt === "FOR"
+                                      ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                      : opt === "AGAINST"
+                                      ? "border-red-200 text-red-700 hover:bg-red-50"
+                                      : "border-border text-muted-foreground hover:bg-muted";
+                                  const selectedTone =
+                                    opt === "FOR"
+                                      ? "bg-emerald-600 text-white border-emerald-600"
+                                      : opt === "AGAINST"
+                                      ? "bg-red-600 text-white border-red-600"
+                                      : "bg-slate-700 text-white border-slate-700";
+                                  return (
+                                    <button
+                                      key={opt}
+                                      onClick={() => setVote(opt)}
+                                      disabled={voting}
+                                      className={cn(
+                                        "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
+                                        selected ? selectedTone : tone,
+                                      )}
+                                    >
+                                      <Icon className="h-4 w-4" />
+                                      {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <Button fullWidth disabled={!vote || voting} loading={voting} onClick={handleCastVote}>
+                                {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
+                              </Button>
+                            </>
+                          ) : isGuest ? (
+                            <div className="rounded-xl border border-border bg-slate-50/70 p-3.5 space-y-3">
+                              <div>
+                                <p className="text-xs font-semibold text-foreground">Have a proxy code?</p>
+                                <p className="text-[11px] text-muted-foreground">Enter the 10-digit code given to you by a shareholder to cast a vote on their behalf.</p>
+                              </div>
+                              <input
+                                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs font-mono tracking-widest outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                                placeholder="e.g. 0417382951"
+                                maxLength={10}
+                                value={proxyCode}
+                                onChange={(e) => setProxyCode(e.target.value)}
+                              />
+                              {openRes.candidates && openRes.candidates.length > 0 ? (
+                                <NomineeBallot
+                                  candidates={openRes.candidates}
+                                  title={openRes.title}
+                                  onVoteCast={handleGuestProxyCandidateVote}
+                                  isPending={guestProxyVoting || proxyCode.trim().length !== 10}
+                                />
+                              ) : (
+                                <div className="grid grid-cols-3 gap-2">
+                                  {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
+                                    const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
+                                    const tone =
+                                      opt === "FOR"
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                        : opt === "AGAINST"
+                                        ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                                        : "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200";
+                                    return (
+                                      <button
+                                        key={opt}
+                                        disabled={proxyCode.trim().length !== 10 || guestProxyVoting}
+                                        onClick={() => handleGuestProxyVoteChoice(opt)}
+                                        className={cn(
+                                          "flex flex-col items-center gap-1 rounded-xl border px-2 py-2.5 text-xs font-semibold capitalize transition-colors disabled:opacity-40",
+                                          tone
+                                        )}
+                                      >
+                                        <Icon className="h-3.5 w-3.5" />
+                                        {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+                        </>
+                      );
+                    })()}
 
                     {openRes.forCount + openRes.againstCount + openRes.abstainCount > 0 && (
                       <div className="border-t border-border pt-3 space-y-3">

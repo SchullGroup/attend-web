@@ -12,11 +12,12 @@ import {
   FileText,
   Mail,
   Phone,
+  Calendar,
 } from "lucide-react";
 import { useGetMe, useLogout } from "@/api/auth/hooks";
 import { useUserStore } from "@/lib/user-store";
 import { Badge } from "@/components/ui/Badge";
-import { initialsFor } from "@/lib/utils";
+import { initialsFor, formatMemberSince } from "@/lib/utils";
 
 interface RowItem {
   icon: typeof Lock;
@@ -123,6 +124,9 @@ export default function ProfilePage() {
                     <Phone className="h-3.5 w-3.5" /> {currentUser.phoneNumber}
                   </p>
                 )}
+                <p className="flex items-center gap-1.5 text-primary/80 font-medium">
+                  <Calendar className="h-3.5 w-3.5" /> {formatMemberSince(currentUser.createdAt)}
+                </p>
               </div>
             </div>
           </div>

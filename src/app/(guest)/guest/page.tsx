@@ -1,19 +1,17 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Search, KeyRound, Calendar, Clock } from "lucide-react";
+import { ArrowLeft, Search, KeyRound, Calendar, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { useGuestBrowseEvents, useGuestJoin } from "@/api/events/hooks";
 import { storeGuestSession, resolveGuestLiveHref, readJoinResult } from "@/lib/guest-session";
 import type { GuestEventListItem } from "@/types";
 
-// Guest access is scoped to a single event, so there's no such thing as a guest "login".
-// A bare code can't be resolved on its own either — the backend has no code→event lookup
-// (invite links carry ?eventId=&code=). So the entry point is: browse the public event
-// list, pick your event, then enter the code the organiser gave you.
-export default function GuestBrowsePage() {
+function GuestBrowseContent() {
+  const searchParams = useSearchParams();
+  const isExpired = searchParams.get("expired") === "true";
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<GuestEventListItem | null>(null);
@@ -32,6 +30,18 @@ export default function GuestBrowsePage() {
       >
         <ArrowLeft className="h-4 w-4" /> Back to sign in
       </Link>
+
+      {isExpired && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-3 shadow-sm">
+          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-sm text-amber-950">Your guest session has expired</p>
+            <p className="mt-0.5 text-amber-800">
+              For security, guest sessions automatically expire after a period of time. Please find your event below and enter your invitation access code to rejoin.
+            </p>
+          </div>
+        </div>
+      )}
 
       <header>
         <h1 className="text-2xl font-bold text-foreground">Join as a guest</h1>
@@ -119,6 +129,7 @@ function EventRow({
 }) {
   const router = useRouter();
   const [code, setCode] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { mutate: guestJoin, isPending } = useGuestJoin(event.id);
 
@@ -127,15 +138,15 @@ function EventRow({
   function join() {
     setError(null);
     guestJoin(
-      { code: code.trim() },
+      { code: code.trim(), name: name.trim() || undefined },
       {
         onSuccess: async (res: any) => {
-          const { token, eventType } = readJoinResult(res);
+          const { token, eventType, guestName } = readJoinResult(res);
           if (!token) {
             setError("Joined, but no guest session was returned. Please try again.");
             return;
           }
-          storeGuestSession(token, event.id);
+          storeGuestSession(token, event.id, name.trim() || guestName);
           router.push(await resolveGuestLiveHref(event.id, token, eventType));
         },
         onError: (err: any) =>
@@ -213,8 +224,27 @@ function EventRow({
               Join
             </Button>
           </div>
+
+          <input
+            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/20"
+            placeholder="Your name (optional)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
       )}
     </div>
+  );
+}
+
+export default function GuestBrowsePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center p-12">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    }>
+      <GuestBrowseContent />
+    </Suspense>
   );
 }

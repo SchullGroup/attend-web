@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { eventsClient } from "./client";
-import { EventsQueryParams, SubmitQuestionRequest } from "@/types";
+import { EventsQueryParams, SubmitQuestionRequest, CastVoteRequest } from "@/types";
 
 export const eventKeys = {
   all: ["events"] as const,
@@ -175,8 +175,8 @@ export const useGuestBrowseEvents = (params: { search?: string; page?: number; s
 
 export const useGuestJoin = (eventId: string) => {
   return useMutation({
-    mutationFn: ({ code }: { code: string }) =>
-      eventsClient.guestJoinEvent(eventId, code),
+    mutationFn: ({ code, name }: { code: string; name?: string }) =>
+      eventsClient.guestJoinEvent(eventId, code, name),
   });
 };
 
@@ -278,3 +278,53 @@ export const useGuestUpvoteQuestion = (eventId: string, guestToken: string) => {
     },
   });
 };
+
+// Guest polls (§9) — guests can view and vote on live polls.
+export const useGuestPolls = (
+  eventId: string,
+  guestToken: string,
+  refetchInterval?: number,
+  enabled = true,
+) => {
+  return useQuery({
+    queryKey: [...eventKeys.detail(eventId), "guest-polls", guestToken] as const,
+    queryFn: () => eventsClient.guestGetPolls(eventId, guestToken),
+    enabled: !!eventId && !!guestToken && enabled,
+    refetchInterval: refetchInterval ?? false,
+  });
+};
+
+export const useGuestRespondToPoll = (eventId: string, guestToken: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pollId, optionId }: { pollId: string; optionId: string }) =>
+      eventsClient.guestRespondToPoll(eventId, guestToken, pollId, optionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...eventKeys.detail(eventId), "guest-polls"] as const,
+      });
+    },
+  });
+};
+
+// Guest proxy voting (§10) — cast a resolution vote using a proxy code.
+export const useGuestProxyVote = (eventId: string, guestToken: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      resolutionId,
+      proxyCode,
+      data,
+    }: {
+      resolutionId: string;
+      proxyCode: string;
+      data: CastVoteRequest;
+    }) => eventsClient.guestProxyVote(eventId, guestToken, resolutionId, proxyCode, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...eventKeys.detail(eventId), "guest-resolutions"] as const,
+      });
+    },
+  });
+};
+

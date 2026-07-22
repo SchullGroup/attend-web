@@ -78,7 +78,12 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
     setErrorMsg(null);
     revoke(undefined, {
       onError: (err: any) => {
-        setErrorMsg(err?.response?.data?.message || "Failed to revoke proxy.");
+        const msg = err?.response?.data?.message;
+        setErrorMsg(
+          msg && !msg.includes("Something went wrong")
+            ? msg
+            : "Proxy revocation endpoint (DELETE /api/v1/participant/events/{eventId}/proxy) is currently unavailable on the server."
+        );
       },
     });
   }

@@ -13,6 +13,7 @@ import {
   GuestResolutionsResponse,
   QuestionsResponse,
   SubmitQuestionRequest,
+  CastVoteRequest,
 } from "@/types";
 
 export const eventsClient = {
@@ -143,10 +144,12 @@ export const eventsClient = {
   },
 
   // Guest access — unauthenticated, bypasses the standard auth interceptor.
-  guestJoinEvent: async (eventId: string, code: string) => {
+  guestJoinEvent: async (eventId: string, code: string, name?: string) => {
+    const body: Record<string, string> = { code };
+    if (name?.trim()) body.name = name.trim();
     const response = await axios.post<ApiResponse<Record<string, unknown>>>(
       `/api/v1/guest/events/${eventId}/join`,
-      { code },
+      body,
       { headers: { "Content-Type": "application/json" } },
     );
     return response.data;
@@ -201,6 +204,41 @@ export const eventsClient = {
     const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
       `/api/v1/guest/events/${eventId}/questions/${questionId}/upvote`,
       {},
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  // Guest polls (§9) — guests can view and vote on polls.
+  guestGetPolls: async (eventId: string, guestToken: string) => {
+    const response = await apiClient.get<ApiResponseActivePollResponse>(
+      `/api/v1/guest/events/${eventId}/polls`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestRespondToPoll: async (eventId: string, guestToken: string, pollId: string, optionId: string) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/guest/events/${eventId}/polls/${pollId}/vote`,
+      { optionId },
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  // Guest proxy voting (§10) — a guest holding a proxy code can cast resolution
+  // votes on behalf of the shareholder who issued the code.
+  guestProxyVote: async (
+    eventId: string,
+    guestToken: string,
+    resolutionId: string,
+    proxyCode: string,
+    data: CastVoteRequest,
+  ) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/guest/events/${eventId}/resolutions/${resolutionId}/proxy-vote`,
+      { proxyCode, ...data },
       { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
     );
     return response.data;

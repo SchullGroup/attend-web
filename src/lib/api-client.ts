@@ -1,5 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { clearGuestSession } from "@/lib/guest-session";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -80,7 +81,20 @@ apiClient.interceptors.response.use(
       // account. That's a "not allowed", not an expired session, so it must not touch the
       // guest session: clearing the isGuest cookie and reloading (what this used to do)
       // dropped them straight back on /login the moment any such call fired.
-      // Their own /guest/* routes are in publicEndpoints and never reach this branch.
+      // Handle expired or revoked guest tokens on /api/v1/guest/ routes gracefully.
+      if (
+        (error.response?.status === 401 || error.response?.status === 403) &&
+        originalRequest?.url?.includes("/api/v1/guest/") &&
+        !originalRequest?.url?.includes("/join") &&
+        !originalRequest?.url?.includes("/guest/events?")
+      ) {
+        clearGuestSession();
+        if (typeof window !== "undefined") {
+          window.location.href = "/guest?expired=true";
+        }
+        return Promise.reject(error);
+      }
+
       if (Cookies.get("isGuest") === "true") {
         return Promise.reject(error);
       }
