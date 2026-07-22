@@ -1,12 +1,18 @@
+import axios from "axios";
 import { apiClient } from "@/lib/api-client";
 import {
   EventsListResponse,
   EventDetailResponse,
+  EventDetail,
   EventsQueryParams,
   MyTicketResponse,
   ApiResponse,
   ApiResponseActivePollResponse,
   ApiResponsePressKitResponse,
+  GuestEventsListResponse,
+  GuestResolutionsResponse,
+  QuestionsResponse,
+  SubmitQuestionRequest,
 } from "@/types";
 
 export const eventsClient = {
@@ -132,6 +138,70 @@ export const eventsClient = {
   unsaveEvent: async (id: string) => {
     const response = await apiClient.delete<ApiResponse>(
       `/api/v1/participant/events/${id}/save`,
+    );
+    return response.data;
+  },
+
+  // Guest access — unauthenticated, bypasses the standard auth interceptor.
+  guestJoinEvent: async (eventId: string, code: string) => {
+    const response = await axios.post<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/guest/events/${eventId}/join`,
+      { code },
+      { headers: { "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  // Public — no token of any kind. This is the only guest entry point that doesn't
+  // already require an event id, so it's what "Continue as guest" browses.
+  guestBrowseEvents: async (params: { search?: string; page?: number; size?: number }) => {
+    const response = await axios.get<GuestEventsListResponse>(`/api/v1/guest/events`, {
+      params,
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  },
+
+  // View-only resolutions for a guest. Same items as the participant endpoint, but the
+  // payload is a bare array rather than a { resolutions } object.
+  guestGetResolutions: async (eventId: string, guestToken: string) => {
+    const response = await apiClient.get<GuestResolutionsResponse>(
+      `/api/v1/guest/events/${eventId}/resolutions`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestGetView: async (eventId: string, guestToken: string) => {
+    const response = await apiClient.get<ApiResponse<EventDetail>>(
+      `/api/v1/guest/events/${eventId}/view`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestGetQuestions: async (eventId: string, guestToken: string) => {
+    const response = await apiClient.get<QuestionsResponse>(
+      `/api/v1/guest/events/${eventId}/questions`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestSubmitQuestion: async (eventId: string, guestToken: string, data: SubmitQuestionRequest) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/guest/events/${eventId}/questions`,
+      data,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestUpvoteQuestion: async (eventId: string, guestToken: string, questionId: string) => {
+    const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
+      `/api/v1/guest/events/${eventId}/questions/${questionId}/upvote`,
+      {},
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
     );
     return response.data;
   },

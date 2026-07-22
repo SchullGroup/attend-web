@@ -149,13 +149,11 @@ function AgmCard({ event: e }: { event: EventListItem }) {
           <div className="pt-1">
             {registered ? (
               <div className="flex gap-2">
-                {e.format !== "VIRTUAL" && (
-                  <Link href={`/agm/proxy?eventId=${e.id}`}>
-                    <Button size="sm" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
-                      <UserCheck className="h-3.5 w-3.5 mr-1.5" /> Proxy
-                    </Button>
-                  </Link>
-                )}
+                <Link href={`/agm/proxy?eventId=${e.id}`}>
+                  <Button size="sm" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
+                    <UserCheck className="h-3.5 w-3.5 mr-1.5" /> Proxy
+                  </Button>
+                </Link>
                 {!isLive && (
                   <Link href={`/agm/pre-vote?eventId=${e.id}`}>
                     <Button size="sm" className="flex-1 bg-slate-900 text-white hover:bg-slate-800 border-0">

@@ -14,6 +14,10 @@ const publicEndpoints = [
   "/api/v1/auth/resend-phone-otp",
   "/api/v1/auth/verify-phone",
   "/api/v1/auth/refresh-token",
+  // Every guest route authenticates with X-Guest-Token, never accessToken. Treating the
+  // whole namespace as public stops the interceptor attaching an absent token and then
+  // bouncing a legitimate guest to /login on the 401.
+  "/api/v1/guest/",
 ];
 
 // Pre-login endpoints must never attach a token or trigger the 401 → refresh →
@@ -72,6 +76,15 @@ apiClient.interceptors.response.use(
       !originalRequest._retry &&
       !isPublicEndpoint(originalRequest?.url)
     ) {
+      // A guest gets 401/403 from every participant endpoint by design — they have no
+      // account. That's a "not allowed", not an expired session, so it must not touch the
+      // guest session: clearing the isGuest cookie and reloading (what this used to do)
+      // dropped them straight back on /login the moment any such call fired.
+      // Their own /guest/* routes are in publicEndpoints and never reach this branch.
+      if (Cookies.get("isGuest") === "true") {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

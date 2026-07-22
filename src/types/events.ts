@@ -1,5 +1,10 @@
 import { ApiResponse } from "./api";
 
+export interface EventBranding {
+  logoUrl?: string | null;
+  brandColor?: string | null;
+}
+
 export interface EventListItem {
   id: string;
   title: string;
@@ -18,6 +23,11 @@ export interface EventListItem {
   rsvpEnabled?: boolean;
   featured?: boolean;
   registered: boolean;
+  branding?: EventBranding;
+  bannerUrl?: string | null;
+  brandPrimary?: string | null;
+  brandAccent?: string | null;
+  lateRsvpMinutes?: number;
 }
 
 export interface SpeakerItem {
@@ -64,7 +74,31 @@ export interface EventDetail {
   tags?: string[];
   waitlisted?: boolean;
   pressKitReleased?: boolean;
+  branding?: EventBranding;
+  bannerUrl?: string | null;
+  brandPrimary?: string | null;
+  brandAccent?: string | null;
+  lateRsvpMinutes?: number;
 }
+
+// Public guest browse (`GET /guest/events`) returns a deliberately slim event — no
+// module, capacity or registration state, since the caller isn't authenticated yet.
+export interface GuestEventListItem {
+  id: string;
+  title: string;
+  date: string;
+  startTime: string;
+  branding?: EventBranding;
+}
+
+export interface GuestEventsListData {
+  events: GuestEventListItem[];
+  page: number;
+  size: number;
+  totalCount: number;
+}
+
+export type GuestEventsListResponse = ApiResponse<GuestEventsListData>;
 
 export interface MyTicket {
   registrationId: string;

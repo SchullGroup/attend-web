@@ -10,6 +10,9 @@ export interface EventCardData {
   organiser: string;
   module: string;
   thumbnailColor?: string;
+  // The register's logo from the event's branding payload. Often null — the admin
+  // hasn't uploaded one — so every use has to degrade to the organiser name alone.
+  logoUrl?: string | null;
   image?: string;
   status: string;
   date: string;
@@ -59,8 +62,20 @@ export function EventCard({ event, href }: Props) {
             </span>
           )}
         </div>
-        <div className="absolute bottom-4 left-4 right-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/80">
+        <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2">
+          {event.logoUrl && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={event.logoUrl}
+              alt=""
+              className="h-7 w-7 shrink-0 rounded-md bg-white/95 object-contain p-0.5 shadow-sm"
+              // A broken logo URL must not leave a torn-image icon over the banner.
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          )}
+          <p className="truncate text-xs font-semibold uppercase tracking-wide text-white/80">
             {event.organiser}
           </p>
         </div>

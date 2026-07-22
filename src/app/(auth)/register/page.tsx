@@ -33,6 +33,10 @@ export default function RegisterPage() {
       setErrorMsg("Please enter your first and last name.");
       return;
     }
+    if (!form.email.trim() && !form.phone.trim()) {
+      setErrorMsg("Please provide at least an email address or phone number.");
+      return;
+    }
 
     registerMutation(
       {
@@ -44,8 +48,9 @@ export default function RegisterPage() {
       },
       {
         onSuccess: () => {
-          // OTP is sent to the email; verify page reads it from here
-          sessionStorage.setItem("pendingVerifyEmail", form.email);
+          // OTP is sent to the email or phone; verify page reads it from here
+          if (form.email) sessionStorage.setItem("pendingVerifyEmail", form.email);
+          if (form.phone) sessionStorage.setItem("pendingVerifyPhone", form.phone);
           router.push("/verify");
         },
         onError: (err: any) => {
@@ -104,6 +109,9 @@ export default function RegisterPage() {
           value={form.phone}
           onChange={(e) => update("phone", e.target.value)}
         />
+        <p className="-mt-2 text-[11px] text-muted-foreground">
+          At least one of email or phone is required.
+        </p>
         <div>
           <Input
             name="password"

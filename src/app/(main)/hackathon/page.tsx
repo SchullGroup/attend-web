@@ -6,7 +6,7 @@ import { useGetChallenges } from "@/api/hackathon/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { Button } from "@/components/ui/Button";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 
 const FORMAT_LABELS: Record<string, string> = {
   IN_PERSON: "In-person",
@@ -82,11 +82,35 @@ export default function HackathonPage() {
       ) : (
         <ul className="space-y-4">
           {apiChallenges.map((c: EventListItem) => (
-            <li key={c.id} className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+            <li key={c.id} className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm flex flex-col">
+              {c.bannerUrl && (
+                <div className="relative h-[135px] w-full overflow-hidden">
+                  <img
+                    src={c.bannerUrl}
+                    alt={c.title}
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                </div>
+              )}
               <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
+                    {(c.branding?.logoUrl || c.organizerLogo) && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={c.branding?.logoUrl || c.organizerLogo}
+                        alt=""
+                        className="h-5 w-5 rounded object-contain bg-slate-50 p-0.5 shadow-sm border border-slate-100"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    )}
+                    <p
+                      className="text-xs font-semibold uppercase tracking-wide"
+                      style={{ color: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || '#6b21a8' }}
+                    >
                       {c.registerName || c.organizerName}
                     </p>
                     {(c.status || "").toUpperCase() === "LIVE" && (
@@ -110,7 +134,16 @@ export default function HackathonPage() {
                     <Button variant="outline" size="sm">View</Button>
                   </Link>
                   <Link href={`/hackathon/apply?challengeId=${c.id}`}>
-                    <Button size="sm">Apply <ArrowRight className="h-3.5 w-3.5" /></Button>
+                    <Button
+                      size="sm"
+                      style={{
+                        backgroundColor: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || undefined,
+                        borderColor: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || undefined,
+                      }}
+                      className={cn((c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor) && "hover:opacity-90 text-white")}
+                    >
+                      Apply <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
                   </Link>
                 </div>
               </div>

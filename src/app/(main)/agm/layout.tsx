@@ -3,11 +3,25 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { useUserStore } from "@/lib/user-store";
 import { Button } from "@/components/ui/Button";
+import { useSession } from "@/hooks/useSession";
 
 export default function AgmLayout({ children }: { children: React.ReactNode }) {
   const { kycStatus } = useUserStore();
+  const session = useSession();
 
-  if (kycStatus !== "full") {
+  // KYC gates voting and proxy appointment, which require a verified shareholder. A guest
+  // can do neither — they're view-only — and has no KYC record to complete, so this gate
+  // was a dead end for them. Middleware already limits guests to /agm/live, so skipping it
+  // here only ever grants the live room they were invited to.
+  const isGuest = session.type === "GUEST";
+
+  // Guest state lives in sessionStorage, which the server can't read — so on the server
+  // and on the very first client render every visitor looks like a non-guest. Rendering
+  // the gate then means shipping it in the SSR HTML and relying on hydration to take it
+  // back. Wait until the session is resolved before deciding.
+  if (session.loading) return null;
+
+  if (!isGuest && kycStatus !== "full") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="mx-auto max-w-sm space-y-6 px-4 text-center">

@@ -81,9 +81,17 @@ interface HomeEvent {
   startTime: string;
   rsvpCount: number;
   thumbnailColor: string;
+  logoUrl?: string | null;
   rsvpStatus?: boolean;
+  image?: string;
 }
 function toHomeEvent(e: EventListItem): HomeEvent {
+  const brandColor =
+    e.branding?.brandColor ||
+    e.brandPrimary ||
+    (e as any).organizerPrimaryColor ||
+    (EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb");
+  const logoUrl = e.branding?.logoUrl || e.organizerLogo || null;
   return {
     id: e.id,
     module: e.eventType,
@@ -93,8 +101,10 @@ function toHomeEvent(e: EventListItem): HomeEvent {
     format: e.format,
     startTime: e.startTime,
     rsvpCount: e.maximumCapacity || 0,
-    thumbnailColor: EVENT_COLOR[e.eventType?.toUpperCase()] ?? "#2563eb",
+    thumbnailColor: brandColor,
+    logoUrl,
     rsvpStatus: e.registered,
+    image: e.bannerUrl || undefined,
   };
 }
 
@@ -283,7 +293,7 @@ export default function HomePage() {
                 >
                   {/* Photo */}
                   <img
-                    src={imageUri}
+                    src={event.image || imageUri}
                     alt={event.title}
                     className="h-full w-full object-cover"
                   />
@@ -294,7 +304,7 @@ export default function HomePage() {
                   <div className="absolute left-4 top-4">
                     <span
                       className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white"
-                      style={{ backgroundColor: badge.bg }}
+                      style={{ backgroundColor: event.thumbnailColor }}
                     >
                       {badge.label}
                     </span>
@@ -306,7 +316,19 @@ export default function HomePage() {
                       <p className="truncate text-base font-bold text-white leading-snug">
                         {event.title.split("—")[1]?.trim() ?? event.title}
                       </p>
-                      <p className="mt-0.5 text-xs text-white/75">{event.organiser}</p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/75">
+                        {event.logoUrl && (
+                          <img
+                            src={event.logoUrl}
+                            alt=""
+                            className="h-4 w-4 shrink-0 rounded bg-white/95 object-contain"
+                            onError={(ev) => {
+                              (ev.currentTarget as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        )}
+                        <span className="truncate">{event.organiser}</span>
+                      </p>
                       <p className="text-xs text-white/60">
                         {formatDate(event.date)} · {event.format}
                       </p>
@@ -357,10 +379,22 @@ export default function HomePage() {
               className="flex items-center gap-3 rounded-2xl border border-border bg-white p-3 transition-colors hover:bg-muted/40"
             >
               <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
+                className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-xs font-bold text-white shadow-sm"
                 style={{ background: e.thumbnailColor }}
               >
-                {initialsFor(e.organiser)}
+                {e.logoUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={e.logoUrl}
+                    alt=""
+                    className="h-full w-full object-contain p-1 bg-white/95"
+                    onError={(ev) => {
+                      (ev.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  initialsFor(e.organiser)
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">

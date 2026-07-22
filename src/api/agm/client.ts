@@ -90,4 +90,27 @@ export const agmClient = {
     );
     return response.data;
   },
+
+  assignProxyDirections: async (
+    eventId: string,
+    data: {
+      directions: {
+        resolutionId: string;
+        direction: "FOR" | "AGAINST" | "ABSTAIN" | "LET_PROXY_DECIDE";
+      }[];
+    }
+  ) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/agm/${eventId}/proxy/directions`,
+      data
+    );
+    return response.data;
+  },
+
+  revokeProxy: async (eventId: string) => {
+    const response = await apiClient.delete<ApiResponse>(
+      `/api/v1/participant/events/${eventId}/proxy`
+    );
+    return response.data;
+  },
 };

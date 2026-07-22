@@ -20,7 +20,7 @@ import {
   FileBox,
   DownloadCloud,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit, useGuestEventView, useGuestResolutions, useGuestQuestions, useGuestSubmitQuestion, useGuestUpvoteQuestion } from "@/api/events/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { ZoomStage } from "@/components/attend/ZoomStage";
 import { parseZoomUrl } from "@/lib/zoom";
@@ -35,6 +35,11 @@ import { useQaSocket } from "@/api/agm/qa-socket";
 import { Button } from "@/components/ui/Button";
 import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils";
 import { Resolution } from "@/types";
+import { useSession } from "@/hooks/useSession";
+import { GUEST_TOKEN_KEY } from "@/lib/guest-session";
+import { NomineeBallot } from "@/components/attend/NomineeBallot";
+import { SourceBreakdown } from "@/components/attend/SourceBreakdown";
+import Cookies from "js-cookie";
 
 type Tab = "qa" | "ballot" | "poll" | "presskit";
 type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
@@ -68,8 +73,22 @@ export function LiveRoom({
   backLabel = "Leave meeting",
   zoomOverride,
 }: LiveRoomProps) {
-  const { data: eventResp } = useGetEvent(eventId);
-  const event = eventResp?.data;
+  const session = useSession();
+  // Trust useSession alone. This used to also OR in a raw sessionStorage read, which
+  // overrode useSession's precedence: a leftover guest token from an earlier guest visit
+  // made a fully signed-in shareholder register as a guest — and lose the vote.
+  // A real account always wins; useSession enforces that.
+  const isGuest = session.type === "GUEST";
+  const [guestToken, setGuestToken] = useState<string>("");
+
+  useEffect(() => {
+    if (isGuest) setGuestToken(sessionStorage.getItem(GUEST_TOKEN_KEY) ?? "");
+  }, [isGuest]);
+
+  const { data: eventResp } = useGetEvent(eventId, !isGuest);
+  const { data: guestViewResp } = useGuestEventView(eventId, guestToken, isGuest && !!guestToken);
+
+  const event = isGuest ? guestViewResp?.data : eventResp?.data;
   const title = event?.title ?? "Live session";
   const organiser = event?.registerName || event?.organizerName || "";
   const watching = event?.registeredCount ?? 0;
@@ -77,13 +96,21 @@ export function LiveRoom({
 
   // Stream link: prefer the gated /stream endpoint (only resolves when live +
   // registered); fall back to the streamUrl the admin set on the event.
-  const { data: streamData } = useGetStream(eventId, isLive);
-  const streamUrl = (streamData?.data?.streamUrl as string) || event?.streamUrl || "";
+  const { data: streamData } = useGetStream(eventId, isLive && !isGuest);
+  
+  let streamUrl = "";
+  if (isGuest) {
+    streamUrl = (guestViewResp?.data?.streamUrl as string) || event?.streamUrl || "";
+  } else {
+    streamUrl = (streamData?.data?.streamUrl as string) || event?.streamUrl || "";
+  }
+
   // If the stream is a Zoom meeting we render the Zoom SDK; otherwise the iframe.
   // A zoomOverride (test-only) takes precedence over the event's streamUrl.
   const zoom = zoomOverride?.meetingNumber ? zoomOverride : parseZoomUrl(streamUrl);
-  const { data: meResp } = useGetMe();
-  const displayName = meResp?.data?.fullName || "Participant";
+  const displayName = session.user?.fullName || "Participant";
+  const canVote = !isGuest && (session.user ? session.user.capabilities.includes("VOTE") : true);
+  const canSubmitQA = session.user ? session.user.capabilities.includes("QA") : true;
 
   // Zoom's gallery view needs SharedArrayBuffer → the page must be cross-origin
   // isolated. Isolate ONLY for Zoom meetings by reloading once with `?coi=1`
@@ -109,13 +136,15 @@ export function LiveRoom({
   }, [zoomMn]);
 
   // Countdown to start — only polled before the event is live.
-  const { data: cdData } = useGetCountdown(eventId, !!event && !isLive);
+  // Everything below hits *participant* endpoints, which 401/403 for a guest by design.
+  // They're gated on !isGuest so a guest doesn't fire a burst of doomed requests on entry.
+  const { data: cdData } = useGetCountdown(eventId, !!event && !isLive && !isGuest);
   const cdSecs =
     typeof cdData?.data?.secondsUntilStart === "number" ? cdData.data.secondsUntilStart : null;
 
   // Live quorum (AGM ballot only). Response is a generic map — read the percentage
   // defensively; show "—" rather than a fabricated number if it's not present.
-  const { data: quorumData } = useGetQuorum(eventId, showBallot && isLive);
+  const { data: quorumData } = useGetQuorum(eventId, showBallot && isLive && !isGuest);
   const quorumPct = (() => {
     const m = (quorumData?.data ?? {}) as Record<string, unknown>;
     const raw =
@@ -124,28 +153,48 @@ export function LiveRoom({
   })();
 
   // Only AGMs poll resolutions for the live ballot.
-  const { data: resData } = useGetResolutions(eventId, showBallot ? 5000 : undefined, showBallot);
+  const { data: resData } = useGetResolutions(
+    eventId,
+    showBallot && !isGuest ? 5000 : undefined,
+    showBallot && !isGuest,
+  );
+  // Guests read the same resolutions from their own view-only endpoint, so the ballot
+  // panel shows the live tallies instead of claiming there are none.
+  const { data: guestResData } = useGuestResolutions(
+    eventId,
+    guestToken,
+    showBallot && isGuest,
+    5000,
+  );
   const { mutate: castVote, isPending: voting } = useCastVote(eventId);
-  const { mutate: upvote } = useUpvoteQuestion(eventId);
 
-  const resolutions = resData?.data?.resolutions ?? [];
-  const hasProxy = !!resData?.data?.hasProxy;
+  // The guest payload is a bare array; the participant one nests under `resolutions`.
+  const resolutions = (isGuest ? guestResData?.data : resData?.data?.resolutions) ?? [];
+  // A guest can't hold a proxy, and their payload carries no such flag.
+  const hasProxy = !isGuest && !!resData?.data?.hasProxy;
 
-  const { data: pollResp } = useGetActivePoll(eventId, !showBallot && isLive ? 5000 : undefined, !showBallot && isLive);
+  const pollEnabled = !showBallot && isLive && !isGuest;
+  const { data: pollResp } = useGetActivePoll(eventId, pollEnabled ? 5000 : undefined, pollEnabled);
   const { mutate: respondToPoll, isPending: submittingPoll } = useRespondToPoll(eventId);
   const activePoll = pollResp?.data;
 
   // Press Kit — product launches only. Poll while live so files flip to "released"
   // as the organiser releases them.
   const isLaunch = event?.eventType === "PRODUCT_LAUNCH";
-  const { data: pressKitResp, error: pressKitError } = useGetPressKit(eventId, isLaunch && isLive ? 10000 : undefined, isLaunch);
+  const { data: pressKitResp, error: pressKitError } = useGetPressKit(
+    eventId,
+    isLaunch && isLive && !isGuest ? 10000 : undefined,
+    isLaunch && !isGuest,
+  );
   const pressKit = pressKitResp?.data;
   // 403 → the participant isn't registered for this event (press kit is gated).
   const pressKitForbidden =
     (pressKitError as { response?: { status?: number } } | null)?.response?.status === 403;
 
   // When the register has no share weighting, shares are all 0 — show head counts only.
-  const shareWeighted = !!resData?.data?.shareWeightedTalliesEnabled;
+  // The guest payload omits this flag entirely, so we can't know whether the register is
+  // share-weighted — show head counts rather than a column of misleading zeroes.
+  const shareWeighted = !isGuest && !!resData?.data?.shareWeightedTalliesEnabled;
   // Status-driven (secondsRemaining is null while a resolution is WAITING).
   const openRes = resolutions.find(
     (r) => (r.status || "").toUpperCase() === "OPEN" || r.secondsRemaining > 0,
@@ -161,9 +210,28 @@ export function LiveRoom({
   const openPos = openRes ? sortedRes.findIndex((r) => r.id === openRes.id) + 1 : null;
 
   // Real-time Q&A over WebSocket; polling stays as a slow (30s) fallback.
-  useQaSocket(eventId);
-  const { data: qData } = useGetQuestions(eventId, 30000);
-  const { mutate: submitQuestion, isPending: submittingQ } = useSubmitQuestion(eventId);
+  // The socket authenticates with accessToken, which a guest doesn't have — left
+  // unconnected it would retry every 5s forever. Guest Q&A needs the guest-token
+  // STOMP header before this can be enabled for them.
+  useQaSocket(eventId, !isGuest);
+  const { data: participantQData } = useGetQuestions(eventId, 30000, !isGuest);
+  const { data: guestQData } = useGuestQuestions(eventId, guestToken, 10000, isGuest && !!guestToken);
+  const qData = isGuest ? guestQData : participantQData;
+
+  const { mutate: submitParticipantQ, isPending: submittingParticipantQ } = useSubmitQuestion(eventId);
+  const { mutate: submitGuestQ, isPending: submittingGuestQ } = useGuestSubmitQuestion(eventId, guestToken);
+  const submitQuestion = isGuest ? submitGuestQ : submitParticipantQ;
+  const submittingQ = isGuest ? submittingGuestQ : submittingParticipantQ;
+
+  const { mutate: upvoteParticipant } = useUpvoteQuestion(eventId);
+  const { mutate: upvoteGuest } = useGuestUpvoteQuestion(eventId, guestToken);
+  const upvote = (questionId: string) => {
+    if (isGuest) {
+      upvoteGuest(questionId);
+    } else {
+      upvoteParticipant(questionId);
+    }
+  };
   const apiQuestions = qData?.data?.questions ?? [];
   const qaItems = apiQuestions.map((x) => ({
     id: x.id,
@@ -285,6 +353,25 @@ export function LiveRoom({
               status === 409
                 ? "You've already voted on this resolution."
                 : err?.response?.data?.message || "Could not record your vote. Please try again.",
+          });
+        },
+      },
+    );
+  }
+
+  function handleCastCandidateVote(votes: { candidateId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) {
+    if (!openRes) return;
+    setVoteMsg(null);
+    castVote(
+      { resolutionId: openRes.id, data: { votes } },
+      {
+        onSuccess: () => {
+          setVoteMsg({ kind: "ok", text: "Your nominee ballot has been recorded." });
+        },
+        onError: (err: any) => {
+          setVoteMsg({
+            kind: "err",
+            text: err?.response?.data?.message || "Could not record your nominee votes. Please try again.",
           });
         },
       },
@@ -423,7 +510,7 @@ export function LiveRoom({
             >
               <Vote className="h-4 w-4 shrink-0 text-white" />
               <p className="text-sm font-semibold text-white">
-                Voting open · Resolution {openRes.order + 1}
+                Voting open · Resolution {openPos ?? "—"}
                 {countdown > 0 ? ` · ${countdown}s remaining` : ""}
               </p>
             </div>
@@ -541,17 +628,23 @@ export function LiveRoom({
                   <p className="text-xs text-muted-foreground">
                     Questions are reviewed by the moderator before being shown to the Chair.
                   </p>
-                  <form onSubmit={sendQuestion} className="flex gap-2">
-                    <input
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
-                      placeholder="Submit a question..."
-                      className="h-10 flex-1 rounded-xl border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                    <Button type="submit" size="sm" loading={submittingQ} disabled={!q.trim()} className="bg-slate-900 hover:bg-slate-800">
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </form>
+                  {!canSubmitQA ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                      Q&A submissions are disabled for your current role.
+                    </div>
+                  ) : (
+                    <form onSubmit={sendQuestion} className="flex gap-2">
+                      <input
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        placeholder="Submit a question..."
+                        className="h-10 flex-1 rounded-xl border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      <Button type="submit" size="sm" loading={submittingQ} disabled={!q.trim()} className="bg-slate-900 hover:bg-slate-800">
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </form>
+                  )}
                   {qSent && (
                     <p className="text-xs text-emerald-700">Your question was submitted for review.</p>
                   )}
@@ -574,14 +667,21 @@ export function LiveRoom({
                       </p>
                     </div>
 
-                    {hasProxy && (
+                    {!canVote ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800 space-y-1">
+                        <p className="font-semibold">Voting Restricted</p>
+                        <p className="text-[11px] text-amber-700/80">
+                          Your current role does not have voting privileges for this event.
+                        </p>
+                      </div>
+                    ) : hasProxy ? (
                       <div className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-800">
                         <p className="font-semibold">Voting managed by proxy</p>
                         <p className="mt-0.5 text-[11px] text-purple-700/80">
                           You have appointed a proxy to vote on your behalf at this meeting.
                         </p>
                       </div>
-                    )}
+                    ) : null}
 
                     {voteMsg && (
                       <div
@@ -596,48 +696,60 @@ export function LiveRoom({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-2">
-                      {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
-                        const selected = vote === opt;
-                        const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
-                        const tone =
-                          opt === "FOR"
-                            ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                            : opt === "AGAINST"
-                            ? "border-red-200 text-red-700 hover:bg-red-50"
-                            : "border-border text-muted-foreground hover:bg-muted";
-                        const selectedTone =
-                          opt === "FOR"
-                            ? "bg-emerald-600 text-white border-emerald-600"
-                            : opt === "AGAINST"
-                            ? "bg-red-600 text-white border-red-600"
-                            : "bg-slate-700 text-white border-slate-700";
-                        return (
-                          <button
-                            key={opt}
-                            onClick={() => setVote(opt)}
-                            disabled={voting || hasProxy}
-                            className={cn(
-                              "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
-                              selected ? selectedTone : tone,
-                            )}
-                          >
-                            <Icon className="h-4 w-4" />
-                            {opt.charAt(0) + opt.slice(1).toLowerCase()}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <Button fullWidth disabled={!vote || voting || hasProxy} loading={voting} onClick={handleCastVote}>
-                      {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
-                    </Button>
+                    {canVote && !hasProxy && openRes.candidates && openRes.candidates.length > 0 ? (
+                      <NomineeBallot
+                        candidates={openRes.candidates}
+                        title={openRes.title}
+                        onVoteCast={handleCastCandidateVote}
+                        isPending={voting}
+                      />
+                    ) : canVote && !hasProxy ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
+                            const selected = vote === opt;
+                            const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
+                            const tone =
+                              opt === "FOR"
+                                ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                : opt === "AGAINST"
+                                ? "border-red-200 text-red-700 hover:bg-red-50"
+                                : "border-border text-muted-foreground hover:bg-muted";
+                            const selectedTone =
+                              opt === "FOR"
+                                ? "bg-emerald-600 text-white border-emerald-600"
+                                : opt === "AGAINST"
+                                ? "bg-red-600 text-white border-red-600"
+                                : "bg-slate-700 text-white border-slate-700";
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => setVote(opt)}
+                                disabled={voting}
+                                className={cn(
+                                  "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
+                                  selected ? selectedTone : tone,
+                                )}
+                              >
+                                <Icon className="h-4 w-4" />
+                                {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <Button fullWidth disabled={!vote || voting} loading={voting} onClick={handleCastVote}>
+                          {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
+                        </Button>
+                      </>
+                    ) : null}
 
                     {openRes.forCount + openRes.againstCount + openRes.abstainCount > 0 && (
-                      <div className="border-t border-border pt-3">
+                      <div className="border-t border-border pt-3 space-y-3">
                         <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> Live tally
                         </p>
                         <ResolutionBars r={openRes} shareWeighted={shareWeighted} />
+                        {openRes.bySource && <SourceBreakdown bySource={openRes.bySource} />}
                       </div>
                     )}
                   </div>
@@ -667,8 +779,9 @@ export function LiveRoom({
                             <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>
                           </div>
                           {showResult && (
-                            <div className="mt-3 border-t border-border pt-2">
+                            <div className="mt-3 border-t border-border pt-2 space-y-3">
                               <ResolutionBars r={r} shareWeighted={shareWeighted} />
+                              {r.bySource && <SourceBreakdown bySource={r.bySource} />}
                             </div>
                           )}
                         </div>
