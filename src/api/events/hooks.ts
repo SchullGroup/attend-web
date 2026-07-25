@@ -165,7 +165,12 @@ export const useGetPressKit = (eventId: string, refetchInterval?: number, enable
   });
 };
 
-export const useGuestBrowseEvents = (params: { search?: string; page?: number; size?: number }) => {
+export const useGuestBrowseEvents = (params: {
+  search?: string;
+  eventType?: string;
+  page?: number;
+  size?: number;
+}) => {
   return useQuery({
     queryKey: [...eventKeys.all, "guest-browse", params] as const,
     queryFn: () => eventsClient.guestBrowseEvents(params),

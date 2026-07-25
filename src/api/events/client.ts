@@ -157,7 +157,7 @@ export const eventsClient = {
 
   // Public — no token of any kind. This is the only guest entry point that doesn't
   // already require an event id, so it's what "Continue as guest" browses.
-  guestBrowseEvents: async (params: { search?: string; page?: number; size?: number }) => {
+  guestBrowseEvents: async (params: { search?: string; eventType?: string; page?: number; size?: number }) => {
     const response = await axios.get<GuestEventsListResponse>(`/api/v1/guest/events`, {
       params,
       headers: { "Content-Type": "application/json" },
