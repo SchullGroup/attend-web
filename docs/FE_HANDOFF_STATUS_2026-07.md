@@ -50,8 +50,17 @@ Verified by reading the current `dev` branch (HEAD `04ecb33`), not from memory.
 
 ### Register branding (§7)
 - `branding.logoUrl` + `branding.brandColor` rendered on event cards (home,
-  events, general, saved-events) and the guest browse grid, with a graceful
+  events, general, saved-events), the guest browse grid, **and the live-room
+  header** (logo + brand-tinted organiser, guest view included), with a graceful
   fallback to the organiser name / initial when `logoUrl` is null.
+
+### Unified proxy voting + QR (§11)
+- A guest who signs in with a proxy code/QR gets `canVote: true` on the join/view
+  payload; the live room reads it (`guestCanVote`) and lets them vote via the
+  plain `POST /guest/.../resolutions/{id}/vote` — **no per-vote code entry**. The
+  §10 code box remains as the fallback for a plain guest holding a loose code.
+- **`proxyQrCode`** rendered as a scannable QR on the vote receipt and the
+  "Proxy Appointed" success screen (`qrcode.react`).
 
 ### RSVP reopen window (§1)
 - Late-RSVP handled via `getRsvpWindow(start, lateRsvpMinutes ?? 30)`; RSVP is
@@ -59,40 +68,11 @@ Verified by reading the current `dev` branch (HEAD `04ecb33`), not from memory.
 
 ---
 
-## 2. Not implemented ❌ — the real gaps
+## 2. Not implemented ❌ — remaining gaps
 
-### §11 — Unified guest/proxy sign-in (`canVote`) — **NOT DONE**
-This is the headline gap. The backend added a **simpler** proxy path that
-supersedes the §10 per-vote-code flow we built:
-
-- On `/join`, the `code` field now also accepts a **proxy code or signed QR
-  payload**, and the response returns **`canVote: true`** for a proxy session.
-- Once signed in, the proxy votes via `POST /guest/.../resolutions/{id}/vote`
-  **without resending the code each time**.
-
-**What we do instead:** we ignore `canVote` entirely (`canVote` is hardcoded
-`false` for any guest — [`LiveRoom.tsx:112`](../src/components/attend/LiveRoom.tsx)),
-and require the proxy to **re-type the 10-digit code on every single vote** via
-the older §10 `proxy-vote` endpoint. It works, but it's the clunky path the §11
-update was written to replace.
-
-To close it:
-1. Read `canVote` from the join/view response into the guest session.
-2. When `canVote`, show the normal ballot (not the "enter code each time" box)
-   and cast via `.../resolutions/{id}/vote`.
-3. Keep the §10 code-entry as a fallback for someone who has only the code.
-
-### §11 — Proxy receipt QR code — **NOT DONE**
-`ParticipantProxyResponse` / `ProxyHistoryResponse` now carry **`proxyQrCode`**;
-we never render it. (`qrcode.react` is already a dependency — used for event
-check-in — so this is small: render the QR on the proxy receipt so it can be
-scanned at `/join`.)
-
-### §7 — Branding not applied in the live room — **PARTIAL**
-`branding` is themed on cards but **not** in the live-room header (no logo, no
-brand colour there — organiser is still hardcoded `text-primary`). The stream
-payload (`GET /participant/events/{id}/stream`) and guest view both carry
-`branding`; the live room should theme itself with it.
+All three prior FE gaps (§11 unified proxy voting, §11 proxy QR, §7 live-room
+branding) are now closed — see §1. No participant/guest-facing gaps remain
+against this handoff. Anything still outstanding is backend-dependent (below).
 
 ---
 
