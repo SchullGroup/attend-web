@@ -68,11 +68,17 @@ export async function resolveGuestLiveHref(
 
 // The join response shape isn't typed by the backend (it's a bare string map), so read
 // the token and module defensively rather than assuming one key.
-export function readJoinResult(res: any): { token?: string; eventType?: unknown; guestName?: string } {
+export function readJoinResult(
+  res: any,
+): { token?: string; eventType?: unknown; guestName?: string; canVote?: boolean } {
   const data = res?.data ?? {};
   return {
     token: data.guestToken ?? data.token,
     eventType: data.eventType ?? data.module ?? data.event?.eventType,
     guestName: data.guestName ?? data.name,
+    // §11: true when the code entered at /join was a proxy code (or proxy QR), so this
+    // session may vote. The /view endpoint re-reports it, which is the live source used
+    // in the room — this is only the initial read at join time.
+    canVote: !!data.canVote,
   };
 }

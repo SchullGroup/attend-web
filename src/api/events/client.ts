@@ -227,8 +227,29 @@ export const eventsClient = {
     return response.data;
   },
 
+  // Unified proxy voting (§11) — once a guest has signed in with a proxy code (or a
+  // proxy QR payload) at /join, the session itself carries the right to vote
+  // (`canVote: true`), so votes go straight here without resending the code each time.
+  // Body is the same GuestVoteRequest shape as a participant: `{ choice }` for a
+  // standard resolution, `{ votes: [...] }` for a candidate one.
+  guestVote: async (
+    eventId: string,
+    guestToken: string,
+    resolutionId: string,
+    data: CastVoteRequest,
+  ) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/guest/events/${eventId}/resolutions/${resolutionId}/vote`,
+      data,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
   // Guest proxy voting (§10) — a guest holding a proxy code can cast resolution
-  // votes on behalf of the shareholder who issued the code.
+  // votes on behalf of the shareholder who issued the code. Superseded by guestVote
+  // above for sessions that signed in as a proxy; kept as the fallback for a plain
+  // guest session that only holds a loose proxy code.
   guestProxyVote: async (
     eventId: string,
     guestToken: string,

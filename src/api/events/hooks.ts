@@ -312,6 +312,25 @@ export const useGuestRespondToPoll = (eventId: string, guestToken: string) => {
   });
 };
 
+// Unified proxy voting (§11) — a proxy session (canVote: true) casts without a code.
+export const useGuestVote = (eventId: string, guestToken: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      resolutionId,
+      data,
+    }: {
+      resolutionId: string;
+      data: CastVoteRequest;
+    }) => eventsClient.guestVote(eventId, guestToken, resolutionId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...eventKeys.detail(eventId), "guest-resolutions"] as const,
+      });
+    },
+  });
+};
+
 // Guest proxy voting (§10) — cast a resolution vote using a proxy code.
 export const useGuestProxyVote = (eventId: string, guestToken: string) => {
   const queryClient = useQueryClient();

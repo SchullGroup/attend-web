@@ -20,7 +20,7 @@ import {
   FileBox,
   DownloadCloud,
 } from "lucide-react";
-import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit, useGuestEventView, useGuestResolutions, useGuestQuestions, useGuestSubmitQuestion, useGuestUpvoteQuestion, useGuestPolls, useGuestRespondToPoll, useGuestProxyVote } from "@/api/events/hooks";
+import { useGetEvent, useGetStream, useGetCountdown, useGetQuorum, useGetActivePoll, useRespondToPoll, useGetPressKit, useGuestEventView, useGuestResolutions, useGuestQuestions, useGuestSubmitQuestion, useGuestUpvoteQuestion, useGuestPolls, useGuestRespondToPoll, useGuestProxyVote, useGuestVote } from "@/api/events/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { ZoomStage } from "@/components/attend/ZoomStage";
 import { parseZoomUrl } from "@/lib/zoom";
@@ -110,6 +110,10 @@ export function LiveRoom({
   const zoom = zoomOverride?.meetingNumber ? zoomOverride : parseZoomUrl(streamUrl);
   const displayName = session.user?.fullName || (isGuest ? getGuestName() : "Participant");
   const canVote = !isGuest && (session.user ? session.user.capabilities.includes("VOTE") : true);
+  // §11: a guest who signed in with a proxy code (or proxy QR) at /join gets canVote:true
+  // on the view payload, and may then vote directly — no per-vote code entry. Read live
+  // from the polled view so a resumed session re-checks it without re-parsing the token.
+  const guestCanVote = isGuest && !!(guestViewResp?.data as { canVote?: boolean } | undefined)?.canVote;
   const canSubmitQA = session.user ? session.user.capabilities.includes("QA") : true;
 
   // Zoom's gallery view needs SharedArrayBuffer → the page must be cross-origin
@@ -184,7 +188,10 @@ export function LiveRoom({
   const submittingPoll = isGuest ? submittingGuestPoll : submittingParticipantPoll;
 
   const { mutate: guestProxyVote, isPending: guestProxyVoting } = useGuestProxyVote(eventId, guestToken);
+  const { mutate: guestVote, isPending: guestVoting } = useGuestVote(eventId, guestToken);
   const [proxyCode, setProxyCode] = useState("");
+  // A proxy guest and a voting participant share the same ballot; this is its busy flag.
+  const castPending = voting || guestVoting;
 
   // Press Kit — product launches only. Poll while live so files flip to "released"
   // as the organiser releases them.
@@ -345,44 +352,43 @@ export function LiveRoom({
     );
   }
 
+  // Shared success/error for the standard ballot, whether the caller is a voting
+  // participant or a proxy guest.
+  const voteHandlers = (okText: string) => ({
+    onSuccess: () => {
+      setVoteMsg({ kind: "ok" as const, text: okText });
+      setIsEditingVote(false);
+    },
+    onError: (err: any) => {
+      setVoteMsg({
+        kind: "err" as const,
+        text:
+          err?.response?.data?.message ||
+          (err?.response?.status === 409
+            ? "You've already voted on this resolution."
+            : "Could not record your vote. Please try again."),
+      });
+    },
+  });
+
   function handleCastVote() {
     if (!openRes || !vote) return;
     setVoteMsg(null);
-    castVote(
-      { resolutionId: openRes.id, data: { choice: vote } },
-      {
-        onSuccess: () => {
-          setVoteMsg({ kind: "ok", text: "Your vote has been recorded." });
-          setIsEditingVote(false);
-        },
-        onError: (err: any) => {
-          setVoteMsg({
-            kind: "err",
-            text: err?.response?.data?.message || (err?.response?.status === 409 ? "You've already voted on this resolution." : "Could not record your vote. Please try again."),
-          });
-        },
-      },
-    );
+    const args = { resolutionId: openRes.id, data: { choice: vote } };
+    const h = voteHandlers("Your vote has been recorded.");
+    // §11: a proxy guest votes via the guest endpoint (auth'd by X-Guest-Token, no code);
+    // a participant via the participant endpoint.
+    if (guestCanVote) guestVote(args, h);
+    else castVote(args, h);
   }
 
   function handleCastCandidateVote(votes: { candidateId: string; choice: "FOR" | "AGAINST" | "ABSTAIN" }[]) {
     if (!openRes) return;
     setVoteMsg(null);
-    castVote(
-      { resolutionId: openRes.id, data: { votes } },
-      {
-        onSuccess: () => {
-          setVoteMsg({ kind: "ok", text: "Your nominee ballot has been recorded." });
-          setIsEditingVote(false);
-        },
-        onError: (err: any) => {
-          setVoteMsg({
-            kind: "err",
-            text: err?.response?.data?.message || "Could not record your nominee votes. Please try again.",
-          });
-        },
-      },
-    );
+    const args = { resolutionId: openRes.id, data: { votes } };
+    const h = voteHandlers("Your nominee ballot has been recorded.");
+    if (guestCanVote) guestVote(args, h);
+    else castVote(args, h);
   }
 
   function handleGuestProxyVoteChoice(choice: VoteChoice) {
@@ -721,7 +727,14 @@ export function LiveRoom({
                       </p>
                     </div>
 
-                    {!canVote ? (
+                    {guestCanVote ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                        <p className="font-semibold">Voting as proxy</p>
+                        <p className="mt-0.5 text-[11px] text-emerald-700/80">
+                          You&apos;re signed in with a proxy code and can vote on the shareholder&apos;s behalf.
+                        </p>
+                      </div>
+                    ) : !canVote && !isGuest ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800 space-y-1">
                         <p className="font-semibold">Voting Restricted</p>
                         <p className="text-[11px] text-amber-700/80">
@@ -799,14 +812,14 @@ export function LiveRoom({
                             </div>
                           )}
 
-                          {canVote && !hasProxy && openRes.candidates && openRes.candidates.length > 0 ? (
+                          {(canVote || guestCanVote) && !hasProxy && openRes.candidates && openRes.candidates.length > 0 ? (
                             <NomineeBallot
                               candidates={openRes.candidates}
                               title={openRes.title}
                               onVoteCast={handleCastCandidateVote}
-                              isPending={voting}
+                              isPending={castPending}
                             />
-                          ) : canVote && !hasProxy ? (
+                          ) : (canVote || guestCanVote) && !hasProxy ? (
                             <>
                               <div className="grid grid-cols-3 gap-2">
                                 {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
@@ -828,7 +841,7 @@ export function LiveRoom({
                                     <button
                                       key={opt}
                                       onClick={() => setVote(opt)}
-                                      disabled={voting}
+                                      disabled={castPending}
                                       className={cn(
                                         "flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold capitalize transition-colors disabled:opacity-50",
                                         selected ? selectedTone : tone,
@@ -840,11 +853,11 @@ export function LiveRoom({
                                   );
                                 })}
                               </div>
-                              <Button fullWidth disabled={!vote || voting} loading={voting} onClick={handleCastVote}>
+                              <Button fullWidth disabled={!vote || castPending} loading={castPending} onClick={handleCastVote}>
                                 {vote ? `Cast vote: ${vote.charAt(0) + vote.slice(1).toLowerCase()}` : "Choose an option"}
                               </Button>
                             </>
-                          ) : isGuest ? (
+                          ) : isGuest && !guestCanVote ? (
                             <div className="rounded-xl border border-border bg-slate-50/70 p-3.5 space-y-3">
                               <div>
                                 <p className="text-xs font-semibold text-foreground">Have a proxy code?</p>
