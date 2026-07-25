@@ -91,6 +91,9 @@ export function LiveRoom({
   const event = isGuest ? guestViewResp?.data : eventResp?.data;
   const title = event?.title ?? "Live session";
   const organiser = event?.registerName || event?.organizerName || "";
+  // §7 register branding — present on both participant and guest event payloads.
+  const brandColor = event?.branding?.brandColor || undefined;
+  const brandLogo = event?.branding?.logoUrl || undefined;
   const watching = event?.registeredCount ?? 0;
   const isLive = event?.status === "LIVE";
 
@@ -457,11 +460,29 @@ export function LiveRoom({
         </div>
       </div>
 
-      <div>
-        {organiser && (
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">{organiser}</p>
+      <div className="flex items-center gap-3">
+        {brandLogo && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={brandLogo}
+            alt=""
+            className="h-11 w-11 shrink-0 rounded-xl bg-white object-contain p-1 ring-1 ring-border"
+            // A broken logo URL must not leave a torn-image icon in the header.
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
         )}
-        <h1 className="text-xl font-bold text-foreground md:text-2xl">{title}</h1>
+        <div className="min-w-0">
+          {organiser && (
+            <p
+              className="text-xs font-semibold uppercase tracking-wide text-primary"
+              // Tint with the register's brand colour when set; fall back to the theme primary.
+              style={brandColor ? { color: brandColor } : undefined}
+            >
+              {organiser}
+            </p>
+          )}
+          <h1 className="text-xl font-bold text-foreground md:text-2xl">{title}</h1>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
