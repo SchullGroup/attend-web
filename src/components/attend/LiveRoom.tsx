@@ -333,11 +333,22 @@ export function LiveRoom({
   }, [openRes?.id, openRes?.secondsRemaining]);
 
   // Pre-select the user's existing vote so they can review/change it in the window.
+  // Also clear the last resolution's status message — hasRecorded ORs voteMsg?.kind
+  // === "ok", so a stale success would otherwise flag the NEXT resolution as already
+  // voted (showing "Vote Recorded" for a resolution the user hasn't voted on).
   useEffect(() => {
     setVote((openRes?.myVote as VoteChoice | null) ?? null);
     setIsEditingVote(false);
+    setVoteMsg(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRes?.id]);
+
+  // Same reset for polls — a stale selection/message would otherwise carry into the
+  // next poll and pre-highlight an unrelated option.
+  useEffect(() => {
+    setPollChoice(null);
+    setPollMsg(null);
+  }, [activePoll?.id]);
 
   function sendQuestion(e: React.FormEvent) {
     e.preventDefault();

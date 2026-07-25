@@ -81,12 +81,19 @@ apiClient.interceptors.response.use(
       // account. That's a "not allowed", not an expired session, so it must not touch the
       // guest session: clearing the isGuest cookie and reloading (what this used to do)
       // dropped them straight back on /login the moment any such call fired.
-      // Handle expired or revoked guest tokens on /api/v1/guest/ routes gracefully.
+      // End the guest session only on a genuine token-lifecycle failure, never on a
+      // business-rule rejection. A guest action endpoint (vote, proxy-vote, poll vote,
+      // question) legitimately returns 403 for "wrong proxy code", "not a proxy session"
+      // or "already voted" — those must surface inline, NOT eject the guest from the
+      // live meeting. So auto-logout fires on:
+      //   • 401 on any guest route  → invalid/expired token, and
+      //   • 403 on the /view heartbeat → access revoked by the admin.
+      const guestUrl: string = originalRequest?.url ?? "";
+      const isGuestRoute = guestUrl.includes("/api/v1/guest/") && !guestUrl.includes("/join");
+      const status = error.response?.status;
       if (
-        (error.response?.status === 401 || error.response?.status === 403) &&
-        originalRequest?.url?.includes("/api/v1/guest/") &&
-        !originalRequest?.url?.includes("/join") &&
-        !originalRequest?.url?.includes("/guest/events?")
+        isGuestRoute &&
+        (status === 401 || (status === 403 && guestUrl.includes("/view")))
       ) {
         clearGuestSession();
         if (typeof window !== "undefined") {
