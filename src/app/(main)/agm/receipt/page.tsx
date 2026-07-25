@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Download, Copy, Check, Building2, ChevronRight, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { jsPDF } from "jspdf";
+import { QRCodeSVG } from "qrcode.react";
 import { useGetVoteReceipt, useGetProxy } from "@/api/agm/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
@@ -294,6 +295,23 @@ function ReceiptInner() {
                     </div>
                   )}
                 </div>
+
+                {/* §11 — signed QR of the proxy code. The holder scans it at /join to sign
+                    in as a proxy; being HMAC-signed, a forged image fails verification. */}
+                {(proxy.proxyQrCode || (receipt as any)?.proxyQrCode) && (
+                  <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-border bg-white p-4">
+                    <div className="rounded-lg bg-white p-2 ring-1 ring-border">
+                      <QRCodeSVG
+                        value={String(proxy.proxyQrCode || (receipt as any)?.proxyQrCode)}
+                        size={148}
+                        level="M"
+                      />
+                    </div>
+                    <p className="max-w-xs text-center text-[11px] text-muted-foreground">
+                      Have your proxy scan this at sign-in to vote on your behalf — no code to type.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

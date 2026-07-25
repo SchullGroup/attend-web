@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, UserCheck, UserPlus, Copy, Check, KeyRound } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ function ProxyPageInner() {
   const [phone, setPhone] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [assignedCode, setAssignedCode] = useState<string | null>(null);
+  const [assignedQr, setAssignedQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const { data: existingProxy } = useGetProxy(eventId);
@@ -70,6 +72,7 @@ function ProxyPageInner() {
     assignProxy(payload, {
       onSuccess: (res: any) => {
         const code = res?.data?.proxyCode || res?.proxyCode;
+        setAssignedQr(res?.data?.proxyQrCode || res?.proxyQrCode || null);
         const directionsList = Object.entries(directions).map(([resolutionId, direction]) => ({
           resolutionId,
           direction,
@@ -164,6 +167,17 @@ function ProxyPageInner() {
               )}
             </Button>
           </div>
+
+          {assignedQr && (
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-emerald-200 bg-white p-4">
+              <div className="rounded-lg bg-white p-2 ring-1 ring-emerald-100">
+                <QRCodeSVG value={assignedQr} size={148} level="M" />
+              </div>
+              <p className="max-w-xs text-center text-[11px] text-muted-foreground">
+                Or let your proxy scan this at sign-in — no code to type.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-end">
             <Button onClick={() => router.push(`/agm/receipt?eventId=${eventId}`)}>
