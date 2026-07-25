@@ -2,10 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, UserCheck, Mail, Phone, ChevronDown, ChevronUp } from "lucide-react";
-import { useGetProxyHistory, useRevokeProxy } from "@/api/agm/hooks";
+import { useGetProxyHistory, useRevokeProxy, useGetVoteReceipt } from "@/api/agm/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDate, cn } from "@/lib/utils";
+import { ProxyCastVotes } from "@/components/attend/ProxyCastVotes";
 import { ProxyHistoryItem } from "@/types";
 
 type Tone = "info" | "success" | "muted" | "danger" | "warning";
@@ -69,6 +70,12 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
   const [expanded, setExpanded] = useState(false);
   const { mutate: revoke, isPending: revoking } = useRevokeProxy(p.eventId);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // The proxy-history payload carries no vote outcomes — the only source of what a proxy
+  // actually cast is the shareholder's vote receipt. Fetch it lazily, only once this row
+  // is expanded, and pull out the castByProxy rows.
+  const { data: receiptResp, isLoading: receiptLoading } = useGetVoteReceipt(p.eventId, expanded);
+  const proxyVotes = (receiptResp?.data?.votes ?? []).filter((v) => v.castByProxy);
 
   const isRevoked = p.status?.toUpperCase() === "REVOKED";
   const isEnded = p.eventStatus?.toUpperCase() === "ENDED";
@@ -159,29 +166,42 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
         )}
       </div>
 
-      {p.directions && p.directions.length > 0 && (
-        <div className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-          >
-            {expanded ? (
-              <>
-                <ChevronUp className="h-3.5 w-3.5" /> Hide voting directions
-              </>
-            ) : (
-              <>
-                <ChevronDown className="h-3.5 w-3.5" /> View voting directions ({p.directions.length})
-              </>
-            )}
-          </button>
+      <div className="border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="h-3.5 w-3.5" /> Hide proxy activity
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3.5 w-3.5" /> What did your proxy vote?
+            </>
+          )}
+        </button>
 
-          {expanded && (
-            <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3 border border-border">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Resolution Directions</h4>
-              <div className="space-y-2.5">
-                {p.directions.map((dir, idx) => (
+        {expanded && (
+          <div className="mt-3 space-y-3">
+            {receiptLoading ? (
+              <div className="h-16 animate-pulse rounded-xl bg-muted" />
+            ) : proxyVotes.length > 0 ? (
+              <ProxyCastVotes votes={proxyVotes} proxyName={p.proxyName} />
+            ) : (
+              <p className="rounded-xl border border-border bg-slate-50 p-3 text-xs text-muted-foreground">
+                No votes have been recorded by this proxy yet
+                {p.eventStatus?.toUpperCase() === "ENDED" ? "." : " — check back once voting is underway."}
+              </p>
+            )}
+
+            {/* Pre-set voting directions — only if the backend ever populates them. */}
+            {p.directions && p.directions.length > 0 && (
+              <div className="space-y-2 rounded-xl bg-slate-50 p-3 border border-border">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Resolution Directions</h4>
+                <div className="space-y-2.5">
+                  {p.directions.map((dir, idx) => (
                   <div key={dir.resolutionId || idx} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 last:border-b-0 pb-2 last:pb-0">
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-foreground truncate">
@@ -216,7 +236,8 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
             </div>
           )}
         </div>
-      )}
+        )}
+      </div>
     </li>
   );
 }

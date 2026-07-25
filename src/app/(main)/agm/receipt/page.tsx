@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Download, Copy, Check, Building2, ChevronRight
 import { Button } from "@/components/ui/Button";
 import { jsPDF } from "jspdf";
 import { QRCodeSVG } from "qrcode.react";
+import { ProxyCastVotes } from "@/components/attend/ProxyCastVotes";
 import { useGetVoteReceipt, useGetProxy } from "@/api/agm/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
@@ -314,6 +315,8 @@ function ReceiptInner() {
                 )}
               </div>
             )}
+
+            <ProxyCastVotes votes={votesList} proxyName={proxy?.proxyName} />
 
             <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
               This receipt is timestamped and serves as evidence of your

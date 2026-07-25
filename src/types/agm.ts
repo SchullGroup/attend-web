@@ -157,6 +157,9 @@ export type MinutesResponse = ApiResponse<MinutesData | null>;
 export interface VoteReceiptItem {
   resolutionId: string;
   resolutionTitle: string;
+  /** Present for candidate ("election") resolutions — one receipt row per candidate. */
+  candidateId?: string;
+  candidateName?: string;
   choice: string;
   votedAt: string;
   /** true when a proxy cast this vote on the shareholder's behalf (§10). */
