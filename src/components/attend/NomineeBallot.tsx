@@ -101,6 +101,8 @@ export function NomineeBallot({
                   );
                 })}
               </div>
+
+              <CandidateTally candidate={candidate} />
             </div>
           );
         })}
@@ -118,5 +120,31 @@ export function NomineeBallot({
         </Button>
       )}
     </form>
+  );
+}
+
+// Compact per-candidate running tally, mirroring the standard resolution's live tally.
+// Head counts only (the candidate payload's share fields are all 0 unless the register is
+// share-weighted). Hidden until at least one vote exists, so it stays clean pre-voting.
+function CandidateTally({ candidate }: { candidate: CandidateItem }) {
+  const f = candidate.forCount ?? 0;
+  const a = candidate.againstCount ?? 0;
+  const ab = candidate.abstainCount ?? 0;
+  const total = f + a + ab;
+  if (total === 0) return null;
+  const pct = (n: number) => `${(n / total) * 100}%`;
+  return (
+    <div className="mt-1">
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="bg-emerald-500" style={{ width: pct(f) }} />
+        <div className="bg-rose-500" style={{ width: pct(a) }} />
+        <div className="bg-slate-400" style={{ width: pct(ab) }} />
+      </div>
+      <p className="mt-1 flex gap-3 text-[10px] font-medium text-muted-foreground">
+        <span className="text-emerald-600">For {f}</span>
+        <span className="text-rose-600">Against {a}</span>
+        <span>Abstain {ab}</span>
+      </p>
+    </div>
   );
 }
