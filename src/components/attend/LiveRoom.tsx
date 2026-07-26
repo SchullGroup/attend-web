@@ -13,6 +13,8 @@ import {
   Minus,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle,
   ThumbsUp,
   Clock,
@@ -213,18 +215,59 @@ export function LiveRoom({
   // The guest payload omits this flag entirely, so we can't know whether the register is
   // share-weighted — show head counts rather than a column of misleading zeroes.
   const shareWeighted = !isGuest && !!resData?.data?.shareWeightedTalliesEnabled;
+  // The ballot shows one open resolution at a time and advances to the next unvoted one
+  // as soon as a vote succeeds. `locallyVoted` marks just-cast resolutions optimistically
+  // (myVote only arrives on the next ~5s poll); `manualResId` lets the user step back to
+  // an earlier open resolution to review/change it, and is cleared on the next cast.
+  const [locallyVoted, setLocallyVoted] = useState<Set<string>>(new Set());
+  const [manualResId, setManualResId] = useState<string | null>(null);
+  // Transient "vote recorded" note that survives the auto-advance (voteMsg is tied to the
+  // resolution and gets reset the instant we move on).
+  const [advanceNote, setAdvanceNote] = useState<string | null>(null);
+
   // Status-driven (secondsRemaining is null while a resolution is WAITING).
-  const openRes = resolutions.find(
-    (r) => (r.status || "").toUpperCase() === "OPEN" || r.secondsRemaining > 0,
-  );
+  const isOpenRes = (r: Resolution) =>
+    (r.status || "").toUpperCase() === "OPEN" || r.secondsRemaining > 0;
+  const isResVoted = (r: Resolution) => !!r.myVote || locallyVoted.has(r.id);
+  // Stable 1-based numbering by position — resolution.order isn't reliably 0-based,
+  // which is what produced "6 of 5". Number by index so the count always tallies.
+  const sortedRes = [...resolutions].sort((a, b) => a.order - b.order);
+  const openResolutions = sortedRes.filter(isOpenRes);
+  // First open resolution the user hasn't voted on; once all open ones are voted, fall
+  // back to the last so its "Vote Recorded" (with Change vote) still shows. A manual
+  // prev/next pick overrides the auto choice until the next successful cast.
+  const autoOpenRes =
+    openResolutions.find((r) => !isResVoted(r)) ?? openResolutions[openResolutions.length - 1];
+  const openRes =
+    (manualResId ? openResolutions.find((r) => r.id === manualResId) : undefined) ?? autoOpenRes;
+
+  const openIdx = openRes ? openResolutions.findIndex((r) => r.id === openRes.id) : -1;
+  const hasPrevOpen = openIdx > 0;
+  const hasNextOpen = openIdx >= 0 && openIdx < openResolutions.length - 1;
+  const gotoPrevOpen = () => {
+    if (hasPrevOpen) setManualResId(openResolutions[openIdx - 1].id);
+  };
+  const gotoNextOpen = () => {
+    if (hasNextOpen) setManualResId(openResolutions[openIdx + 1].id);
+  };
+  // On a successful cast: remember it (so the ballot advances now, not on the next poll),
+  // drop any manual selection so it moves forward, and flash a short confirmation.
+  const markVoted = (id: string) => {
+    setLocallyVoted((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    setManualResId(null);
+    setAdvanceNote("Your vote was recorded.");
+    window.setTimeout(() => setAdvanceNote(null), 3500);
+  };
+
   const allClosed =
     resolutions.length > 0 && resolutions.every((r) => (r.status || "").toUpperCase() === "CLOSED");
   // Open while a resolution is live, Closed only when every one has closed,
   // otherwise Waiting (resolutions exist but none has been opened yet).
   const ballotStatus = openRes ? "Open" : allClosed ? "Closed" : resolutions.length ? "Waiting" : "—";
-  // Stable 1-based numbering by position — resolution.order isn't reliably 0-based,
-  // which is what produced "6 of 5". Number by index so the count always tallies.
-  const sortedRes = [...resolutions].sort((a, b) => a.order - b.order);
   const openPos = openRes ? sortedRes.findIndex((r) => r.id === openRes.id) + 1 : null;
 
   // Real-time Q&A over WebSocket; polling stays as a slow (30s) fallback.
@@ -368,10 +411,11 @@ export function LiveRoom({
 
   // Shared success/error for the standard ballot, whether the caller is a voting
   // participant or a proxy guest.
-  const voteHandlers = (okText: string) => ({
+  const voteHandlers = (okText: string, resId: string) => ({
     onSuccess: () => {
       setVoteMsg({ kind: "ok" as const, text: okText });
       setIsEditingVote(false);
+      markVoted(resId);
     },
     onError: (err: any) => {
       setVoteMsg({
@@ -389,7 +433,7 @@ export function LiveRoom({
     if (!openRes || !vote) return;
     setVoteMsg(null);
     const args = { resolutionId: openRes.id, data: { choice: vote } };
-    const h = voteHandlers("Your vote has been recorded.");
+    const h = voteHandlers("Your vote has been recorded.", openRes.id);
     // §11: a proxy guest votes via the guest endpoint (auth'd by X-Guest-Token, no code);
     // a participant via the participant endpoint.
     if (guestCanVote) guestVote(args, h);
@@ -400,7 +444,7 @@ export function LiveRoom({
     if (!openRes) return;
     setVoteMsg(null);
     const args = { resolutionId: openRes.id, data: { votes } };
-    const h = voteHandlers("Your nominee ballot has been recorded.");
+    const h = voteHandlers("Your nominee ballot has been recorded.", openRes.id);
     if (guestCanVote) guestVote(args, h);
     else castVote(args, h);
   }
@@ -414,6 +458,7 @@ export function LiveRoom({
         onSuccess: () => {
           setVoteMsg({ kind: "ok", text: "Your proxy vote has been recorded." });
           setIsEditingVote(false);
+          markVoted(openRes.id);
         },
         onError: (err: any) => {
           setVoteMsg({
@@ -434,6 +479,7 @@ export function LiveRoom({
         onSuccess: () => {
           setVoteMsg({ kind: "ok", text: "Your proxy candidate ballot has been recorded." });
           setIsEditingVote(false);
+          markVoted(openRes.id);
         },
         onError: (err: any) => {
           setVoteMsg({
@@ -747,10 +793,44 @@ export function LiveRoom({
                 tab === "ballot" &&
                 (openRes ? (
                   <div className="space-y-4">
+                    {advanceNote && (
+                      <div className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+                        <Check className="h-3.5 w-3.5" /> {advanceNote}
+                      </div>
+                    )}
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                        Resolution {openPos}
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                          Resolution {openPos}
+                        </p>
+                        {/* Only appears when more than one resolution is open at once —
+                            steps between them without crowding the single-open case. */}
+                        {openResolutions.length > 1 && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={gotoPrevOpen}
+                              disabled={!hasPrevOpen}
+                              aria-label="Previous open resolution"
+                              className="rounded-md border border-border p-1 text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
+                            >
+                              <ChevronLeft className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              {openIdx + 1}/{openResolutions.length} open
+                            </span>
+                            <button
+                              type="button"
+                              onClick={gotoNextOpen}
+                              disabled={!hasNextOpen}
+                              aria-label="Next open resolution"
+                              className="rounded-md border border-border p-1 text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
+                            >
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <h3 className="mt-0.5 text-base font-semibold text-foreground">
                         {openRes.title}
                       </h3>
