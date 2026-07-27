@@ -2,7 +2,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, UserCheck, UserPlus, Copy, Check, KeyRound, Lock } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,9 @@ function ProxyPageInner() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [assignedCode, setAssignedCode] = useState<string | null>(null);
+  const [assignedQr, setAssignedQr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { data: existingProxy } = useGetProxy(eventId);
   const { mutate: assignProxy, isPending } = useAssignProxy(eventId);
@@ -39,6 +43,15 @@ function ProxyPageInner() {
 
   const resolutions = resolutionsData?.data?.resolutions ?? [];
   const [directions, setDirections] = useState<Record<string, "FOR" | "AGAINST" | "ABSTAIN" | "LET_PROXY_DECIDE">>({});
+
+  // A proxy stands in for a shareholder who won't attend — once the meeting is LIVE that's
+  // moot (the shareholder is here, in the room, and can vote themselves), and appointing
+  // one after the fact has no real effect on votes already open. Block new assignment from
+  // LIVE onward; an existing proxy appointed earlier still stands and still votes.
+  // NOTE: this is FE-only — the backend accepts the call at any status, so this is UX
+  // guidance, not enforcement. See docs/AGENT_CONTINUATION_GUIDE.md backlog.
+  const eventStatus = (eventData?.data?.status || "").toUpperCase();
+  const assignmentClosed = eventStatus === "LIVE" || eventStatus === "ENDED" || eventStatus === "CANCELLED";
 
   useEffect(() => {
     if (resolutions.length > 0) {
@@ -66,7 +79,9 @@ function ProxyPageInner() {
         : { proxyName: name.trim(), proxyEmail: email.trim(), proxyPhone: phone.trim() };
 
     assignProxy(payload, {
-      onSuccess: () => {
+      onSuccess: (res: any) => {
+        const code = res?.data?.proxyCode || res?.proxyCode;
+        setAssignedQr(res?.data?.proxyQrCode || res?.proxyQrCode || null);
         const directionsList = Object.entries(directions).map(([resolutionId, direction]) => ({
           resolutionId,
           direction,
@@ -75,13 +90,21 @@ function ProxyPageInner() {
           assignProxyDirections(
             { directions: directionsList },
             {
-              onSuccess: () => router.push(`/agm/receipt?eventId=${eventId}`),
+              onSuccess: () => {
+                if (code) {
+                  setAssignedCode(code);
+                } else {
+                  router.push(`/agm/receipt?eventId=${eventId}`);
+                }
+              },
               onError: (err: any) =>
                 setErrorMsg(
                   err?.response?.data?.message || err?.message || "Proxy appointed, but failed to save directions."
                 ),
             }
           );
+        } else if (code) {
+          setAssignedCode(code);
         } else {
           router.push(`/agm/receipt?eventId=${eventId}`);
         }
@@ -105,11 +128,90 @@ function ProxyPageInner() {
           If you can&apos;t attend the meeting, appoint someone to vote on your behalf.
         </p>
         {existingProxy?.data && (
-          <p className="mt-2 text-xs font-medium text-primary">
-            Current proxy: {existingProxy.data.proxyName}
-          </p>
+          <div className="mt-2 flex items-center gap-3 text-xs font-medium text-primary">
+            <span>Current proxy: {existingProxy.data.proxyName}</span>
+            {existingProxy.data.proxyCode && (
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono">
+                Code: {existingProxy.data.proxyCode}
+              </span>
+            )}
+          </div>
         )}
       </header>
+
+      {assignmentClosed && !assignedCode ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-border bg-slate-50 p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-600">
+            <Lock className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              {eventStatus === "LIVE" ? "Proxy appointment is closed" : "Proxy appointment has ended"}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {eventStatus === "LIVE"
+                ? "This meeting is already live, so a new proxy can no longer be appointed — you can vote directly instead."
+                : "This meeting has ended, so a proxy can no longer be appointed for it."}
+              {existingProxy?.data && " Your existing proxy appointment still stands."}
+            </p>
+          </div>
+        </div>
+      ) : assignedCode ? (
+        <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white">
+              <KeyRound className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-emerald-900">Proxy Appointed Successfully</h2>
+              <p className="text-xs text-emerald-700">Give this 10-digit code to your proxy holder so they can vote on your behalf.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-white p-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Proxy Code</p>
+              <p className="text-xl font-mono font-bold tracking-widest text-foreground">{assignedCode}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(assignedCode);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+            >
+              {copied ? (
+                <>
+                  <Check className="mr-1.5 h-4 w-4 text-emerald-600" /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-1.5 h-4 w-4" /> Copy Code
+                </>
+              )}
+            </Button>
+          </div>
+
+          {assignedQr && (
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-emerald-200 bg-white p-4">
+              <div className="rounded-lg bg-white p-2 ring-1 ring-emerald-100">
+                <QRCodeSVG value={assignedQr} size={148} level="M" />
+              </div>
+              <p className="max-w-xs text-center text-[11px] text-muted-foreground">
+                Or let your proxy scan this at sign-in — no code to type.
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button onClick={() => router.push(`/agm/receipt?eventId=${eventId}`)}>
+              View Vote Receipt
+            </Button>
+          </div>
+        </div>
+      ) : (
 
       <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-white p-5 shadow-sm">
         {errorMsg && (
@@ -226,6 +328,7 @@ function ProxyPageInner() {
           </Button>
         </div>
       </form>
+      )}
     </div>
   );
 }

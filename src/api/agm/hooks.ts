@@ -19,11 +19,11 @@ export const useGetMinutes = (eventId: string) => {
   });
 };
 
-export const useGetVoteReceipt = (eventId: string) => {
+export const useGetVoteReceipt = (eventId: string, enabled = true) => {
   return useQuery({
     queryKey: agmKeys.voteReceipt(eventId),
     queryFn: () => agmClient.getVoteReceipt(eventId),
-    enabled: !!eventId,
+    enabled: !!eventId && enabled,
     retry: false,
   });
 };

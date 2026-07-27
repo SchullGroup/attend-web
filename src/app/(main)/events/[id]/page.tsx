@@ -212,7 +212,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         }
       >
         {event.bannerUrl && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/35 to-transparent" />
         )}
         {!event.bannerUrl && (
           <div className="absolute -right-10 -bottom-12 select-none text-[180px] font-black leading-none text-white/10">
@@ -335,7 +335,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           ) : (
             <div className="space-y-2">
-              {event.agmProxyEnabled && (
+              {event.agmProxyEnabled && !isLive && !isEnded && (
                 <Link href={`/agm/proxy?eventId=${id}`}>
                   <ActionRow icon={<FileText className="h-5 w-5" style={{ color }} />} label="Appoint a Proxy" />
                 </Link>
@@ -357,10 +357,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <div className="space-y-2">
             <Link href={`/hackathon/${id}`}>
               <ActionRow
-                icon={<BookOpen className="h-5 w-5 text-[var(--brand-primary)]" />}
+                icon={<BookOpen className="h-5 w-5 text-(--brand-primary)" />}
                 label="View Challenge Brief"
-                bg="bg-[var(--brand-primary)]/10"
-                labelColor="text-[var(--brand-primary)]"
+                bg="bg-(--brand-primary)/10"
+                labelColor="text-(--brand-primary)"
                 style={{
                   backgroundColor: `${event.brandPrimary || '#9333ea'}15`,
                   color: 'var(--brand-primary)',

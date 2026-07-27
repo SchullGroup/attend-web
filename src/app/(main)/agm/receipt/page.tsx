@@ -4,16 +4,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Download, Copy, Check, Building2, ChevronRight, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { jsPDF } from "jspdf";
+import { QRCodeSVG } from "qrcode.react";
+import { downloadVoteReceiptPdf, voteLabel } from "@/lib/vote-receipt-pdf";
+import { ProxyCastVotes } from "@/components/attend/ProxyCastVotes";
 import { useGetVoteReceipt, useGetProxy } from "@/api/agm/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { formatDate } from "@/lib/utils";
 
-function voteLabel(c: string) {
-  const u = (c || "").toUpperCase();
-  return u === "FOR" ? "For" : u === "AGAINST" ? "Against" : "Abstain";
-}
 
 function ReceiptInner() {
   const searchParams = useSearchParams();
@@ -74,6 +72,8 @@ function ReceiptInner() {
         title: v.resolutionTitle,
         vote: voteLabel(v.choice),
         isPre,
+        castByProxy: !!v.castByProxy,
+        proxyName: v.proxyName as string | undefined,
       };
     }),
   };
@@ -84,98 +84,13 @@ function ReceiptInner() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  // Build the receipt as a real PDF (drawn directly, so it's crisp and one page).
   function downloadPdf() {
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const margin = 48;
-    let y = 64;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("Vote Receipt", margin, y);
-    y += 20;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(90);
-    doc.text("Your votes have been recorded", margin, y);
-    doc.setTextColor(20);
-    y += 30;
-
-    const field = (label: string, value: string) => {
-      doc.setFontSize(9);
-      doc.setTextColor(130);
-      doc.text(label.toUpperCase(), margin, y);
-      y += 14;
-      doc.setFontSize(12);
-      doc.setTextColor(20);
-      const lines = doc.splitTextToSize(value || "—", pageW - margin * 2);
-      doc.text(lines, margin, y);
-      y += lines.length * 15 + 12;
-    };
-
-    field("Meeting", view.meeting);
-    field("Cast at", view.date);
-    field("Reference", view.reference);
-
-    doc.setFontSize(9);
-    doc.setTextColor(130);
-    doc.text("RESOLUTIONS", margin, y);
-    y += 16;
-    doc.setTextColor(20);
-    if (view.resolutions.length === 0) {
-      doc.setFontSize(11);
-      doc.text("No votes recorded.", margin, y);
-      y += 18;
-    } else {
-      view.resolutions.forEach((r) => {
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        const title = doc.splitTextToSize(`Resolution ${r.num}: ${r.title}`, pageW - margin * 2 - 100);
-        doc.text(title, margin, y);
-        doc.setFont("helvetica", "normal");
-        const textLabel = r.isPre ? `${r.vote} (Pre-vote)` : r.vote;
-        doc.text(textLabel, pageW - margin, y, { align: "right" });
-        y += title.length * 15 + 8;
-      });
-    }
-    y += 10;
-
-    if (proxy && proxy.proxyName) {
-      doc.setFontSize(9);
-      doc.setTextColor(130);
-      doc.text("PROXY", margin, y);
-      y += 16;
-      doc.setFontSize(12);
-      doc.setTextColor(20);
-      doc.text(proxy.proxyName, margin, y);
-      y += 16;
-      const contact = [proxy.proxyEmail, proxy.proxyPhone].filter(Boolean).join("  ·  ");
-      if (contact) {
-        doc.setFontSize(10);
-        doc.setTextColor(110);
-        doc.text(contact, margin, y);
-        y += 14;
-      }
-      if (proxy.assignedAt) {
-        doc.setFontSize(9);
-        doc.setTextColor(130);
-        doc.text(`Appointed ${formatDate(proxy.assignedAt)}`, margin, y);
-        y += 16;
-      }
-      doc.setTextColor(20);
-    }
-
-    y += 12;
-    doc.setFontSize(9);
-    doc.setTextColor(130);
-    const footer = doc.splitTextToSize(
-      "This receipt is timestamped and serves as evidence of your participation and votes at the meeting.",
-      pageW - margin * 2,
-    );
-    doc.text(footer, margin, y);
-
-    doc.save(`vote-receipt-${view.reference}.pdf`);
+    downloadVoteReceiptPdf({
+      ...view,
+      proxy: proxy
+        ? { ...proxy, proxyCode: proxy.proxyCode || (receipt as any)?.proxyCode }
+        : null,
+    });
   }
 
   return (
@@ -186,7 +101,7 @@ function ReceiptInner() {
 
       <div className="mx-auto max-w-2xl">
         <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
-          <div className="border-b border-border bg-gradient-to-br from-emerald-500 to-emerald-700 p-6 text-white">
+          <div className="border-b border-border bg-linear-to-br from-emerald-500 to-emerald-700 p-6 text-white">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
                 <CheckCircle2 className="h-6 w-6" />
@@ -232,17 +147,24 @@ function ReceiptInner() {
                         <p className="text-xs text-muted-foreground">Resolution {r.num}</p>
                         <p className="font-medium text-foreground">{r.title}</p>
                       </div>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          r.vote === "For"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : r.vote === "Against"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-slate-100 text-slate-700"
-                        }`}
-                      >
-                        {r.vote} {r.isPre && "(Pre-vote)"}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            r.vote === "For"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : r.vote === "Against"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {r.vote} {r.isPre && "(Pre-vote)"}
+                        </span>
+                        {r.castByProxy && (
+                          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
+                            Cast by {r.proxyName || "Proxy"}
+                          </span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -252,28 +174,57 @@ function ReceiptInner() {
             {proxy && proxy.proxyName && (
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Proxy
+                  Appointed Proxy
                 </p>
-                <div className="flex items-start gap-3 rounded-xl border border-border p-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50">
-                    <UserCheck className="h-4.5 w-4.5 text-purple-600" />
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3.5 bg-slate-50/50">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
+                      <UserCheck className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="text-sm">
+                      <p className="font-semibold text-foreground">{proxy.proxyName}</p>
+                      {(proxy.proxyEmail || proxy.proxyPhone) && (
+                        <p className="text-xs text-muted-foreground">
+                          {[proxy.proxyEmail, proxy.proxyPhone].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                      {proxy.assignedAt && (
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          Appointed {formatDate(proxy.assignedAt)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-sm">
-                    <p className="font-medium text-foreground">{proxy.proxyName}</p>
-                    {(proxy.proxyEmail || proxy.proxyPhone) && (
-                      <p className="text-xs text-muted-foreground">
-                        {[proxy.proxyEmail, proxy.proxyPhone].filter(Boolean).join(" · ")}
+                  {(proxy.proxyCode || (receipt as any)?.proxyCode) && (
+                    <div className="rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-purple-600">Proxy Code</p>
+                      <p className="font-mono text-sm font-bold tracking-widest text-purple-900">
+                        {proxy.proxyCode || (receipt as any)?.proxyCode}
                       </p>
-                    )}
-                    {proxy.assignedAt && (
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        Appointed {formatDate(proxy.assignedAt)}
-                      </p>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* §11 — signed QR of the proxy code. The holder scans it at /join to sign
+                    in as a proxy; being HMAC-signed, a forged image fails verification. */}
+                {(proxy.proxyQrCode || (receipt as any)?.proxyQrCode) && (
+                  <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-border bg-white p-4">
+                    <div className="rounded-lg bg-white p-2 ring-1 ring-border">
+                      <QRCodeSVG
+                        value={String(proxy.proxyQrCode || (receipt as any)?.proxyQrCode)}
+                        size={148}
+                        level="M"
+                      />
+                    </div>
+                    <p className="max-w-xs text-center text-[11px] text-muted-foreground">
+                      Have your proxy scan this at sign-in to vote on your behalf — no code to type.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
+
+            <ProxyCastVotes votes={votesList} proxyName={proxy?.proxyName} />
 
             <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
               This receipt is timestamped and serves as evidence of your

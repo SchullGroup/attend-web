@@ -177,7 +177,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
                 {displayName}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {displayEmail}
+                {isGuest ? "Guest" : displayEmail}
               </p>
             </div>
           </Link>
@@ -194,9 +194,9 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       {/* Top header */}
       <header className="sticky top-0 z-20 border-b border-border bg-white/85 backdrop-blur md:pl-64">
         {isGuest && (
-          <div className="bg-amber-500 text-white text-center py-1.5 px-4 text-xs font-semibold select-none flex items-center justify-center gap-1.5 border-b border-amber-600/20">
-            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-            Guest &bull; {currentUser?.role}
+          <div className="bg-slate-900 text-white text-center py-1.5 px-4 text-xs font-semibold select-none flex items-center justify-center gap-1.5 border-b border-slate-800">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Guest
           </div>
         )}
         <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-8">

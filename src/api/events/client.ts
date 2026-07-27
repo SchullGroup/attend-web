@@ -13,6 +13,7 @@ import {
   GuestResolutionsResponse,
   QuestionsResponse,
   SubmitQuestionRequest,
+  CastVoteRequest,
 } from "@/types";
 
 export const eventsClient = {
@@ -143,10 +144,12 @@ export const eventsClient = {
   },
 
   // Guest access — unauthenticated, bypasses the standard auth interceptor.
-  guestJoinEvent: async (eventId: string, code: string) => {
+  guestJoinEvent: async (eventId: string, code: string, name?: string) => {
+    const body: Record<string, string> = { code };
+    if (name?.trim()) body.name = name.trim();
     const response = await axios.post<ApiResponse<Record<string, unknown>>>(
       `/api/v1/guest/events/${eventId}/join`,
-      { code },
+      body,
       { headers: { "Content-Type": "application/json" } },
     );
     return response.data;
@@ -154,7 +157,7 @@ export const eventsClient = {
 
   // Public — no token of any kind. This is the only guest entry point that doesn't
   // already require an event id, so it's what "Continue as guest" browses.
-  guestBrowseEvents: async (params: { search?: string; page?: number; size?: number }) => {
+  guestBrowseEvents: async (params: { search?: string; eventType?: string; page?: number; size?: number }) => {
     const response = await axios.get<GuestEventsListResponse>(`/api/v1/guest/events`, {
       params,
       headers: { "Content-Type": "application/json" },
@@ -201,6 +204,62 @@ export const eventsClient = {
     const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
       `/api/v1/guest/events/${eventId}/questions/${questionId}/upvote`,
       {},
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  // Guest polls (§9) — guests can view and vote on polls.
+  guestGetPolls: async (eventId: string, guestToken: string) => {
+    const response = await apiClient.get<ApiResponseActivePollResponse>(
+      `/api/v1/guest/events/${eventId}/polls`,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  guestRespondToPoll: async (eventId: string, guestToken: string, pollId: string, optionId: string) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/guest/events/${eventId}/polls/${pollId}/vote`,
+      { optionId },
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  // Unified proxy voting (§11) — once a guest has signed in with a proxy code (or a
+  // proxy QR payload) at /join, the session itself carries the right to vote
+  // (`canVote: true`), so votes go straight here without resending the code each time.
+  // Body is the same GuestVoteRequest shape as a participant: `{ choice }` for a
+  // standard resolution, `{ votes: [...] }` for a candidate one.
+  guestVote: async (
+    eventId: string,
+    guestToken: string,
+    resolutionId: string,
+    data: CastVoteRequest,
+  ) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/guest/events/${eventId}/resolutions/${resolutionId}/vote`,
+      data,
+      { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
+    );
+    return response.data;
+  },
+
+  // Guest proxy voting (§10) — a guest holding a proxy code can cast resolution
+  // votes on behalf of the shareholder who issued the code. Superseded by guestVote
+  // above for sessions that signed in as a proxy; kept as the fallback for a plain
+  // guest session that only holds a loose proxy code.
+  guestProxyVote: async (
+    eventId: string,
+    guestToken: string,
+    resolutionId: string,
+    proxyCode: string,
+    data: CastVoteRequest,
+  ) => {
+    const response = await apiClient.post<ApiResponse>(
+      `/api/v1/guest/events/${eventId}/resolutions/${resolutionId}/proxy-vote`,
+      { proxyCode, ...data },
       { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
     );
     return response.data;

@@ -17,6 +17,7 @@ function GuestJoinInner() {
   const codeParam = (params.get("code") ?? "").toUpperCase();
 
   const [code, setCode] = useState(codeParam);
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { mutate: guestJoin, isPending } = useGuestJoin(eventId);
 
@@ -24,18 +25,18 @@ function GuestJoinInner() {
   // double-effect from firing a second join and burning an extra use off maxUses.
   const attempted = useRef(false);
 
-  function join(value: string) {
+  function join(value: string, joinName?: string) {
     setError(null);
     guestJoin(
-      { code: value.trim() },
+      { code: value.trim(), name: joinName?.trim() || undefined },
       {
         onSuccess: async (res: any) => {
-          const { token, eventType } = readJoinResult(res);
+          const { token, eventType, guestName } = readJoinResult(res);
           if (!token) {
             setError("Joined, but no guest session was returned. Please try again.");
             return;
           }
-          storeGuestSession(token, eventId);
+          storeGuestSession(token, eventId, joinName?.trim() || guestName);
           router.replace(await resolveGuestLiveHref(eventId, token, eventType));
         },
         onError: (err: any) =>
@@ -104,14 +105,21 @@ function GuestJoinInner() {
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && code.trim().length >= 3) join(code);
+            if (e.key === "Enter" && code.trim().length >= 3) join(code, name);
           }}
           maxLength={12}
         />
-        <Button disabled={code.trim().length < 3} onClick={() => join(code)}>
+        <Button disabled={code.trim().length < 3} onClick={() => join(code, name)}>
           Join
         </Button>
       </div>
+
+      <input
+        className="mt-2 w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/20"
+        placeholder="Your name (optional)"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
 
       <Link href="/guest" className="mt-4 text-sm text-muted-foreground hover:text-foreground">
         Browse other events

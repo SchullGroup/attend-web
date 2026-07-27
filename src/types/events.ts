@@ -89,6 +89,9 @@ export interface GuestEventListItem {
   date: string;
   startTime: string;
   branding?: EventBranding;
+  eventType?: string;
+  status?: string;
+  bannerUrl?: string | null;
 }
 
 export interface GuestEventsListData {

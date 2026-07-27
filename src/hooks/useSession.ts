@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import { useGetMe } from "@/api/auth/hooks";
-import { GUEST_TOKEN_KEY, clearGuestSession } from "@/lib/guest-session";
+import { GUEST_TOKEN_KEY, clearGuestSession, getGuestName } from "@/lib/guest-session";
 
 export interface Session {
   type: "SHAREHOLDER" | "GUEST" | "ANONYMOUS";
@@ -12,6 +12,7 @@ export interface Session {
     phone?: string | null;
     role: string;
     capabilities: ("VIEW" | "QA" | "VOTE")[];
+    createdAt?: string;
   } | null;
   loading: boolean;
   isAuthenticated: boolean;
@@ -53,6 +54,7 @@ export function useSession(): Session {
             phone: user.phoneNumber,
             role: "Shareholder",
             capabilities: ["VIEW", "QA", "VOTE"],
+            createdAt: user.createdAt,
           }
         : null,
       loading: userLoading,
@@ -61,14 +63,12 @@ export function useSession(): Session {
   }
 
   if (guestToken) {
-    // There is no guest-profile endpoint, so we can't name the guest or read capabilities
-    // back from the server. VIEW is the only capability we can honestly claim; anything
-    // more is decided per-request by the backend against X-Guest-Token.
+    const name = getGuestName();
     return {
       type: "GUEST",
       user: {
         id: "guest",
-        fullName: "Guest",
+        fullName: name,
         email: null,
         phone: null,
         role: "Guest",

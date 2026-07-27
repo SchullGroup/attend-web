@@ -1,11 +1,13 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, UserCheck, Mail, Phone, ChevronDown, ChevronUp } from "lucide-react";
-import { useGetProxyHistory, useRevokeProxy } from "@/api/agm/hooks";
+import { ArrowLeft, UserCheck, Mail, Phone, ChevronDown, ChevronUp, Download } from "lucide-react";
+import { downloadVoteReceiptPdf, voteLabel } from "@/lib/vote-receipt-pdf";
+import { useGetProxyHistory, useRevokeProxy, useGetVoteReceipt } from "@/api/agm/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDate, cn } from "@/lib/utils";
+import { ProxyCastVotes } from "@/components/attend/ProxyCastVotes";
 import { ProxyHistoryItem } from "@/types";
 
 type Tone = "info" | "success" | "muted" | "danger" | "warning";
@@ -70,15 +72,60 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
   const { mutate: revoke, isPending: revoking } = useRevokeProxy(p.eventId);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // The proxy-history payload carries no vote outcomes — the only source of what a proxy
+  // actually cast is the shareholder's vote receipt. Fetch it lazily, only once this row
+  // is expanded, and pull out the castByProxy rows.
+  const { data: receiptResp, isLoading: receiptLoading } = useGetVoteReceipt(p.eventId, expanded);
+  const proxyVotes = (receiptResp?.data?.votes ?? []).filter((v) => v.castByProxy);
+
   const isRevoked = p.status?.toUpperCase() === "REVOKED";
   const isEnded = p.eventStatus?.toUpperCase() === "ENDED";
-  const showRevoke = !isRevoked && !isEnded;
+  // A proxy stands in for an absent shareholder — once the meeting is LIVE, revoking
+  // mid-meeting would strip the proxy's authority while voting may already be underway.
+  // Same cutoff as appointment (see agm/proxy/page.tsx): blocked at LIVE and ENDED alike.
+  const isLive = p.eventStatus?.toUpperCase() === "LIVE";
+  const showRevoke = !isRevoked && !isEnded && !isLive;
+
+  // Downloads the SAME document as the vote-receipt page, via the shared builder — the
+  // record of what was voted, not a bespoke proxy card. Fed by the receipt fetched on
+  // expand plus this row's own proxy details.
+  const receipt = receiptResp?.data;
+  const canDownload = !!receipt;
+
+  function downloadReceipt() {
+    if (!receipt) return;
+    const votes = receipt.votes ?? [];
+    downloadVoteReceiptPdf({
+      meeting: receipt.eventTitle || p.eventTitle,
+      date: votes[0]?.votedAt ? formatDate(votes[0].votedAt) : formatDate(p.eventDate),
+      reference: receiptResp?.referenceId ?? "—",
+      resolutions: votes.map((v, i) => ({
+        num: i + 1,
+        title: v.resolutionTitle,
+        vote: voteLabel(v.choice),
+        castByProxy: !!v.castByProxy,
+        proxyName: v.proxyName,
+      })),
+      proxy: {
+        proxyName: p.proxyName,
+        proxyEmail: p.proxyEmail,
+        proxyPhone: p.proxyPhone,
+        proxyCode: p.proxyCode,
+        assignedAt: p.assignedAt,
+      },
+    });
+  }
 
   function handleRevoke() {
     setErrorMsg(null);
     revoke(undefined, {
       onError: (err: any) => {
-        setErrorMsg(err?.response?.data?.message || "Failed to revoke proxy.");
+        const msg = err?.response?.data?.message;
+        setErrorMsg(
+          msg && !msg.includes("Something went wrong")
+            ? msg
+            : "Proxy revocation endpoint (DELETE /api/v1/participant/events/{eventId}/proxy) is currently unavailable on the server."
+        );
       },
     });
   }
@@ -113,13 +160,34 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
+      {/* The whole proxy card is the disclosure control — clicking anywhere in it opens
+          the activity below, so no separate "What did your proxy vote?" button is needed. */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onClick={() => setExpanded(!expanded)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+        className="flex cursor-pointer flex-col justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/60 sm:flex-row sm:items-center"
+      >
         <div className="flex items-start gap-3 min-w-0">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50">
             <UserCheck className="h-4.5 w-4.5 text-purple-600" />
           </div>
           <div className="min-w-0 text-sm">
-            <p className="font-medium text-foreground truncate">{p.proxyName}</p>
+            <p className="flex items-center gap-1.5 font-medium text-foreground">
+              <span className="truncate">{p.proxyName}</span>
+              {expanded ? (
+                <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              )}
+            </p>
             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
               {p.proxyEmail && (
                 <span className="inline-flex items-center gap-1">
@@ -145,38 +213,51 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleRevoke}
+            onClick={(e) => {
+              // Don't let the revoke click bubble up and toggle the card open/closed.
+              e.stopPropagation();
+              handleRevoke();
+            }}
             loading={revoking}
-            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 bg-white sm:self-auto self-start"
+            className="self-start border-red-200 bg-white text-red-700 hover:bg-red-50 hover:text-red-800 sm:self-auto"
           >
             Revoke Proxy
           </Button>
         )}
       </div>
 
-      {p.directions && p.directions.length > 0 && (
-        <div className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-          >
-            {expanded ? (
-              <>
-                <ChevronUp className="h-3.5 w-3.5" /> Hide voting directions
-              </>
+      <div className={cn(expanded && "border-t border-border pt-3")}>
+        {expanded && (
+          <div className="space-y-3">
+            {receiptLoading ? (
+              <div className="h-16 animate-pulse rounded-xl bg-muted" />
+            ) : proxyVotes.length > 0 ? (
+              <ProxyCastVotes votes={proxyVotes} proxyName={p.proxyName} />
             ) : (
-              <>
-                <ChevronDown className="h-3.5 w-3.5" /> View voting directions ({p.directions.length})
-              </>
+              <p className="rounded-xl border border-border bg-slate-50 p-3 text-xs text-muted-foreground">
+                No votes have been recorded by this proxy yet
+                {p.eventStatus?.toUpperCase() === "ENDED" ? "." : " — check back once voting is underway."}
+              </p>
             )}
-          </button>
 
-          {expanded && (
-            <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3 border border-border">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Resolution Directions</h4>
-              <div className="space-y-2.5">
-                {p.directions.map((dir, idx) => (
+            {canDownload && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={downloadReceipt}
+                className="bg-white"
+              >
+                <Download className="mr-1.5 h-4 w-4" /> Download vote receipt
+              </Button>
+            )}
+
+            {/* Pre-set voting directions — only if the backend ever populates them. */}
+            {p.directions && p.directions.length > 0 && (
+              <div className="space-y-2 rounded-xl bg-slate-50 p-3 border border-border">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Resolution Directions</h4>
+                <div className="space-y-2.5">
+                  {p.directions.map((dir, idx) => (
                   <div key={dir.resolutionId || idx} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 last:border-b-0 pb-2 last:pb-0">
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-foreground truncate">
@@ -211,7 +292,8 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
             </div>
           )}
         </div>
-      )}
+        )}
+      </div>
     </li>
   );
 }

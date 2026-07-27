@@ -157,7 +157,7 @@ export default function HackathonDetailPage({
             minHeight: "240px"
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/35 to-transparent" />
           <div className="relative space-y-3">
             <div className="flex items-center gap-2">
               {logoUrl && (
@@ -182,7 +182,7 @@ export default function HackathonDetailPage({
                     className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
                     style={{ color: "var(--brand-primary)" }}
                   >
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--brand-primary)]" />
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-(--brand-primary)" />
                     Join Live session
                   </button>
                 </Link>
@@ -236,7 +236,7 @@ export default function HackathonDetailPage({
                     className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
                     style={{ color: "var(--brand-primary)" }}
                   >
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--brand-primary)]" />
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-(--brand-primary)" />
                     Join Live session
                   </button>
                 </Link>
@@ -279,7 +279,7 @@ export default function HackathonDetailPage({
         <section className="grid gap-4 md:grid-cols-3">
           {challenge.prizeTiers.map((p) => (
             <div key={p.position} className="rounded-2xl border border-border bg-white p-5">
-              <div className="flex items-center gap-2 text-[var(--brand-primary)]">
+              <div className="flex items-center gap-2 text-(--brand-primary)">
                 <Trophy className="h-4.5 w-4.5" />
                 <p className="text-xs font-semibold uppercase tracking-wide">{p.position}</p>
               </div>
@@ -297,7 +297,7 @@ export default function HackathonDetailPage({
               {challenge.tracks.map((t) => (
                 <span
                   key={t}
-                  className="rounded-full px-2.5 py-1 text-xs font-medium text-[var(--brand-primary)]"
+                  className="rounded-full px-2.5 py-1 text-xs font-medium text-(--brand-primary)"
                   style={{ backgroundColor: `${brandPrimary}15` }}
                 >
                   {t}
@@ -375,7 +375,7 @@ export default function HackathonDetailPage({
             backgroundColor: `${brandPrimary}08`,
           }}
         >
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--brand-primary)]">Your team</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-(--brand-primary)">Your team</p>
           <p className="text-base font-semibold text-foreground">{myTeam.name}</p>
           {myTeam.description && <p className="mt-1 text-sm text-muted-foreground">{myTeam.description}</p>}
           <div className="mt-3 flex items-center gap-2">

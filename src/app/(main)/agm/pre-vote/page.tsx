@@ -44,12 +44,21 @@ function PreVotePageInner() {
         setSuccessMsg("Proxy has been successfully revoked. You can now vote directly.");
       },
       onError: (err: any) => {
-        setErrorMsg(err?.response?.data?.message || "Failed to revoke proxy.");
+        const msg = err?.response?.data?.message;
+        setErrorMsg(
+          msg && !msg.includes("Something went wrong")
+            ? msg
+            : "Proxy revocation endpoint (DELETE /api/v1/participant/events/{eventId}/proxy) is currently unavailable on the server."
+        );
       },
     });
   }
 
   async function submit() {
+    if (hasProxy) {
+      setErrorMsg("Pre-voting is disabled because you have appointed a proxy.");
+      return;
+    }
     setSubmitting(true);
     setErrorMsg(null);
     try {
@@ -68,7 +77,14 @@ function PreVotePageInner() {
       setPendingCandidateVotes({});
       setSuccessMsg("Your vote has been recorded. You can update it until voting closes.");
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.message || err?.message || "Failed to submit votes.");
+      const status = err?.response?.status;
+      const backendMsg = err?.response?.data?.message;
+      setErrorMsg(
+        backendMsg ||
+          (status === 409
+            ? "Your proxy has already voted on your behalf for this resolution."
+            : err?.message || "Failed to submit votes.")
+      );
     } finally {
       setSubmitting(false);
     }
@@ -110,11 +126,13 @@ function PreVotePageInner() {
       </header>
 
       {hasProxy && (
-        <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm">
           <div>
-            <p className="font-bold">Voting Managed by Proxy</p>
-            <p className="mt-1 text-xs text-purple-700/85">
-              You have appointed a proxy for this AGM. Early voting and live voting are managed by your proxy.
+            <p className="font-bold flex items-center gap-1.5">
+              <span>⚠️</span> Voting Managed by Appointed Proxy
+            </p>
+            <p className="mt-1 text-xs text-amber-800">
+              You have appointed a proxy for this AGM. Direct pre-voting is disabled. Your appointed proxy will cast votes on your behalf. To vote directly, click &quot;Revoke Proxy&quot;.
             </p>
           </div>
           <Button
@@ -123,7 +141,7 @@ function PreVotePageInner() {
             size="sm"
             onClick={handleRevoke}
             loading={revoking}
-            className="border-purple-300 hover:bg-purple-100 hover:text-purple-900 text-purple-800 bg-white self-start sm:self-auto"
+            className="border-amber-300 hover:bg-amber-100 hover:text-amber-900 text-amber-900 bg-white shrink-0"
           >
             Revoke Proxy
           </Button>
@@ -159,10 +177,12 @@ function PreVotePageInner() {
                   resolution={r}
                   selected={pendingVotes[r.id] ?? null}
                   onSelect={(choice) => {
+                    if (hasProxy) return;
                     setSuccessMsg(null);
                     setPendingVotes((v) => ({ ...v, [r.id]: choice }));
                   }}
                   onCandidateSelect={(votes) => {
+                    if (hasProxy) return;
                     setSuccessMsg(null);
                     setPendingCandidateVotes((v) => ({ ...v, [r.id]: votes }));
                   }}

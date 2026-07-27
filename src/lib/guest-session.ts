@@ -5,13 +5,20 @@ import Cookies from "js-cookie";
 // collides with a real signed-in account in another tab.
 export const GUEST_TOKEN_KEY = "guestToken";
 export const GUEST_EVENT_KEY = "guestEventId";
+export const GUEST_NAME_KEY = "guestName";
 // Flag only — never the token. proxy.ts runs on the server and can't see sessionStorage,
 // so without a cookie it treats every guest as logged-out and bounces them to /login.
 export const GUEST_FLAG_COOKIE = "isGuest";
 
-export function storeGuestSession(token: string, eventId: string) {
+export function storeGuestSession(token: string, eventId: string, name?: string) {
   sessionStorage.setItem(GUEST_TOKEN_KEY, token);
   sessionStorage.setItem(GUEST_EVENT_KEY, eventId);
+  const trimmed = name?.trim();
+  if (trimmed && trimmed.toLowerCase() !== "anonymous" && trimmed.toLowerCase() !== "guest") {
+    sessionStorage.setItem(GUEST_NAME_KEY, trimmed);
+  } else if (!sessionStorage.getItem(GUEST_NAME_KEY)) {
+    sessionStorage.setItem(GUEST_NAME_KEY, trimmed || "Guest");
+  }
   // Session cookie (no `expires`) so it dies with the browser, like the token it flags.
   Cookies.set(GUEST_FLAG_COOKIE, "true", { sameSite: "strict" });
 }
@@ -19,7 +26,13 @@ export function storeGuestSession(token: string, eventId: string) {
 export function clearGuestSession() {
   sessionStorage.removeItem(GUEST_TOKEN_KEY);
   sessionStorage.removeItem(GUEST_EVENT_KEY);
+  sessionStorage.removeItem(GUEST_NAME_KEY);
   Cookies.remove(GUEST_FLAG_COOKIE);
+}
+
+/** Read the guest's display name (set at join time). Falls back to "Guest". */
+export function getGuestName(): string {
+  return sessionStorage.getItem(GUEST_NAME_KEY) || "Guest";
 }
 
 // AGMs live under /agm/live; everything else under /events/live. The backend's value is
@@ -55,10 +68,17 @@ export async function resolveGuestLiveHref(
 
 // The join response shape isn't typed by the backend (it's a bare string map), so read
 // the token and module defensively rather than assuming one key.
-export function readJoinResult(res: any): { token?: string; eventType?: unknown } {
+export function readJoinResult(
+  res: any,
+): { token?: string; eventType?: unknown; guestName?: string; canVote?: boolean } {
   const data = res?.data ?? {};
   return {
     token: data.guestToken ?? data.token,
     eventType: data.eventType ?? data.module ?? data.event?.eventType,
+    guestName: data.guestName ?? data.name,
+    // §11: true when the code entered at /join was a proxy code (or proxy QR), so this
+    // session may vote. The /view endpoint re-reports it, which is the live source used
+    // in the room — this is only the initial read at join time.
+    canVote: !!data.canVote,
   };
 }
