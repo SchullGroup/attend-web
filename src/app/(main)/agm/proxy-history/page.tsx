@@ -160,13 +160,34 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
+      {/* The whole proxy card is the disclosure control — clicking anywhere in it opens
+          the activity below, so no separate "What did your proxy vote?" button is needed. */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onClick={() => setExpanded(!expanded)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+        className="flex cursor-pointer flex-col justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/60 sm:flex-row sm:items-center"
+      >
         <div className="flex items-start gap-3 min-w-0">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50">
             <UserCheck className="h-4.5 w-4.5 text-purple-600" />
           </div>
           <div className="min-w-0 text-sm">
-            <p className="font-medium text-foreground truncate">{p.proxyName}</p>
+            <p className="flex items-center gap-1.5 font-medium text-foreground">
+              <span className="truncate">{p.proxyName}</span>
+              {expanded ? (
+                <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              )}
+            </p>
             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
               {p.proxyEmail && (
                 <span className="inline-flex items-center gap-1">
@@ -192,7 +213,11 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleRevoke}
+            onClick={(e) => {
+              // Don't let the revoke click bubble up and toggle the card open/closed.
+              e.stopPropagation();
+              handleRevoke();
+            }}
             loading={revoking}
             className="self-start border-red-200 bg-white text-red-700 hover:bg-red-50 hover:text-red-800 sm:self-auto"
           >
@@ -201,25 +226,9 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
         )}
       </div>
 
-      <div className="border-t border-border pt-3">
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-        >
-          {expanded ? (
-            <>
-              <ChevronUp className="h-3.5 w-3.5" /> Hide proxy activity
-            </>
-          ) : (
-            <>
-              <ChevronDown className="h-3.5 w-3.5" /> What did your proxy vote?
-            </>
-          )}
-        </button>
-
+      <div className={cn(expanded && "border-t border-border pt-3")}>
         {expanded && (
-          <div className="mt-3 space-y-3">
+          <div className="space-y-3">
             {receiptLoading ? (
               <div className="h-16 animate-pulse rounded-xl bg-muted" />
             ) : proxyVotes.length > 0 ? (
