@@ -14,10 +14,13 @@ export function storeGuestSession(token: string, eventId: string, name?: string)
   sessionStorage.setItem(GUEST_TOKEN_KEY, token);
   sessionStorage.setItem(GUEST_EVENT_KEY, eventId);
   const trimmed = name?.trim();
-  if (trimmed && trimmed.toLowerCase() !== "anonymous" && trimmed.toLowerCase() !== "guest") {
+  // The backend sends "Anonymous" when no name was given; we label those people "Guest".
+  const isPlaceholder =
+    !trimmed || trimmed.toLowerCase() === "anonymous" || trimmed.toLowerCase() === "guest";
+  if (!isPlaceholder) {
     sessionStorage.setItem(GUEST_NAME_KEY, trimmed);
   } else if (!sessionStorage.getItem(GUEST_NAME_KEY)) {
-    sessionStorage.setItem(GUEST_NAME_KEY, trimmed || "Guest");
+    sessionStorage.setItem(GUEST_NAME_KEY, "Guest");
   }
   // Session cookie (no `expires`) so it dies with the browser, like the token it flags.
   Cookies.set(GUEST_FLAG_COOKIE, "true", { sameSite: "strict" });
