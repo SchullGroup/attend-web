@@ -126,7 +126,7 @@ export function NomineeBallot({
 // Compact per-candidate running tally, mirroring the standard resolution's live tally.
 // Head counts only (the candidate payload's share fields are all 0 unless the register is
 // share-weighted). Hidden until at least one vote exists, so it stays clean pre-voting.
-function CandidateTally({ candidate }: { candidate: CandidateItem }) {
+export function CandidateTally({ candidate }: { candidate: CandidateItem }) {
   const f = candidate.forCount ?? 0;
   const a = candidate.againstCount ?? 0;
   const ab = candidate.abstainCount ?? 0;

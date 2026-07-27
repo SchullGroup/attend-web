@@ -39,7 +39,7 @@ import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils
 import { Resolution } from "@/types";
 import { useSession } from "@/hooks/useSession";
 import { GUEST_TOKEN_KEY, getGuestName } from "@/lib/guest-session";
-import { NomineeBallot } from "@/components/attend/NomineeBallot";
+import { NomineeBallot, CandidateTally } from "@/components/attend/NomineeBallot";
 import { SourceBreakdown } from "@/components/attend/SourceBreakdown";
 import Cookies from "js-cookie";
 
@@ -1049,8 +1049,10 @@ export function LiveRoom({
                       const tone = v
                         ? "bg-emerald-100 text-emerald-700"
                         : s === "OPEN" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600";
-                      const showResult =
-                        s === "CLOSED" && r.forCount + r.againstCount + r.abstainCount > 0;
+                      // Show the tally as soon as any vote exists, not only once the
+                      // resolution closes — a proxy/guest watching the ballot should see
+                      // the count move live, the same as the open-resolution panel does.
+                      const showResult = r.forCount + r.againstCount + r.abstainCount > 0;
                       return (
                         <div key={r.id} className="rounded-xl border border-border p-3">
                           <div className="flex items-start justify-between gap-2">
@@ -1060,12 +1062,23 @@ export function LiveRoom({
                             </div>
                             <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>
                           </div>
-                          {showResult && (
+                          {/* Candidate resolutions keep the flat counts at 0 — every tally
+                              lives on the candidates themselves, so render those instead. */}
+                          {r.candidates && r.candidates.length > 0 ? (
+                            <div className="mt-3 space-y-2 border-t border-border pt-2">
+                              {r.candidates.map((c) => (
+                                <div key={c.id}>
+                                  <p className="text-xs font-medium text-foreground">{c.name}</p>
+                                  <CandidateTally candidate={c} />
+                                </div>
+                              ))}
+                            </div>
+                          ) : showResult ? (
                             <div className="mt-3 border-t border-border pt-2 space-y-3">
                               <ResolutionBars r={r} shareWeighted={shareWeighted} />
                               {r.bySource && <SourceBreakdown bySource={r.bySource} />}
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       );
                     })}
