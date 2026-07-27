@@ -175,7 +175,11 @@ Two completely different identities:
 | Proxy QR (`proxyQrCode`) (§11) | ✅ | rendered on receipt + appoint screen |
 | Proxy precedence 409 | ✅ | handled in LiveRoom + pre-vote |
 | "What your proxy voted" | ✅ | derived from vote receipt; receipt + proxy-history |
+| Ballot auto-advance (multi-open) | ✅ | next unvoted open resolution, optimistic |
+| Per-candidate live tally | ✅ | on `NomineeBallot`, head counts |
+| Proxy authorization receipt (PDF) | ⚠️ rework | built as a card; request: match vote-receipt UI, move into dropdown |
 | Register branding (§7) | ✅ | cards, guest grid, live-room header |
+| Block proxy assignment once LIVE | ❌ pending | requested; see backlog |
 | Zoom live | ✅ | same-account rule applies (§11 below) |
 | AGM minutes | ✅ | `data:null` = not published yet |
 | Pre-directed proxy votes | ❌ backend | endpoint doesn't exist; flag-hidden |
@@ -226,8 +230,31 @@ Two completely different identities:
 
 Most recent first. Update this as you go.
 
-- `1b9f026` — "What your proxy voted" panel on receipt + proxy history (from the vote
-  receipt's `castByProxy` rows; the proxy/admin endpoints don't carry choices).
+- `4329ad3` — Downloadable **proxy authorization receipt** from proxy history: per-row
+  "Receipt" button → jsPDF card (event, proxy holder, 10-digit code, signed QR). QR drawn
+  to a hidden `QRCodeCanvas` and embedded as PNG. *(Note: the newest request supersedes
+  this — see backlog "proxy-history receipt rework" — the download should match the vote
+  receipt's UI and move into the dropdown.)*
+- `9dd3e22` — Per-candidate **live tally** on the candidate ballot (`NomineeBallot`), hidden
+  until votes exist. The standard-resolution tally already showed for all voters.
+- `24b6ba7` — **Auto-advance** the ballot to the next *unvoted* open resolution on a
+  successful cast (optimistic `locallyVoted` set, no ~5s poll wait). Prev/next stepper
+  shows only when >1 resolution is open; a transient "vote recorded" note survives the jump.
+- `22fe7bc` — **Three review-found bug fixes:** (1) [high] guest business-rule 403s (wrong
+  proxy code, "not a proxy session", already-voted) were ejecting the guest via the
+  token-expiry handler — now auto-logout only on 401 (any guest route) or 403 on `/view`;
+  (2) [med] stale `voteMsg` falsely marked the next resolution "Vote Recorded" — reset on
+  `openRes.id` change; (3) [low] stale `pollChoice`/`pollMsg` across polls.
+- `4e9f857` — This continuation guide.
+- `2ffe7a9` / `1b9f026` / `d79ef61` / `c12b9e8` / `1d7dc49` — §11 unified proxy voting
+  (`canVote`, vote via `/guest/.../vote`), §11 `proxyQrCode` QR on receipt + appoint,
+  §7 live-room branding, "What your proxy voted" panel on receipt + proxy history.
+- **§12 (mutually-exclusive proxy channels) — already handled, no code change.** The new
+  "Already recorded via CSV" is a **409**; our interceptor only touches 401/403 (so no
+  eject) and vote `onError` shows `err.response.data.message` inline. CSV skip + ENDED-only
+  gating are admin-console concerns, out of scope here.
+
+### `1b9f026` and older
 - `d79ef61` — §7 live-room header themed with register `logoUrl` + `brandColor`.
 - `c12b9e8` — §11 `proxyQrCode` rendered as scannable QR on receipt + appoint screen.
 - `1d7dc49` — §11 unified proxy voting: read `canVote` from guest session, vote via plain
@@ -250,8 +277,24 @@ Most recent first. Update this as you go.
 
 ## 14. Open items / backlog
 
-- **§11 unified vote / branding need live verification** — endpoints & types confirmed, but
-  not an end-to-end run (needs a real proxy code and a started Zoom meeting).
+### Requested, not yet built (analysed with the user, awaiting go-ahead)
+- **Block proxy assignment once the event is LIVE/ENDED.** A shareholder must not be able to
+  appoint a proxy after the meeting has started. Gate the appoint page + its entry points on
+  `event.status` (LIVE/ENDED/CANCELLED → show a "proxy appointment closed" state, not the
+  form). The page already claims "submit at least 48 hours before the meeting" but nothing
+  enforces it. Revoking an existing proxy before it votes is a separate concern — don't block
+  that. Backend may not enforce this server-side; flag it (FE-only gating is bypassable).
+- **Proxy-history receipt rework.** Consolidate: the row's expand ("What did your proxy
+  vote?") should reveal the proxy activity **and** a download-receipt button together
+  (retire the separate top "Receipt" button). The downloaded receipt should match the
+  **vote-receipt UI** (`agm/receipt/page.tsx`), not the bespoke card built in `4329ad3`.
+  Implies extracting the vote-receipt PDF builder into a shared util fed by
+  (receipt votes + proxy data), both of which proxy-history already fetches on expand.
+
+### Verification / cleanup
+- **§11 unified vote / branding / candidate tally need live verification** — endpoints &
+  types confirmed, but not an end-to-end run (needs a real proxy code, an event with several
+  simultaneously-open resolutions, and populated guest tallies).
 - **`ProxyHistoryItem` over-declares** `status`, `sharesRepresented`, `directions[]` — the
   live API doesn't send them. Guarded in UI so harmless. Leave documented-as-pending or
   trim; user's call.
