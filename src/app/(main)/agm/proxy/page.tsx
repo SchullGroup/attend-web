@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserCheck, UserPlus, Copy, Check, KeyRound } from "lucide-react";
+import { ArrowLeft, UserCheck, UserPlus, Copy, Check, KeyRound, Lock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -43,6 +43,15 @@ function ProxyPageInner() {
 
   const resolutions = resolutionsData?.data?.resolutions ?? [];
   const [directions, setDirections] = useState<Record<string, "FOR" | "AGAINST" | "ABSTAIN" | "LET_PROXY_DECIDE">>({});
+
+  // A proxy stands in for a shareholder who won't attend — once the meeting is LIVE that's
+  // moot (the shareholder is here, in the room, and can vote themselves), and appointing
+  // one after the fact has no real effect on votes already open. Block new assignment from
+  // LIVE onward; an existing proxy appointed earlier still stands and still votes.
+  // NOTE: this is FE-only — the backend accepts the call at any status, so this is UX
+  // guidance, not enforcement. See docs/AGENT_CONTINUATION_GUIDE.md backlog.
+  const eventStatus = (eventData?.data?.status || "").toUpperCase();
+  const assignmentClosed = eventStatus === "LIVE" || eventStatus === "ENDED" || eventStatus === "CANCELLED";
 
   useEffect(() => {
     if (resolutions.length > 0) {
@@ -130,7 +139,24 @@ function ProxyPageInner() {
         )}
       </header>
 
-      {assignedCode ? (
+      {assignmentClosed && !assignedCode ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-border bg-slate-50 p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-600">
+            <Lock className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              {eventStatus === "LIVE" ? "Proxy appointment is closed" : "Proxy appointment has ended"}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {eventStatus === "LIVE"
+                ? "This meeting is already live, so a new proxy can no longer be appointed — you can vote directly instead."
+                : "This meeting has ended, so a proxy can no longer be appointed for it."}
+              {existingProxy?.data && " Your existing proxy appointment still stands."}
+            </p>
+          </div>
+        </div>
+      ) : assignedCode ? (
         <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white">

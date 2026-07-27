@@ -4,18 +4,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Download, Copy, Check, Building2, ChevronRight, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { jsPDF } from "jspdf";
 import { QRCodeSVG } from "qrcode.react";
+import { downloadVoteReceiptPdf, voteLabel } from "@/lib/vote-receipt-pdf";
 import { ProxyCastVotes } from "@/components/attend/ProxyCastVotes";
 import { useGetVoteReceipt, useGetProxy } from "@/api/agm/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { formatDate } from "@/lib/utils";
 
-function voteLabel(c: string) {
-  const u = (c || "").toUpperCase();
-  return u === "FOR" ? "For" : u === "AGAINST" ? "Against" : "Abstain";
-}
 
 function ReceiptInner() {
   const searchParams = useSearchParams();
@@ -88,101 +84,13 @@ function ReceiptInner() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  // Build the receipt as a real PDF (drawn directly, so it's crisp and one page).
   function downloadPdf() {
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const margin = 48;
-    let y = 64;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("Vote Receipt", margin, y);
-    y += 20;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(90);
-    doc.text("Your votes have been recorded", margin, y);
-    doc.setTextColor(20);
-    y += 30;
-
-    const field = (label: string, value: string) => {
-      doc.setFontSize(9);
-      doc.setTextColor(130);
-      doc.text(label.toUpperCase(), margin, y);
-      y += 14;
-      doc.setFontSize(12);
-      doc.setTextColor(20);
-      const lines = doc.splitTextToSize(value || "—", pageW - margin * 2);
-      doc.text(lines, margin, y);
-      y += lines.length * 15 + 12;
-    };
-
-    field("Meeting", view.meeting);
-    field("Cast at", view.date);
-    field("Reference", view.reference);
-
-    doc.setFontSize(9);
-    doc.setTextColor(130);
-    doc.text("RESOLUTIONS", margin, y);
-    y += 16;
-    doc.setTextColor(20);
-    if (view.resolutions.length === 0) {
-      doc.setFontSize(11);
-      doc.text("No votes recorded.", margin, y);
-      y += 18;
-    } else {
-      view.resolutions.forEach((r) => {
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        const title = doc.splitTextToSize(`Resolution ${r.num}: ${r.title}`, pageW - margin * 2 - 140);
-        doc.text(title, margin, y);
-        doc.setFont("helvetica", "normal");
-        const proxySuffix = r.castByProxy ? ` (via ${r.proxyName || "proxy"})` : "";
-        const textLabel = r.isPre ? `${r.vote} (Pre-vote)${proxySuffix}` : `${r.vote}${proxySuffix}`;
-        doc.text(textLabel, pageW - margin, y, { align: "right" });
-        y += title.length * 15 + 8;
-      });
-    }
-    y += 10;
-
-    if (proxy && proxy.proxyName) {
-      const pCode = proxy.proxyCode || (receipt as any)?.proxyCode;
-      doc.setFontSize(9);
-      doc.setTextColor(130);
-      doc.text("PROXY DETAILS", margin, y);
-      y += 16;
-      doc.setFontSize(12);
-      doc.setTextColor(20);
-      const codeStr = pCode ? `  ·  Code: ${pCode}` : "";
-      doc.text(`${proxy.proxyName}${codeStr}`, margin, y);
-      y += 16;
-      const contact = [proxy.proxyEmail, proxy.proxyPhone].filter(Boolean).join("  ·  ");
-      if (contact) {
-        doc.setFontSize(10);
-        doc.setTextColor(110);
-        doc.text(contact, margin, y);
-        y += 14;
-      }
-      if (proxy.assignedAt) {
-        doc.setFontSize(9);
-        doc.setTextColor(130);
-        doc.text(`Appointed ${formatDate(proxy.assignedAt)}`, margin, y);
-        y += 16;
-      }
-      doc.setTextColor(20);
-    }
-
-    y += 12;
-    doc.setFontSize(9);
-    doc.setTextColor(130);
-    const footer = doc.splitTextToSize(
-      "This receipt is timestamped and serves as evidence of your participation and votes at the meeting.",
-      pageW - margin * 2,
-    );
-    doc.text(footer, margin, y);
-
-    doc.save(`vote-receipt-${view.reference}.pdf`);
+    downloadVoteReceiptPdf({
+      ...view,
+      proxy: proxy
+        ? { ...proxy, proxyCode: proxy.proxyCode || (receipt as any)?.proxyCode }
+        : null,
+    });
   }
 
   return (

@@ -93,6 +93,9 @@ export default function AgmPage() {
 function AgmCard({ event: e }: { event: EventListItem }) {
   const registered = e.registered;
   const isLive = e.status === "LIVE";
+  // Proxy appointment closes once the meeting starts — mirrors the gate on the appoint
+  // page itself, so the entry point doesn't lead to a page that only says "closed".
+  const proxyClosed = isLive || e.status === "ENDED" || e.status === "CANCELLED";
 
   return (
     <li className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
@@ -149,11 +152,13 @@ function AgmCard({ event: e }: { event: EventListItem }) {
           <div className="pt-1">
             {registered ? (
               <div className="flex gap-2">
-                <Link href={`/agm/proxy?eventId=${e.id}`}>
-                  <Button size="sm" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
-                    <UserCheck className="h-3.5 w-3.5 mr-1.5" /> Proxy
-                  </Button>
-                </Link>
+                {!proxyClosed && (
+                  <Link href={`/agm/proxy?eventId=${e.id}`}>
+                    <Button size="sm" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
+                      <UserCheck className="h-3.5 w-3.5 mr-1.5" /> Proxy
+                    </Button>
+                  </Link>
+                )}
                 {!isLive && (
                   <Link href={`/agm/pre-vote?eventId=${e.id}`}>
                     <Button size="sm" className="flex-1 bg-slate-900 text-white hover:bg-slate-800 border-0">

@@ -335,7 +335,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           ) : (
             <div className="space-y-2">
-              {event.agmProxyEnabled && (
+              {event.agmProxyEnabled && !isLive && !isEnded && (
                 <Link href={`/agm/proxy?eventId=${id}`}>
                   <ActionRow icon={<FileText className="h-5 w-5" style={{ color }} />} label="Appoint a Proxy" />
                 </Link>

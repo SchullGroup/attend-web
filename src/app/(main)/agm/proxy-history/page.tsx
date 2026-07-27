@@ -1,9 +1,8 @@
 "use client";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, UserCheck, Mail, Phone, ChevronDown, ChevronUp, Download } from "lucide-react";
-import { jsPDF } from "jspdf";
-import { QRCodeCanvas } from "qrcode.react";
+import { downloadVoteReceiptPdf, voteLabel } from "@/lib/vote-receipt-pdf";
 import { useGetProxyHistory, useRevokeProxy, useGetVoteReceipt } from "@/api/agm/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -81,77 +80,40 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
 
   const isRevoked = p.status?.toUpperCase() === "REVOKED";
   const isEnded = p.eventStatus?.toUpperCase() === "ENDED";
-  const showRevoke = !isRevoked && !isEnded;
+  // A proxy stands in for an absent shareholder — once the meeting is LIVE, revoking
+  // mid-meeting would strip the proxy's authority while voting may already be underway.
+  // Same cutoff as appointment (see agm/proxy/page.tsx): blocked at LIVE and ENDED alike.
+  const isLive = p.eventStatus?.toUpperCase() === "LIVE";
+  const showRevoke = !isRevoked && !isEnded && !isLive;
 
-  // Proxy authorization receipt: the card the shareholder hands to their proxy holder.
-  // The QR is drawn into a hidden off-screen canvas so it can be read as a PNG for the PDF.
-  const qrRef = useRef<HTMLCanvasElement>(null);
-  const canDownload = !!(p.proxyCode || p.proxyQrCode);
+  // Downloads the SAME document as the vote-receipt page, via the shared builder — the
+  // record of what was voted, not a bespoke proxy card. Fed by the receipt fetched on
+  // expand plus this row's own proxy details.
+  const receipt = receiptResp?.data;
+  const canDownload = !!receipt;
 
-  function downloadProxyReceipt() {
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const margin = 48;
-    let y = 72;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.text("Proxy Authorization", margin, y);
-    y += 26;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(90);
-    doc.text(p.eventTitle, margin, y);
-    y += 15;
-    if (p.eventDate) {
-      doc.text(formatDate(p.eventDate), margin, y);
-      y += 24;
-    } else {
-      y += 9;
-    }
-
-    doc.setTextColor(20);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("Proxy holder", margin, y);
-    y += 16;
-    doc.setFont("helvetica", "normal");
-    doc.text(p.proxyName || "—", margin, y);
-    y += 28;
-
-    if (p.proxyCode) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text("Proxy code", margin, y);
-      y += 20;
-      doc.setFontSize(24);
-      doc.text(p.proxyCode, margin, y);
-      y += 30;
-    }
-
-    const dataUrl = qrRef.current?.toDataURL("image/png");
-    if (dataUrl) {
-      doc.addImage(dataUrl, "PNG", margin, y, 132, 132);
-      y += 148;
-    }
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(90);
-    doc.text(
-      "Present this code — or scan the QR — at guest sign-in to vote on the",
-      margin,
-      y,
-    );
-    y += 14;
-    doc.text(
-      "shareholder's behalf. This authorization is unique; do not share it.",
-      margin,
-      y,
-    );
-
-    const slug = (p.eventTitle || "event").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-    doc.save(`proxy-authorization-${slug}.pdf`);
+  function downloadReceipt() {
+    if (!receipt) return;
+    const votes = receipt.votes ?? [];
+    downloadVoteReceiptPdf({
+      meeting: receipt.eventTitle || p.eventTitle,
+      date: votes[0]?.votedAt ? formatDate(votes[0].votedAt) : formatDate(p.eventDate),
+      reference: receiptResp?.referenceId ?? "—",
+      resolutions: votes.map((v, i) => ({
+        num: i + 1,
+        title: v.resolutionTitle,
+        vote: voteLabel(v.choice),
+        castByProxy: !!v.castByProxy,
+        proxyName: v.proxyName,
+      })),
+      proxy: {
+        proxyName: p.proxyName,
+        proxyEmail: p.proxyEmail,
+        proxyPhone: p.proxyPhone,
+        proxyCode: p.proxyCode,
+        assignedAt: p.assignedAt,
+      },
+    });
   }
 
   function handleRevoke() {
@@ -225,38 +187,19 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {canDownload && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={downloadProxyReceipt}
-              className="bg-white"
-            >
-              <Download className="mr-1.5 h-4 w-4" /> Receipt
-            </Button>
-          )}
-          {showRevoke && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleRevoke}
-              loading={revoking}
-              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 bg-white"
-            >
-              Revoke Proxy
-            </Button>
-          )}
-        </div>
+        {showRevoke && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleRevoke}
+            loading={revoking}
+            className="self-start border-red-200 bg-white text-red-700 hover:bg-red-50 hover:text-red-800 sm:self-auto"
+          >
+            Revoke Proxy
+          </Button>
+        )}
       </div>
-
-      {/* Hidden QR, mounted so its canvas can be read as a PNG for the receipt PDF. The
-          canvas is painted via JS (not CSS), so display:none doesn't stop toDataURL. */}
-      {p.proxyQrCode && (
-        <QRCodeCanvas ref={qrRef} value={p.proxyQrCode} size={512} level="M" className="hidden" />
-      )}
 
       <div className="border-t border-border pt-3">
         <button
@@ -286,6 +229,18 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
                 No votes have been recorded by this proxy yet
                 {p.eventStatus?.toUpperCase() === "ENDED" ? "." : " — check back once voting is underway."}
               </p>
+            )}
+
+            {canDownload && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={downloadReceipt}
+                className="bg-white"
+              >
+                <Download className="mr-1.5 h-4 w-4" /> Download vote receipt
+              </Button>
             )}
 
             {/* Pre-set voting directions — only if the backend ever populates them. */}
