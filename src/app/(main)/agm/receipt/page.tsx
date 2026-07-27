@@ -101,7 +101,7 @@ function ReceiptInner() {
 
       <div className="mx-auto max-w-2xl">
         <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
-          <div className="border-b border-border bg-gradient-to-br from-emerald-500 to-emerald-700 p-6 text-white">
+          <div className="border-b border-border bg-linear-to-br from-emerald-500 to-emerald-700 p-6 text-white">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
                 <CheckCircle2 className="h-6 w-6" />

@@ -35,7 +35,7 @@ export default function HackathonPage() {
 
   return (
     <div className="space-y-6">
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-700 via-purple-800 to-fuchsia-900 p-6 text-white md:p-8">
+      <header className="relative overflow-hidden rounded-3xl bg-linear-to-br from-purple-700 via-purple-800 to-fuchsia-900 p-6 text-white md:p-8">
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/5" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -90,7 +90,7 @@ export default function HackathonPage() {
                     alt={c.title}
                     className="h-full w-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
                 </div>
               )}
               <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">

@@ -89,7 +89,7 @@ function CertificateInner() {
       </header>
 
       <div className="mx-auto max-w-3xl">
-        <div className="relative overflow-hidden rounded-3xl border-[3px] border-purple-200 bg-gradient-to-br from-white via-purple-50/40 to-white p-8 shadow-lg md:p-12">
+        <div className="relative overflow-hidden rounded-3xl border-[3px] border-purple-200 bg-linear-to-br from-white via-purple-50/40 to-white p-8 shadow-lg md:p-12">
           <Corner className="left-3 top-3" />
           <Corner className="right-3 top-3 rotate-90" />
           <Corner className="bottom-3 left-3 -rotate-90" />

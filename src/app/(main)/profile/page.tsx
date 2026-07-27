@@ -96,7 +96,7 @@ export default function ProfilePage() {
       </header>
 
       <section className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
-        <div className="border-b border-border bg-gradient-to-br from-primary/5 to-primary/10 p-6">
+        <div className="border-b border-border bg-linear-to-br from-primary/5 to-primary/10 p-6">
           <div className="flex items-start gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white">
               {currentUser.initials || initialsFor(currentUser.fullName)}
