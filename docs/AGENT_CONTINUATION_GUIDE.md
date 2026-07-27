@@ -177,9 +177,9 @@ Two completely different identities:
 | "What your proxy voted" | ✅ | derived from vote receipt; receipt + proxy-history |
 | Ballot auto-advance (multi-open) | ✅ | next unvoted open resolution, optimistic |
 | Per-candidate live tally | ✅ | on `NomineeBallot`, head counts |
-| Proxy authorization receipt (PDF) | ⚠️ rework | built as a card; request: match vote-receipt UI, move into dropdown |
+| Proxy receipt download (proxy history) | ✅ | shared `lib/vote-receipt-pdf.ts`, inside the row dropdown |
 | Register branding (§7) | ✅ | cards, guest grid, live-room header |
-| Block proxy assignment once LIVE | ❌ pending | requested; see backlog |
+| Block proxy assign/revoke once LIVE | ✅ FE-only | appoint page + both entry points; backend still permits |
 | Zoom live | ✅ | same-account rule applies (§11 below) |
 | AGM minutes | ✅ | `data:null` = not published yet |
 | Pre-directed proxy votes | ❌ backend | endpoint doesn't exist; flag-hidden |
@@ -230,11 +230,15 @@ Two completely different identities:
 
 Most recent first. Update this as you go.
 
-- `4329ad3` — Downloadable **proxy authorization receipt** from proxy history: per-row
-  "Receipt" button → jsPDF card (event, proxy holder, 10-digit code, signed QR). QR drawn
-  to a hidden `QRCodeCanvas` and embedded as PNG. *(Note: the newest request supersedes
-  this — see backlog "proxy-history receipt rework" — the download should match the vote
-  receipt's UI and move into the dropdown.)*
+- `9e53c98` — **Proxy assignment + revocation closed at LIVE** (appoint page shows a
+  closed-state panel; AGM-list and event-detail entry points hide the action — the same
+  `!isLive && !isEnded` pattern "Pre-AGM Voting" already used). **FE-only.** Also
+  **unified the proxy-history download**: extracted the receipt page's PDF builder into
+  `lib/vote-receipt-pdf.ts` so proxy history downloads the *same* vote receipt, and moved
+  the button into the row dropdown beside the proxy activity. The code+QR authorization
+  artifact stays on the appoint-success screen (pre-meeting hand-off).
+- `4329ad3` — *(superseded by `9e53c98`)* first pass at a downloadable proxy authorization
+  card from proxy history.
 - `9dd3e22` — Per-candidate **live tally** on the candidate ballot (`NomineeBallot`), hidden
   until votes exist. The standard-resolution tally already showed for all voters.
 - `24b6ba7` — **Auto-advance** the ballot to the next *unvoted* open resolution on a
@@ -277,21 +281,14 @@ Most recent first. Update this as you go.
 
 ## 14. Open items / backlog
 
-### Requested, not yet built (analysed with the user, awaiting go-ahead)
-- **Block proxy assignment once the event is LIVE/ENDED.** A shareholder must not be able to
-  appoint a proxy after the meeting has started. Gate the appoint page + its entry points on
-  `event.status` (LIVE/ENDED/CANCELLED → show a "proxy appointment closed" state, not the
-  form). The page already claims "submit at least 48 hours before the meeting" but nothing
-  enforces it. Revoking an existing proxy before it votes is a separate concern — don't block
-  that. Backend may not enforce this server-side; flag it (FE-only gating is bypassable).
-- **Proxy-history receipt rework.** Consolidate: the row's expand ("What did your proxy
-  vote?") should reveal the proxy activity **and** a download-receipt button together
-  (retire the separate top "Receipt" button). The downloaded receipt should match the
-  **vote-receipt UI** (`agm/receipt/page.tsx`), not the bespoke card built in `4329ad3`.
-  Implies extracting the vote-receipt PDF builder into a shared util fed by
-  (receipt votes + proxy data), both of which proxy-history already fetches on expand.
-
 ### Verification / cleanup
+- **Proxy LIVE gating is FE-only.** `9e53c98` blocks appointment *and* revocation from
+  LIVE onward on the appoint page and both entry points, but **the backend still accepts
+  these calls at any status** — a direct API call bypasses it. Worth a backend ask,
+  especially as §12's whole theme is gating write-flows by event lifecycle.
+- **The "48 hours before the meeting" copy on the appoint page is still not enforced** —
+  we enforce at LIVE instead. Either implement the real 48h cutoff (start time is
+  available) or soften the copy so UI and text agree.
 - **§11 unified vote / branding / candidate tally need live verification** — endpoints &
   types confirmed, but not an end-to-end run (needs a real proxy code, an event with several
   simultaneously-open resolutions, and populated guest tallies).
