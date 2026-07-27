@@ -91,7 +91,10 @@ export function LiveRoom({
   const { data: guestViewResp } = useGuestEventView(eventId, guestToken, isGuest && !!guestToken);
 
   const event = isGuest ? guestViewResp?.data : eventResp?.data;
-  const title = event?.title ?? "Live session";
+  // The participant payload calls it `title`; the guest join/view payload calls it
+  // `eventTitle` — reading only `title` left every guest on the "Live session" fallback.
+  const title =
+    event?.title ?? (event as { eventTitle?: string } | undefined)?.eventTitle ?? "Live session";
   const organiser = event?.registerName || event?.organizerName || "";
   // §7 register branding — present on both participant and guest event payloads.
   const brandColor = event?.branding?.brandColor || undefined;
