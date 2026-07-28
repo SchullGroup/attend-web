@@ -1,103 +1,173 @@
-# Core → Attend: data we need, and where it's used
+# Shareholder Data Requirements — Core → Attend
 
-Derived from the Attend data-architecture meeting (Core = source of truth, Attend keeps its
-own synced database) **and** from what the participant app actually consumes today. Field
-names below are the ones already in our types/UI, so this doubles as a mapping contract.
-
----
-
-## 1. What we understood from the meeting
-
-- **Core stays the source of truth**; Attend gets a **copy** and runs day-to-day off it.
-- **Scheduled sync (~3–4 h)**, not real-time — cost/complexity call by Stanley.
-- **Shareholder data is isolated** — hackathon/launch participants must not reach it, even
-  on the same Attend account.
-- **One Attend account per person**, used across AGM / hackathon / launch.
-- **Design for ~2 M shareholders.**
-- Build for the **normal path**, not rare edge cases. AI is **out of scope**.
+**Scope:** Attend Web (Participant) application
+**Purpose:** Define the shareholder information Attend requires from the Core system, how it
+is used, and the decisions still outstanding.
+**Status:** Field requirements confirmed against the live application. Section 6 lists items
+that require a decision before the synchronisation is built.
 
 ---
 
-## 2. Data we need from Core
+## 1. Data Required from Core
 
-### A. Shareholder identity (the core record)
+### 1.1 Shareholder Identity
 
-| Field | Why we need it | Where it's used |
-|---|---|---|
-| `chn` | **The link key.** Clearing House Number identifies the shareholder at the registrar. | KYC step 2 (`KycStep2Request.chn`); matching an Attend account to a holding |
-| `bvn` | Identity verification | KYC step 1 (`KycStep1Request.bvn`) |
-| `firstName`, `lastName` / full name | Display + KYC name match | Profile, ballot, proxy receipt, Q&A attribution |
-| `email` | Login identity, notifications | Auth, RSVP/vote confirmations |
-| `phone` | Alternate contact/login | Auth, notifications |
-| `dob` | KYC verification | KYC step 1 |
-| Status (active/suspended) | Whether they may vote at all | Eligibility gating |
-
-> Backend already accepts **email OR phone** (a row with both blank is skipped) — Core
-> should therefore guarantee **at least one** contact per shareholder.
-
-### B. Holdings — the part that drives voting
-
-| Field | Why we need it | Where it's used |
-|---|---|---|
-| `registerId` / `registerName` | Which company's register the holding belongs to | `EventListItem.registerId/registerName`; event branding; scoping |
-| **Share count per register** | **Share-weighted voting** — the vote's weight | `forShares` / `againstShares` / `abstainShares`; `sharesRepresented` on proxies |
-| Holding status / date | Whether the holding is current as of record date | Eligibility for a given AGM |
-
-⚠️ **A shareholder can hold shares in several companies.** Our types already model this
-(`registerId` per event, `shareWeightedTalliesEnabled` per event). The sync must therefore be
-**one person → many holdings**, not one flat row per person.
-
-### C. Register / company
-
-| Field | Where it's used |
+| Field | Purpose |
 |---|---|
-| Register id, name | Event attribution, "MERISTEM REGISTRARS LTD" header |
-| `branding.logoUrl`, `branding.brandColor` | Event cards, guest grid, live-room header (already built) |
+| **CHN** | Primary link key — identifies the shareholder at the registrar |
+| **BVN** | Identity verification |
+| **Full Name** (first / last) | Display and identity matching |
+| **Email Address** | Account identity and notifications |
+| **Phone Number** | Alternate contact and notifications |
+| **Date of Birth** | Identity verification |
+| **Active Status** | Whether the shareholder is eligible to participate |
+
+> Attend accepts **email or phone** — a record with neither is rejected. Core should
+> guarantee at least one contact method per shareholder.
+
+### 1.2 Holdings
+
+| Field | Purpose |
+|---|---|
+| **Register ID / Register Name** | Identifies which company's register the holding belongs to |
+| **Share Count (per register)** | Determines the weight of the shareholder's vote |
+| **Share Weighting Enabled** | Whether this register votes by shares or by head count |
+| **Holding Status / Date** | Whether the holding is current for a given meeting |
+
+> **Share Weighting Enabled** is required in addition to the share counts. Not every
+> register is share-weighted; where it is not, Attend displays head counts only. Without
+> this flag we cannot distinguish "no weighting" from "zero shares".
+
+### 1.3 Register / Company
+
+| Field | Purpose |
+|---|---|
+| **Register Name** | Event attribution and display |
+| **Branding — Logo URL** | Event cards, listings, live session header |
+| **Branding — Brand Colour** | Event theming |
+
+*Register branding is already integrated in the application.*
 
 ---
 
-## 3. Where this data is used in the product
+## 2. How the Data Is Used
 
-- **Login / account** — email or phone; the Attend account is the identity.
-- **KYC (BVN → CHN → liveness)** — proves the person owns the CHN, i.e. links an Attend
-  account to a Core shareholder record. **This is the join between the two systems.**
-- **AGM eligibility** — only verified shareholders of that register may RSVP/vote
-  (`kycStatus === "FULL_KYC"` gates the whole AGM section today).
-- **Voting weight** — share counts produce the share-weighted tallies; when a register isn't
-  share-weighted we fall back to head counts (`shareWeightedTalliesEnabled`).
-- **Proxies** — `sharesRepresented` is the weight a proxy carries.
-- **Hackathon / launch** — needs **none** of the above. A non-shareholder registers and
-  participates with no Core lookup. This is the isolation boundary in practice.
+| Area | Data used |
+|---|---|
+| **Login and authentication** | Email / phone, held in Attend's own copy |
+| **KYC verification** (BVN → CHN → Liveness) | BVN, CHN, name, date of birth |
+| **AGM eligibility** | Active status, holding in the relevant register |
+| **Vote weighting** | Share count per register, share-weighting flag |
+| **Proxy voting** | Share count (the shares a proxy represents) |
 
----
+**Login note:** users authenticate against **Attend's own copy** of the data — Core is not
+queried at login. The link between an Attend account and a Core shareholder record is
+established through the **KYC flow (BVN + CHN)**. See open question 6.1.
 
-## 4. Questions / risks to raise
-
-1. **How is an Attend account matched to a Core shareholder?** Today it's via the KYC flow
-   (BVN + CHN). Is that the intended permanent link, or should the migration pre-create
-   accounts from Core? These give very different onboarding flows — worth settling early.
-2. **Is there one Core, or one per registrar?** The app already shows multiple registrars
-   (Meristem, CardinalStone). If each has its own system, "sync with Core" is really
-   *N* integrations, which changes the estimate substantially.
-3. **Sync direction.** Confirmed Core → Attend. But what about data *created in Attend* —
-   KYC results, votes, proxy assignments, attendance? Does any of it flow back, or is Attend
-   authoritative for event data? (Assumption: Attend owns event data; Core owns identity.)
-4. **Record date.** Share counts change. Which snapshot is authoritative for a given AGM —
-   latest sync, or holdings as at a declared record date? A 3–4 h sync means a vote can be
-   weighted on slightly stale numbers; for a legal record that needs an explicit rule.
-5. **Deletions / de-registration.** If a shareholder is removed or transfers all shares in
-   Core, what happens to their Attend account and any votes already cast?
-6. **PII scope.** Do we need BVN/DOB stored in Attend at all, or only *verified: true* plus
-   the CHN link? Storing less is cheaper and safer given 2 M records.
-7. **Initial migration volume.** 2 M shareholders × holdings — is there a bulk export, or do
-   we page an API? Affects the migration plan far more than the incremental sync.
+**Isolation boundary:** the Hackathon and Product Launch modules use **none** of the above.
+A participant in those modules requires no shareholder record and no Core lookup.
 
 ---
 
-## 5. Note on isolation
+## 3. Data Ownership
 
-The meeting's "shareholder data must be isolated" requirement is mostly a **backend**
-concern (schema/permissions). On the frontend it already holds: hackathon and launch screens
-never request shareholder or KYC data, and the AGM section is gated behind full KYC. Worth
-confirming the same boundary exists at the API layer — i.e. a hackathon-only account calling
-an AGM endpoint should be rejected server-side, not merely hidden in the UI.
+| System | Owns |
+|---|---|
+| **Core** | Shareholder identity and holdings (source of truth) |
+| **Attend** | All event data — AGM participation, hackathons, product launches, registrations, attendance, voting, proxies |
+
+Shareholder data is **copied into Attend** and synchronised on a scheduled interval
+(approximately every 3–4 hours). Attend does not query Core in real time.
+
+---
+
+## 4. Data Model Consideration
+
+A single shareholder may hold shares in **several companies**. The synchronisation model
+must therefore support a **one-to-many relationship** — one shareholder linked to many
+holdings — rather than a separate flat record per company.
+
+```
+Shareholder (CHN)
+   ├── Holding → Register A → share count
+   ├── Holding → Register B → share count
+   └── Holding → Register C → share count
+```
+
+This matters beyond storage: eligibility and vote weight are evaluated **per register**, so
+the same person can be eligible at one company's AGM and not another's.
+
+---
+
+## 5. Scale
+
+The design target is approximately **2 million shareholders**, each with one or more
+holdings. This affects the initial migration approach more than the incremental sync — see
+open question 6.5.
+
+---
+
+## 6. Open Questions
+
+These require a decision before the synchronisation is built. Items 6.1–6.3 affect the
+architecture and estimate directly.
+
+### 6.1 How is an Attend account linked to a Core shareholder record?
+Currently the link is established by the shareholder completing **KYC (BVN + CHN)** inside
+Attend. The alternative is to **pre-create accounts** from the migrated Core data and have
+shareholders claim them. These produce very different onboarding experiences and should be
+settled before build.
+
+### 6.2 Is there one Core system, or one per registrar?
+Attend already serves events from **multiple registrars**. If each registrar operates its own
+system, "synchronise with Core" becomes **several separate integrations** — each with its own
+API, credentials, data format and failure modes — rather than one. This materially changes
+both the architecture (an adapter layer would be required to normalise formats) and the
+delivery estimate.
+
+### 6.3 Is there a record date for share weighting?
+Share counts change continuously. With a 3–4 hour synchronisation interval, Attend's figures
+are always slightly behind Core.
+
+- **Option A — latest sync:** vote weight uses the most recent synchronised figure. Simple,
+  but two shareholders voting an hour apart may be counted against different data, and a
+  recount later may not reproduce the original result.
+- **Option B — record date snapshot:** holdings are frozen as at a declared record date and
+  stored against the meeting. Vote weights are calculated from that snapshot.
+
+AGM results are corporate records and may be challenged. **Option B** is recommended, as it
+makes results reproducible and auditable. It requires storing a per-meeting snapshot, which
+is a data-model decision rather than a later adjustment.
+
+### 6.4 What is the scope of personal data stored in Attend?
+Does Attend need to **store** BVN and date of birth, or is a verification result
+(`verified: true`) plus the CHN link sufficient? At 2 million records, holding less personal
+data reduces both storage cost and risk exposure.
+
+### 6.5 How is the initial migration performed?
+Is a bulk export available from Core, or must Attend page through an API? At 2 million
+shareholders plus holdings, this shapes the migration plan significantly.
+
+### 6.6 What happens on de-registration?
+If a shareholder is removed in Core, or transfers all their shares, what becomes of their
+Attend account and any votes already cast?
+
+### 6.7 Is the synchronisation strictly one-way?
+Confirmed: Core → Attend. Should anything created in Attend — KYC outcomes, attendance,
+voting records — be reported back to Core, or does Attend remain authoritative for all event
+data?
+
+---
+
+## 7. Assumptions
+
+Recorded for confirmation:
+
+1. Attend is authoritative for all event data; Core is authoritative for identity and holdings.
+2. Synchronisation is scheduled (~3–4 hours), not real-time.
+3. Shareholder data is isolated from non-AGM modules. This is enforced in the application
+   today; the same boundary should be enforced at the API layer, so that a request for
+   shareholder data from a non-AGM context is rejected server-side rather than merely hidden
+   in the interface.
+4. AI-driven features are out of scope for this delivery.
+5. The system is designed around the standard business process rather than exceptional cases.
