@@ -4,7 +4,8 @@ import { Bell, FileText, Megaphone, CalendarClock, Vote, Sparkles } from "lucide
 import { useGetNotifications, useMarkRead, useMarkAllRead, useSubscribeDevice } from "@/api/notifications/hooks";
 import type { Notification } from "@/types";
 import { Button } from "@/components/ui/Button";
-import { formatRelativeTime, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useRelativeTime } from "@/hooks/useRelativeTime";
 
 const ICONS: Record<string, typeof Bell> = {
   vote_open: Vote,
@@ -213,6 +214,7 @@ function NotificationItem({
 }) {
   const Icon = ICONS[n.type] ?? Bell;
   const colorClass = TYPE_COLOR[n.type] ?? "bg-muted text-muted-foreground";
+  const timeLabel = useRelativeTime(n.createdAt);
 
   return (
     <li
@@ -232,7 +234,7 @@ function NotificationItem({
           {!n.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />}
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">{n.message}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">{formatRelativeTime(n.createdAt)}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{timeLabel}</p>
       </div>
     </li>
   );

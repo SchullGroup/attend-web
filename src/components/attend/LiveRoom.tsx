@@ -35,7 +35,8 @@ import {
 } from "@/api/agm/hooks";
 import { useQaSocket } from "@/api/agm/qa-socket";
 import { Button } from "@/components/ui/Button";
-import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils";
+import { cn, toEmbedUrl, fileDisplayName } from "@/lib/utils";
+import { useRelativeTime } from "@/hooks/useRelativeTime";
 import { Resolution } from "@/types";
 import { useSession } from "@/hooks/useSession";
 import { GUEST_TOKEN_KEY, getGuestName } from "@/lib/guest-session";
@@ -300,7 +301,7 @@ export function LiveRoom({
   const qaItems = apiQuestions.map((x) => ({
     id: x.id,
     who: x.anonymous ? "Anonymous" : x.askerName || "Participant",
-    time: x.submittedAt ? formatRelativeTime(x.submittedAt) : "",
+    submittedAt: x.submittedAt ?? null,
     text: x.content,
     answered: !!x.answer || (x.status || "").toUpperCase() === "ANSWERED",
     answer: x.answer || "",
@@ -318,6 +319,7 @@ export function LiveRoom({
 
   const [q, setQ] = useState("");
   const [qSent, setQSent] = useState(false);
+  const [qSentAt, setQSentAt] = useState<string | null>(null);
   const [userQuestion, setUserQuestion] = useState("");
   const [videoHidden, setVideoHidden] = useState(false);
   // Reveal the Minimise button only while the pointer is over the video box, so it
@@ -406,6 +408,7 @@ export function LiveRoom({
       {
         onSuccess: () => {
           setQSent(true);
+          setQSentAt(new Date().toISOString());
           setQ("");
         },
       },
@@ -712,7 +715,11 @@ export function LiveRoom({
                                 <CheckCircle className="h-3 w-3" /> Addressed
                               </span>
                             )}
-                            {item.time && <p className="text-[11px] text-muted-foreground">{item.time}</p>}
+                            {item.submittedAt && (
+                              <p className="text-[11px] text-muted-foreground">
+                                <RelativeTimeLabel timestamp={item.submittedAt} />
+                              </p>
+                            )}
                           </div>
                         </div>
                         <p className="text-sm text-foreground leading-relaxed">{item.text}</p>
@@ -760,7 +767,9 @@ export function LiveRoom({
                       <li className="rounded-xl border border-primary/20 bg-primary/5 p-3">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <p className="text-xs font-semibold text-primary">You</p>
-                          <p className="text-[11px] text-muted-foreground">Just now · Pending review</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            <RelativeTimeLabel timestamp={qSentAt} fallback="just now" /> · Pending review
+                          </p>
                         </div>
                         <p className="text-sm text-foreground leading-relaxed">{userQuestion}</p>
                       </li>
@@ -1273,4 +1282,16 @@ function ResolutionBars({ r, shareWeighted }: { r: Resolution; shareWeighted: bo
         ))}
     </div>
   );
+}
+
+/** Inline component that renders a live-updating relative time label (e.g. "2 mins ago"). */
+function RelativeTimeLabel({
+  timestamp,
+  fallback = "",
+}: {
+  timestamp: string | null | undefined;
+  fallback?: string;
+}) {
+  const label = useRelativeTime(timestamp);
+  return <>{label || fallback}</>;
 }
