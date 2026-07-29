@@ -661,13 +661,15 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               >
                 {rsvping ? "Confirming…" : "RSVP & Join"}
               </Button>
-              <Button
-                className="flex-1"
-                variant="outline"
-                onClick={() => setShowGuestEntry(true)}
-              >
-                <KeyRound className="h-4 w-4 mr-1.5" /> Guest code
-              </Button>
+              {mod !== "AGM" && (
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => setShowGuestEntry(true)}
+                >
+                  <KeyRound className="h-4 w-4 mr-1.5" /> Guest code
+                </Button>
+              )}
             </div>
           </div>
         ) : event.waitlisted && !event.registered ? (
@@ -718,7 +720,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               >
                 {rsvping ? "Confirming…" : "Confirm Attendance (RSVP)"}
               </Button>
-              {!isEnded && (
+              {!isEnded && mod !== "AGM" && (
                 <Button
                   variant="outline"
                   onClick={() => setShowGuestEntry(true)}

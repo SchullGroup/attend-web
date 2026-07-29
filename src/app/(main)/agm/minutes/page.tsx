@@ -1,7 +1,7 @@
 "use client";
 import { Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, FileText, Download, Building2, ChevronRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { jsPDF } from "jspdf";
@@ -11,6 +11,7 @@ import { EventListItem } from "@/types";
 import { formatDate, parseApiDate } from "@/lib/utils";
 
 function MinutesInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const eventId = searchParams.get("eventId") ?? "";
 
@@ -119,9 +120,9 @@ function MinutesInner() {
             <Button fullWidth onClick={downloadPdf}>
               <Download className="h-4 w-4" /> Download minutes
             </Button>
-            <Link href="/agm" className="sm:flex-1">
+            <Link href="/agm/minutes" className="sm:flex-1">
               <Button variant="outline" fullWidth className="whitespace-nowrap">
-                Back to AGMs
+                Back to Minutes List
               </Button>
             </Link>
           </div>
@@ -146,6 +147,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function MinutesPicker() {
+  const router = useRouter();
   const { data, isLoading } = useGetEvents({ eventType: "AGM_EGM", size: 50 });
   const agms = (data?.data?.events ?? []).filter(
     (e: EventListItem) => e.eventType === "AGM_EGM" && e.registered,
@@ -153,9 +155,12 @@ function MinutesPicker() {
 
   return (
     <div className="space-y-6">
-      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to AGMs
-      </Link>
+      <button
+        onClick={() => router.back()}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
       <header>
         <h1 className="text-2xl font-bold text-foreground">Minutes</h1>
         <p className="text-sm text-muted-foreground">

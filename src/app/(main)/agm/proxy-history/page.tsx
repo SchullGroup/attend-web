@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, UserCheck, Mail, Phone, ChevronDown, ChevronUp, Download } from "lucide-react";
 import { downloadVoteReceiptPdf, voteLabel } from "@/lib/vote-receipt-pdf";
@@ -30,14 +31,18 @@ const eventStatusTone = (s: string): Tone => {
 };
 
 export default function ProxyHistoryPage() {
+  const router = useRouter();
   const { data, isLoading } = useGetProxyHistory();
   const proxies = data?.data?.proxies ?? [];
 
   return (
     <div className="space-y-6">
-      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to AGMs
-      </Link>
+      <button
+        onClick={() => router.back()}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
       <header>
         <h1 className="text-2xl font-bold text-foreground">Proxy history</h1>

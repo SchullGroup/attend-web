@@ -35,11 +35,12 @@ import {
 } from "@/api/agm/hooks";
 import { useQaSocket } from "@/api/agm/qa-socket";
 import { Button } from "@/components/ui/Button";
-import { cn, formatRelativeTime, toEmbedUrl, fileDisplayName } from "@/lib/utils";
+import { cn, toEmbedUrl, fileDisplayName } from "@/lib/utils";
+import { useRelativeTime } from "@/hooks/useRelativeTime";
 import { Resolution } from "@/types";
 import { useSession } from "@/hooks/useSession";
 import { GUEST_TOKEN_KEY, getGuestName } from "@/lib/guest-session";
-import { NomineeBallot } from "@/components/attend/NomineeBallot";
+import { NomineeBallot, CandidateTally } from "@/components/attend/NomineeBallot";
 import { SourceBreakdown } from "@/components/attend/SourceBreakdown";
 import Cookies from "js-cookie";
 
@@ -71,10 +72,12 @@ interface LiveRoomProps {
 export function LiveRoom({
   eventId,
   showBallot = true,
-  backHref = "/agm",
+  backHref,
   backLabel = "Leave meeting",
   zoomOverride,
 }: LiveRoomProps) {
+  const defaultBackHref = eventId ? `/events/${eventId}` : "/events";
+  const resolvedBackHref = backHref || defaultBackHref;
   const session = useSession();
   // Trust useSession alone. This used to also OR in a raw sessionStorage read, which
   // overrode useSession's precedence: a leftover guest token from an earlier guest visit
@@ -300,7 +303,7 @@ export function LiveRoom({
   const qaItems = apiQuestions.map((x) => ({
     id: x.id,
     who: x.anonymous ? "Anonymous" : x.askerName || "Participant",
-    time: x.submittedAt ? formatRelativeTime(x.submittedAt) : "",
+    submittedAt: x.submittedAt ?? null,
     text: x.content,
     answered: !!x.answer || (x.status || "").toUpperCase() === "ANSWERED",
     answer: x.answer || "",
@@ -318,6 +321,7 @@ export function LiveRoom({
 
   const [q, setQ] = useState("");
   const [qSent, setQSent] = useState(false);
+  const [qSentAt, setQSentAt] = useState<string | null>(null);
   const [userQuestion, setUserQuestion] = useState("");
   const [videoHidden, setVideoHidden] = useState(false);
   // Reveal the Minimise button only while the pointer is over the video box, so it
@@ -406,6 +410,7 @@ export function LiveRoom({
       {
         onSuccess: () => {
           setQSent(true);
+          setQSentAt(new Date().toISOString());
           setQ("");
         },
       },
@@ -497,7 +502,7 @@ export function LiveRoom({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <Link href={backHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link href={resolvedBackHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> {backLabel}
         </Link>
         <div className="flex items-center gap-2">
@@ -712,7 +717,11 @@ export function LiveRoom({
                                 <CheckCircle className="h-3 w-3" /> Addressed
                               </span>
                             )}
-                            {item.time && <p className="text-[11px] text-muted-foreground">{item.time}</p>}
+                            {item.submittedAt && (
+                              <p className="text-[11px] text-muted-foreground">
+                                <RelativeTimeLabel timestamp={item.submittedAt} />
+                              </p>
+                            )}
                           </div>
                         </div>
                         <p className="text-sm text-foreground leading-relaxed">{item.text}</p>
@@ -760,7 +769,9 @@ export function LiveRoom({
                       <li className="rounded-xl border border-primary/20 bg-primary/5 p-3">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <p className="text-xs font-semibold text-primary">You</p>
-                          <p className="text-[11px] text-muted-foreground">Just now · Pending review</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            <RelativeTimeLabel timestamp={qSentAt} fallback="just now" /> · Pending review
+                          </p>
                         </div>
                         <p className="text-sm text-foreground leading-relaxed">{userQuestion}</p>
                       </li>
@@ -1049,8 +1060,10 @@ export function LiveRoom({
                       const tone = v
                         ? "bg-emerald-100 text-emerald-700"
                         : s === "OPEN" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600";
-                      const showResult =
-                        s === "CLOSED" && r.forCount + r.againstCount + r.abstainCount > 0;
+                      // Show the tally as soon as any vote exists, not only once the
+                      // resolution closes — a proxy/guest watching the ballot should see
+                      // the count move live, the same as the open-resolution panel does.
+                      const showResult = r.forCount + r.againstCount + r.abstainCount > 0;
                       return (
                         <div key={r.id} className="rounded-xl border border-border p-3">
                           <div className="flex items-start justify-between gap-2">
@@ -1060,12 +1073,23 @@ export function LiveRoom({
                             </div>
                             <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>
                           </div>
-                          {showResult && (
+                          {/* Candidate resolutions keep the flat counts at 0 — every tally
+                              lives on the candidates themselves, so render those instead. */}
+                          {r.candidates && r.candidates.length > 0 ? (
+                            <div className="mt-3 space-y-2 border-t border-border pt-2">
+                              {r.candidates.map((c) => (
+                                <div key={c.id}>
+                                  <p className="text-xs font-medium text-foreground">{c.name}</p>
+                                  <CandidateTally candidate={c} />
+                                </div>
+                              ))}
+                            </div>
+                          ) : showResult ? (
                             <div className="mt-3 border-t border-border pt-2 space-y-3">
                               <ResolutionBars r={r} shareWeighted={shareWeighted} />
                               {r.bySource && <SourceBreakdown bySource={r.bySource} />}
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       );
                     })}
@@ -1260,4 +1284,16 @@ function ResolutionBars({ r, shareWeighted }: { r: Resolution; shareWeighted: bo
         ))}
     </div>
   );
+}
+
+/** Inline component that renders a live-updating relative time label (e.g. "2 mins ago"). */
+function RelativeTimeLabel({
+  timestamp,
+  fallback = "",
+}: {
+  timestamp: string | null | undefined;
+  fallback?: string;
+}) {
+  const label = useRelativeTime(timestamp);
+  return <>{label || fallback}</>;
 }
