@@ -72,10 +72,12 @@ interface LiveRoomProps {
 export function LiveRoom({
   eventId,
   showBallot = true,
-  backHref = "/agm",
+  backHref,
   backLabel = "Leave meeting",
   zoomOverride,
 }: LiveRoomProps) {
+  const defaultBackHref = eventId ? `/events/${eventId}` : "/events";
+  const resolvedBackHref = backHref || defaultBackHref;
   const session = useSession();
   // Trust useSession alone. This used to also OR in a raw sessionStorage read, which
   // overrode useSession's precedence: a leftover guest token from an earlier guest visit
@@ -500,7 +502,7 @@ export function LiveRoom({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <Link href={backHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link href={resolvedBackHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> {backLabel}
         </Link>
         <div className="flex items-center gap-2">

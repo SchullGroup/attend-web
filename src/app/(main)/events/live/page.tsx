@@ -15,8 +15,8 @@ function EventLiveInner() {
     <LiveRoom
       eventId={eventId}
       showBallot={false}
-      backHref={`/events/${eventId}`}
-      backLabel="Back to event"
+      backHref={eventId ? `/events/${eventId}` : "/events"}
+      backLabel="Leave meeting"
       zoomOverride={zoomOverride}
     />
   );

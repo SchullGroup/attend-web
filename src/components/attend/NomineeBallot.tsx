@@ -80,7 +80,7 @@ export function NomineeBallot({
                 {[
                   { key: "FOR", label: "For", activeClass: "bg-emerald-600 border-emerald-600 text-white shadow-sm hover:bg-emerald-700" },
                   { key: "AGAINST", label: "Against", activeClass: "bg-rose-600 border-rose-600 text-white shadow-sm hover:bg-rose-750" },
-                  { key: "ABSTAIN", label: "Abstain", activeClass: "bg-slate-650 border-slate-650 text-white shadow-sm hover:bg-slate-700" }
+                  { key: "ABSTAIN", label: "Abstain", activeClass: "bg-slate-700 border-slate-700 text-white shadow-sm hover:bg-slate-800" }
                 ].map((btn) => {
                   const active = choice === btn.key;
                   return (
@@ -90,10 +90,10 @@ export function NomineeBallot({
                       disabled={isPending}
                       onClick={() => handleSelect(candidate.id, btn.key as any)}
                       className={cn(
-                        "flex-1 rounded-xl py-2 text-xs font-semibold border transition-all duration-205",
+                        "flex-1 rounded-xl py-2 text-xs font-semibold border transition-all duration-200",
                         active
                           ? btn.activeClass
-                          : "bg-slate-50/50 border-slate-200 text-slate-650 hover:bg-slate-100/70"
+                          : "bg-slate-50/50 border-slate-200 text-slate-700 hover:bg-slate-100/70"
                       )}
                     >
                       {btn.label}
