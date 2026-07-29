@@ -1,13 +1,13 @@
 "use client";
 import { Suspense, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { ArrowLeft, RefreshCw, ScanLine, CheckCircle2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, ScanLine, CheckCircle2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/Button";
 import { useCheckIn, useGetMyTicket, useGetEvent } from "@/api/events/hooks";
 
 function QrCheckinInner() {
+  const router = useRouter();
   const eventId = useSearchParams().get("eventId") ?? "";
   const { mutate: checkIn, isPending } = useCheckIn(eventId);
   const { data: ticketResp, isLoading: ticketLoading, refetch } = useGetMyTicket(eventId);
@@ -25,9 +25,12 @@ function QrCheckinInner() {
   if (isVirtual) {
     return (
       <div className="space-y-6">
-        <Link href="/events" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+        </button>
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           QR check-in is only for in-person and hybrid events. This is a virtual event —
           just join the live session from the event page.
@@ -53,9 +56,12 @@ function QrCheckinInner() {
 
   return (
     <div className="space-y-6">
-      <Link href="/events" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <button
+        onClick={() => router.back()}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
-      </Link>
+      </button>
 
       <header>
         <h1 className="text-2xl font-bold text-foreground">Quick check-in</h1>

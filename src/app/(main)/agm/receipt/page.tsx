@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Download, Copy, Check, Building2, ChevronRight, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { QRCodeSVG } from "qrcode.react";
@@ -14,6 +14,7 @@ import { formatDate } from "@/lib/utils";
 
 
 function ReceiptInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const eventId = searchParams.get("eventId") ?? "";
   const [copied, setCopied] = useState(false);
@@ -95,9 +96,12 @@ function ReceiptInner() {
 
   return (
     <div className="space-y-6">
-      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to AGMs
-      </Link>
+      <button
+        onClick={() => router.back()}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
       <div className="mx-auto max-w-2xl">
         <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
@@ -235,11 +239,12 @@ function ReceiptInner() {
               <Button fullWidth onClick={downloadPdf}>
                 <Download className="h-4 w-4" /> Download receipt
               </Button>
-              <Link href="/agm" className="sm:flex-1">
-                <Button variant="outline" fullWidth className="whitespace-nowrap">
-                  Back to AGMs
-                </Button>
-              </Link>
+              <button
+                onClick={() => router.back()}
+                className="sm:flex-1 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-muted/60 transition-colors"
+              >
+                Back
+              </button>
             </div>
           </div>
         </div>
@@ -249,6 +254,7 @@ function ReceiptInner() {
 }
 
 function ReceiptPicker() {
+  const router = useRouter();
   const { data, isLoading } = useGetEvents({ eventType: "AGM_EGM", size: 50 });
   const agms = (data?.data?.events ?? []).filter(
     (e: EventListItem) => e.eventType === "AGM_EGM" && e.registered,
@@ -256,9 +262,12 @@ function ReceiptPicker() {
 
   return (
     <div className="space-y-6">
-      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to AGMs
-      </Link>
+      <button
+        onClick={() => router.back()}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
       <header>
         <h1 className="text-2xl font-bold text-foreground">My receipts</h1>
         <p className="text-sm text-muted-foreground">

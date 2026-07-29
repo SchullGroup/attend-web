@@ -118,9 +118,12 @@ function ProxyPageInner() {
 
   return (
     <div className="space-y-6">
-      <Link href="/agm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to AGMs
-      </Link>
+      <button
+        onClick={() => router.back()}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
       <header>
         <h1 className="mt-1 text-2xl font-bold text-foreground">Appoint a proxy</h1>
