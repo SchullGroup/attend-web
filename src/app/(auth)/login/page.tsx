@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Phone, Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLogin } from "@/api/auth/hooks";
@@ -10,22 +10,25 @@ import { useLogin } from "@/api/auth/hooks";
 export default function LoginPage() {
   const router = useRouter();
   const { mutate: loginMutation, isPending } = useLogin();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [needsVerify, setNeedsVerify] = useState(false);
+
+  // Detect whether the user typed an email or phone number for icon/autocomplete hints.
+  const looksLikePhone = /^\+?\d[\d\s-]{5,}$/.test(identifier.trim());
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
     setNeedsVerify(false);
     loginMutation(
-      { email, password },
+      { identifier: identifier.trim(), password },
       {
         onSuccess: () => router.push("/"),
         onError: (err: any) => {
           const msg =
-            err?.response?.data?.message || err?.message || "Invalid email or password";
+            err?.response?.data?.message || err?.message || "Invalid credentials";
           setErrorMsg(msg);
           // Backend blocks unverified accounts with a "verify your email" message —
           // surface a shortcut to the verification page (carrying the email over).
@@ -36,7 +39,10 @@ export default function LoginPage() {
   }
 
   function goVerify() {
-    sessionStorage.setItem("pendingVerifyEmail", email);
+    // Only pre-fill the verify page if the user entered an email.
+    if (!looksLikePhone) {
+      sessionStorage.setItem("pendingVerifyEmail", identifier.trim());
+    }
     router.push("/verify");
   }
 
@@ -69,14 +75,14 @@ export default function LoginPage() {
           </div>
         )}
         <Input
-          name="email"
-          label="Email"
-          type="email"
-          autoComplete="email"
-          leftIcon={<Mail className="h-4 w-4" />}
-          placeholder="you@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          name="identifier"
+          label="Email or Phone Number"
+          type="text"
+          autoComplete="username"
+          leftIcon={looksLikePhone ? <Phone className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+          placeholder="you@email.com or +234..."
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
         />
         <Input
           name="password"
