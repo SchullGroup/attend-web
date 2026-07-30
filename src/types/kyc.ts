@@ -33,6 +33,7 @@ export interface KycStatusData {
 // Stepped KYC flow (backend split the old single submit into steps).
 export interface KycStep1Request {
   bvn: string;
+  selfieImage?: string;
   firstName?: string;
   lastName?: string;
   dob?: string;
