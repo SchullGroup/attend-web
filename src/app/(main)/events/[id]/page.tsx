@@ -248,7 +248,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             )}
             {/* QR check-in is only for events with a physical venue (in-person / hybrid). */}
             {!isVirtual && (
-              <Link href={`/events/qr-checkin?eventId=${id}`}>
+              <Link href={`/qr-checkin?eventId=${id}`}>
                 <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-semibold backdrop-blur hover:bg-white/20">
                   <QrCode className="h-4 w-4" /> QR check-in
                 </button>

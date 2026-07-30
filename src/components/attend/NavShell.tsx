@@ -39,7 +39,7 @@ const NAV = [
   { label: "Home", href: "/", icon: House, match: (p: string, m?: string) => p === "/" },
   { label: "AGM", href: "/agm", icon: Building2, match: (p: string, m?: string) => p.startsWith("/agm") || isAgm(m) },
   { label: "Innovation", href: "/hackathon", icon: Lightbulb, match: (p: string, m?: string) => p.startsWith("/hackathon") || isInnovation(m) },
-  { label: "Launches", href: "/events", icon: Rocket, match: (p: string, m?: string) => p.startsWith("/events") && !isAgm(m) && !isInnovation(m) && !isGeneral(m) },
+  { label: "Launches", href: "/events", icon: Rocket, match: (p: string, m?: string) => p.startsWith("/events") && !p.startsWith("/events/qr-checkin") && !isAgm(m) && !isInnovation(m) && !isGeneral(m) },
   { label: "General", href: "/general", icon: CalendarDays, match: (p: string, m?: string) => p.startsWith("/general") || isGeneral(m) },
   { label: "Profile", href: "/profile", icon: UserIcon, match: (p: string, m?: string) => p.startsWith("/profile") },
 ];
@@ -106,7 +106,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   // pathname — covers navigating into a live room, the case that mis-highlighted.
   const [detailId, setDetailId] = useState("");
   useEffect(() => {
-    const isLiveRoute = pathname === "/events/live" || pathname === "/agm/live";
+    const isLiveRoute = pathname === "/events/live" || pathname === "/agm/live" || pathname === "/qr-checkin";
     if (isLiveRoute && typeof window !== "undefined") {
       setDetailId(new URLSearchParams(window.location.search).get("eventId") ?? "");
     } else {
