@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useKycStep3 } from "@/api/kyc/hooks";
+import { useKycStep1, useKycStep3 } from "@/api/kyc/hooks";
 
 type Stage = "idle" | "detecting" | "verifying" | "verified";
 
@@ -16,6 +16,7 @@ export default function LivenessPage() {
   const [stage, setStage] = useState<Stage>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const { mutate: submitStep1 } = useKycStep1();
   const { mutate: submitStep3 } = useKycStep3();
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -82,23 +83,49 @@ export default function LivenessPage() {
     }
 
     setStage("verifying");
-    submitStep3(
-      { selfieImage },
-      {
-        onSuccess: () => {
-          sessionStorage.removeItem("kyc_bvn");
-          setStage("verified");
+    const storedBvn = sessionStorage.getItem("kyc_bvn");
+
+    const handleStep3 = () => {
+      submitStep3(
+        { selfieImage },
+        {
+          onSuccess: () => {
+            sessionStorage.removeItem("kyc_bvn");
+            setStage("verified");
+          },
+          onError: (err: any) => {
+            setErrorMsg(
+              err?.response?.data?.message ||
+                err?.message ||
+                "Liveness check failed. Please try again.",
+            );
+            setStage("idle");
+          },
         },
-        onError: (err: any) => {
-          setErrorMsg(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Liveness check failed. Please try again.",
-          );
-          setStage("idle");
+      );
+    };
+
+    if (storedBvn) {
+      // Call Step 1 v2 (BVN face matching with Dojah) first
+      submitStep1(
+        { bvn: storedBvn, selfieImage },
+        {
+          onSuccess: handleStep3,
+          onError: (err: any) => {
+            const msg = err?.response?.data?.message || err?.message || "";
+            // Already verified on file — proceed to step 3
+            if (/already.*verif/i.test(msg)) {
+              handleStep3();
+              return;
+            }
+            setErrorMsg(msg || "BVN face match failed. Please ensure your face matches your BVN record.");
+            setStage("idle");
+          },
         },
-      },
-    );
+      );
+    } else {
+      handleStep3();
+    }
   }
 
   useEffect(() => {
