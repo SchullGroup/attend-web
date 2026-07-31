@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useKycStep3 } from "@/api/kyc/hooks";
+import { useKycStep1V2, useKycStep3 } from "@/api/kyc/hooks";
 
 type Stage = "idle" | "detecting" | "verifying" | "verified";
 
@@ -16,6 +16,7 @@ export default function LivenessPage() {
   const [stage, setStage] = useState<Stage>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const { mutate: submitStep1V2 } = useKycStep1V2();
   const { mutate: submitStep3 } = useKycStep3();
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -63,24 +64,48 @@ export default function LivenessPage() {
 
   function submitSelfie(selfieImage: string) {
     setStage("verifying");
-    submitStep3(
-      { selfieImage },
-      {
-        onSuccess: () => {
-          sessionStorage.removeItem("kyc_bvn");
-          sessionStorage.removeItem("kyc_selfie");
-          setStage("verified");
+    const storedBvn = sessionStorage.getItem("kyc_bvn");
+
+    const doStep3 = () => {
+      submitStep3(
+        { selfieImage },
+        {
+          onSuccess: () => {
+            sessionStorage.removeItem("kyc_bvn");
+            sessionStorage.removeItem("kyc_selfie");
+            setStage("verified");
+          },
+          onError: (err: any) => {
+            setErrorMsg(
+              err?.response?.data?.message ||
+                err?.message ||
+                "Liveness check failed. Please try again.",
+            );
+            setStage("idle");
+          },
         },
-        onError: (err: any) => {
-          setErrorMsg(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Liveness check failed. Please try again.",
-          );
-          setStage("idle");
+      );
+    };
+
+    if (storedBvn) {
+      submitStep1V2(
+        { bvn: storedBvn, selfieImage },
+        {
+          onSuccess: doStep3,
+          onError: (err: any) => {
+            const msg = err?.response?.data?.message || err?.message || "";
+            if (/already.*verif/i.test(msg)) {
+              doStep3();
+              return;
+            }
+            setErrorMsg(msg || "BVN photo match failed. Please ensure your face matches your BVN record.");
+            setStage("idle");
+          },
         },
-      },
-    );
+      );
+    } else {
+      doStep3();
+    }
   }
 
   function captureAndSubmit() {

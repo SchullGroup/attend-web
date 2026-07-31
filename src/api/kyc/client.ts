@@ -15,8 +15,17 @@ export const kycClient = {
     return response.data;
   },
 
-  // Step 1 — BVN verification (v2: enhanced ownership check)
+  // Step 1 — BVN verification (v1: record BVN)
   step1: async (data: KycStep1Request) => {
+    const response = await apiClient.post<ApiResponse>(
+      "/api/v1/participant/kyc/step1",
+      data,
+    );
+    return response.data;
+  },
+
+  // Step 1 v2 — Dojah BVN face matching
+  step1V2: async (data: KycStep1Request) => {
     const response = await apiClient.post<ApiResponse>(
       "/api/v1/participant/kyc/step1/v2",
       data,

@@ -21,6 +21,12 @@ export const useKycStep1 = () => {
   });
 };
 
+export const useKycStep1V2 = () => {
+  return useMutation({
+    mutationFn: (data: KycStep1Request) => kycClient.step1V2(data),
+  });
+};
+
 export const useKycStep2 = () => {
   return useMutation({
     mutationFn: (data: KycStep2Request) => kycClient.step2(data),
