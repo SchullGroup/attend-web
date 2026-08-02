@@ -88,6 +88,7 @@ export default function LivenessPage() {
     };
 
     if (storedBvn) {
+      // Call BVN + Selfie Verification v2 check (/bvn-selfie/v2)
       submitStep1V2(
         { bvn: storedBvn, selfieImage },
         {

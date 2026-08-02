@@ -24,10 +24,10 @@ export const kycClient = {
     return response.data;
   },
 
-  // Step 1 v2 — Dojah BVN face matching
+  // BVN + Selfie Verification (v2 standalone check via Dojah)
   step1V2: async (data: KycStep1Request) => {
     const response = await apiClient.post<ApiResponse>(
-      "/api/v1/participant/kyc/step1/v2",
+      "/api/v1/participant/kyc/bvn-selfie/v2",
       data,
     );
     return response.data;
