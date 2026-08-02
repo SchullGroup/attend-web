@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useKycStep1V2, useKycStep3 } from "@/api/kyc/hooks";
+import { useBvnSelfieCheck, useKycStep3 } from "@/api/kyc/hooks";
 
 type Stage = "idle" | "detecting" | "verifying" | "verified";
 
@@ -16,7 +16,7 @@ export default function LivenessPage() {
   const [stage, setStage] = useState<Stage>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { mutate: submitStep1V2 } = useKycStep1V2();
+  const { mutate: bvnSelfieCheck } = useBvnSelfieCheck();
   const { mutate: submitStep3 } = useKycStep3();
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -88,18 +88,42 @@ export default function LivenessPage() {
     };
 
     if (storedBvn) {
-      // Call BVN + Selfie Verification v2 check (/bvn-selfie/v2)
-      submitStep1V2(
+      // Standalone BVN + selfie re-check before submitting liveness.
+      bvnSelfieCheck(
         { bvn: storedBvn, selfieImage },
         {
-          onSuccess: doStep3,
+          // A failed match is still HTTP 200 — the result is `data.valid`, not the
+          // status code. Reading only onSuccess (as this did) let every failed match
+          // straight through, which made the check a no-op.
+          onSuccess: (res) => {
+            if (res?.data?.valid) {
+              doStep3();
+              return;
+            }
+            // The backend's message is specific (it includes the confidence score and
+            // lighting advice), so surface it verbatim rather than a generic line.
+            setErrorMsg(
+              res?.data?.message ||
+                "Face match failed. Please ensure good lighting and a clear photo.",
+            );
+            setStage("idle");
+          },
           onError: (err: any) => {
+            // 503 = Dojah unreachable. Nothing was saved and it's safe to retry, so
+            // don't tell the user their face didn't match — that isn't what happened.
+            if (err?.response?.status === 503) {
+              setErrorMsg(
+                "Verification service is temporarily unavailable. Please try again in a moment.",
+              );
+              setStage("idle");
+              return;
+            }
             const msg = err?.response?.data?.message || err?.message || "";
             if (/already.*verif/i.test(msg)) {
               doStep3();
               return;
             }
-            setErrorMsg(msg || "BVN photo match failed. Please ensure your face matches your BVN record.");
+            setErrorMsg(msg || "We couldn't verify your photo. Please try again.");
             setStage("idle");
           },
         },
