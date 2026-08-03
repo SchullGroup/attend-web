@@ -36,6 +36,10 @@ export interface KycStep1Request {
   firstName?: string;
   lastName?: string;
   dob?: string;
+  consent?: boolean;
+  hasConsent?: boolean;
+  bvnConsent?: boolean;
+  consentToBvnLookup?: boolean;
 }
 
 // Standalone BVN + selfie re-check (POST /participant/kyc/bvn-selfie/v2).

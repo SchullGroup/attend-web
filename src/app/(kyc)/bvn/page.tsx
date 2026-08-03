@@ -59,9 +59,22 @@ export default function BvnPage() {
     const [day, month, year] = dob.split("/");
     const isoDob = `${year}-${month}-${day}`;
 
-    const payload: { bvn: string; dob: string; firstName?: string; lastName?: string } = {
+    const payload: {
+      bvn: string;
+      dob: string;
+      firstName?: string;
+      lastName?: string;
+      consent: boolean;
+      hasConsent: boolean;
+      bvnConsent: boolean;
+      consentToBvnLookup: boolean;
+    } = {
       bvn,
       dob: isoDob,
+      consent: true,
+      hasConsent: true,
+      bvnConsent: true,
+      consentToBvnLookup: true,
     };
     if (firstName) payload.firstName = firstName;
     if (lastName) payload.lastName = lastName;

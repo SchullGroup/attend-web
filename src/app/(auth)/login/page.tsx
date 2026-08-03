@@ -22,8 +22,14 @@ export default function LoginPage() {
     e.preventDefault();
     setErrorMsg(null);
     setNeedsVerify(false);
+    const cleanId = identifier.trim();
     loginMutation(
-      { identifier: identifier.trim(), password },
+      {
+        identifier: cleanId,
+        emailOrPhone: cleanId,
+        email: cleanId,
+        password,
+      },
       {
         onSuccess: () => router.push("/"),
         onError: (err: any) => {
