@@ -36,7 +36,36 @@ export interface KycStep1Request {
   firstName?: string;
   lastName?: string;
   dob?: string;
+  consent?: boolean;
+  hasConsent?: boolean;
+  bvnConsent?: boolean;
+  consentToBvnLookup?: boolean;
 }
+
+// Standalone BVN + selfie re-check (POST /participant/kyc/bvn-selfie/v2).
+// Read-only: it reports whether the pair matches and saves nothing — it does NOT
+// touch bvnVerified, kycStatus or currentStep. Not part of the 1-2-3 step flow.
+export interface BvnSelfieRequest {
+  bvn: string;
+  /** Base64 JPEG with the `data:image/jpeg;base64,` prefix stripped. */
+  selfieImage: string;
+}
+
+// A failed match is still HTTP 200 — `valid` is the real result, not the status code.
+export interface BvnSelfieResult {
+  valid: boolean;
+  message?: string;
+  confidenceValue?: number;
+  // Only populated when valid is true.
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  phoneNumber?: string;
+  gender?: string;
+}
+
+export type BvnSelfieResponse = ApiResponse<BvnSelfieResult>;
 
 export interface KycStep2Request {
   chn: string;

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { kycClient } from "./client";
-import { KycStep1Request, KycStep2Request, KycStep3Request } from "@/types";
+import { KycStep1Request, KycStep2Request, KycStep3Request, BvnSelfieRequest } from "@/types";
 
 export const kycKeys = {
   status: ["kyc", "status"] as const,
@@ -18,6 +18,12 @@ export const useGetKycStatus = (enabled = true) => {
 export const useKycStep1 = () => {
   return useMutation({
     mutationFn: (data: KycStep1Request) => kycClient.step1(data),
+  });
+};
+
+export const useBvnSelfieCheck = () => {
+  return useMutation({
+    mutationFn: (data: BvnSelfieRequest) => kycClient.bvnSelfieCheck(data),
   });
 };
 
