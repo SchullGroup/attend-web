@@ -3,18 +3,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Fingerprint, ShieldCheck, Lock, Calendar, AlertCircle } from "lucide-react";
+import { Fingerprint, ShieldCheck, Calendar, AlertCircle, ChevronDown } from "lucide-react";
 import { useKycStep1 } from "@/api/kyc/hooks";
 import { useGetMe } from "@/api/auth/hooks";
+import { cn } from "@/lib/utils";
 
 export default function BvnPage() {
   const router = useRouter();
   const { data: meData } = useGetMe();
   const currentUser = meData?.data;
 
-  // Regulatory consent modal state — opens first before anything else
-  const [showConsentModal, setShowConsentModal] = useState(true);
+  // Regulatory consent — an un-ticked checkbox gates the submit button, with the
+  // full NDPA/CBN disclosure available inline rather than behind a blocking modal.
   const [hasConsented, setHasConsented] = useState(false);
+  const [showDisclosure, setShowDisclosure] = useState(false);
 
   const [bvn, setBvn] = useState("");
   const [dob, setDob] = useState("");
@@ -35,16 +37,6 @@ export default function BvnPage() {
     } else {
       setDob(`${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`);
     }
-  }
-
-  function handleAcceptConsent() {
-    setHasConsented(true);
-    setShowConsentModal(false);
-  }
-
-  function handleDeclineConsent() {
-    setHasConsented(false);
-    router.push("/intro");
   }
 
   function onSubmit(e: React.FormEvent) {
@@ -101,58 +93,6 @@ export default function BvnPage() {
 
   return (
     <>
-      {/* MANDATORY REGULATORY CONSENT MODAL */}
-      {showConsentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md space-y-5 rounded-3xl border border-border bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <ShieldCheck className="h-6 w-6" />
-              </div>
-              <div>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                  NDPA & CBN Regulatory Notice
-                </span>
-                <h2 className="text-lg font-bold text-foreground">Identity Verification Consent</h2>
-              </div>
-            </div>
-
-            <div className="space-y-3 rounded-2xl border border-border bg-slate-50 p-4 text-xs text-muted-foreground">
-              <p className="font-semibold text-foreground">
-                Pursuant to the Nigeria Data Protection Act (NDPA 2023) & CBN Regulations:
-              </p>
-              <ul className="list-disc pl-4 space-y-1.5 leading-relaxed">
-                <li>
-                  We require your explicit consent to retrieve and validate your BVN biodata (Full Name, DOB, and Photo) via our licensed verification partners (Dojah / NIBSS).
-                </li>
-                <li>
-                  Your identity details are used <strong>solely</strong> to verify your eligibility for shareholder participation and voting.
-                </li>
-                <li>
-                  Your BVN will <strong>never</strong> be shared with unauthorized third parties or used to access your bank accounts.
-                </li>
-              </ul>
-            </div>
-
-            <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-[11px] text-amber-900 border border-amber-200">
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-              <span>
-                By clicking <strong>"I Agree & Consent"</strong>, you authorize Attend and its licensed partners to verify your BVN details.
-              </span>
-            </div>
-
-            <div className="flex gap-3 pt-1">
-              <Button type="button" variant="outline" fullWidth onClick={handleDeclineConsent}>
-                Decline
-              </Button>
-              <Button type="button" fullWidth onClick={handleAcceptConsent}>
-                I Agree & Consent
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* BVN & DOB INPUT FORM */}
       <form onSubmit={onSubmit} className="space-y-6">
         <div>
@@ -191,6 +131,83 @@ export default function BvnPage() {
           onChange={(e) => handleDobChange(e.target.value)}
           hint="Format: Day/Month/Year (e.g. 15/08/1995) — must match your BVN record."
         />
+
+        {/* MANDATORY REGULATORY CONSENT — un-ticked by default, gates submit */}
+        <div className="space-y-3 rounded-2xl border border-border bg-slate-50/60 p-4">
+          <label
+            htmlFor="bvnConsent"
+            className="flex cursor-pointer items-start gap-3 text-xs leading-relaxed text-foreground"
+          >
+            <input
+              id="bvnConsent"
+              name="bvnConsent"
+              type="checkbox"
+              checked={hasConsented}
+              onChange={(e) => setHasConsented(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <span>
+              I consent to the processing of my BVN and Date of Birth for identity
+              verification.
+            </span>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => setShowDisclosure((v) => !v)}
+            aria-expanded={showDisclosure}
+            aria-controls="bvnDisclosure"
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Read regulatory disclosure
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                showDisclosure && "rotate-180",
+              )}
+            />
+          </button>
+
+          {showDisclosure && (
+            <div id="bvnDisclosure" className="space-y-3">
+              <div className="space-y-3 rounded-xl border border-border bg-white p-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                    NDPA &amp; CBN Regulatory Notice
+                  </span>
+                </div>
+                <p className="font-semibold text-foreground">
+                  Pursuant to the Nigeria Data Protection Act (NDPA 2023) &amp; CBN
+                  Regulations:
+                </p>
+                <ul className="list-disc space-y-1.5 pl-4 leading-relaxed">
+                  <li>
+                    We require your explicit consent to retrieve and validate your BVN
+                    biodata (Full Name, Date of Birth, Phone Number, Gender, and Photo)
+                    via our licensed verification partners (Dojah / NIBSS).
+                  </li>
+                  <li>
+                    Your identity details are used <strong>solely</strong> to verify your
+                    eligibility for shareholder participation and voting.
+                  </li>
+                  <li>
+                    Your BVN will <strong>never</strong> be shared with unauthorized third
+                    parties or used to access your bank accounts.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <span>
+                  By ticking the box above, you authorize Attend and its licensed partners
+                  to verify your BVN details.
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="flex gap-3 pt-2">
           <Button
