@@ -217,10 +217,8 @@ export function LiveRoom({
   const pressKitForbidden =
     (pressKitError as { response?: { status?: number } } | null)?.response?.status === 403;
 
-  // When the register has no share weighting, shares are all 0 — show head counts only.
-  // The guest payload omits this flag entirely, so we can't know whether the register is
-  // share-weighted — show head counts rather than a column of misleading zeroes.
-  const shareWeighted = !isGuest && !!resData?.data?.shareWeightedTalliesEnabled;
+  // When the register has no share weighting, shares are all 0 — ResolutionBars falls back
+  // to head counts on its own, so the tally doesn't need a flag to gate them.
   // The ballot shows one open resolution at a time and advances to the next unvoted one
   // as soon as a vote succeeds. `locallyVoted` marks just-cast resolutions optimistically
   // (myVote only arrives on the next ~5s poll); `manualResId` lets the user step back to
@@ -1041,7 +1039,7 @@ export function LiveRoom({
                         <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> Live tally
                         </p>
-                        <ResolutionBars r={openRes} shareWeighted={shareWeighted} />
+                        <ResolutionBars r={openRes} />
                         {openRes.bySource && <SourceBreakdown bySource={openRes.bySource} />}
                       </div>
                     )}
@@ -1086,7 +1084,7 @@ export function LiveRoom({
                             </div>
                           ) : showResult ? (
                             <div className="mt-3 border-t border-border pt-2 space-y-3">
-                              <ResolutionBars r={r} shareWeighted={shareWeighted} />
+                              <ResolutionBars r={r} />
                               {r.bySource && <SourceBreakdown bySource={r.bySource} />}
                             </div>
                           ) : null}
@@ -1253,11 +1251,13 @@ export function LiveRoom({
   );
 }
 
-function ResolutionBars({ r, shareWeighted }: { r: Resolution; shareWeighted: boolean }) {
+function ResolutionBars({ r }: { r: Resolution }) {
   const totalShares = r.forShares + r.againstShares + r.abstainShares;
   const totalCount = r.forCount + r.againstCount + r.abstainCount;
-  // Use shares only when the register supports it and there are shares to show.
-  const useShares = shareWeighted && totalShares > 0;
+  // AGM votes are weighted by shareholding, so the share figure is always shown — including
+  // when it's 0, which tells the viewer the register carries no weighting rather than
+  // silently dropping the column. Percentages fall back to head counts in that case.
+  const useShares = totalShares > 0;
   const denom = useShares ? totalShares : totalCount;
   const pct = (count: number, shares: number) =>
     denom ? Math.round(((useShares ? shares : count) / denom) * 100) : 0;
@@ -1273,8 +1273,7 @@ function ResolutionBars({ r, shareWeighted }: { r: Resolution; shareWeighted: bo
             <div className="mb-0.5 flex items-center justify-between text-[11px]">
               <span className="font-medium text-foreground">{row.label}</span>
               <span className="text-muted-foreground">
-                {row.count}
-                {useShares ? ` · ${row.shares.toLocaleString()} shares` : ""} · {pct(row.count, row.shares)}%
+                {row.count} · {row.shares.toLocaleString()} shares · {pct(row.count, row.shares)}%
               </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">

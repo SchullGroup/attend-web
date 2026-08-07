@@ -6,12 +6,10 @@ import {
   ArrowLeft, CalendarDays, Clock, MapPin, Users, Bookmark, Share2,
   QrCode, CheckCircle2, Check, Monitor, Wifi, Vote, FileText,
   BookOpen, ShieldAlert, ChevronRight, Radio, DownloadCloud, FileBox,
-  KeyRound,
 } from "lucide-react";
 import {
   useGetEvent, useRsvp, useCancelRsvp, useJoinWaitlist,
   useGetSavedEvents, useSaveEvent, useUnsaveEvent, useGetPressKit,
-  useGuestJoin,
 } from "@/api/events/hooks";
 import { useGetResolutions } from "@/api/agm/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
@@ -21,7 +19,6 @@ import { cn, formatDate, initialsFor, fileDisplayName, parseApiDate } from "@/li
 import { useEffect } from "react";
 import { getRsvpWindow } from "@/lib/rsvp";
 import { useUserStore } from "@/lib/user-store";
-import { storeGuestSession, readJoinResult } from "@/lib/guest-session";
 
 // Backend formats are upper-case (VIRTUAL/HYBRID/IN_PERSON).
 const FORMAT_LABEL: Record<string, string> = {
@@ -85,13 +82,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     : null;
 
   const [shared, setShared] = useState(false);
-  const [showGuestEntry, setShowGuestEntry] = useState(false);
-  const [guestCode, setGuestCode] = useState("");
-  const [guestError, setGuestError] = useState<string | null>(null);
   const { mutate: rsvp, isPending: rsvping } = useRsvp(id);
   const { mutate: cancelRsvp, isPending: cancelling } = useCancelRsvp(id);
   const { mutate: joinWaitlist, isPending: joiningWaitlist } = useJoinWaitlist(id);
-  const { mutate: guestJoin, isPending: guestJoining } = useGuestJoin(id);
 
   const { data: savedResp } = useGetSavedEvents();
   const { mutate: saveEvent } = useSaveEvent(id);
@@ -563,8 +556,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
-      {/* Guest access code entry */}
-      {showGuestEntry && (
+      {/* Guest access code entry — REMOVED: authenticated users should not see guest entry */}
+      {/* showGuestEntry && (
         <section className="rounded-2xl border border-border bg-white p-5 space-y-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
@@ -598,10 +591,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   {
                     onSuccess: (res: any) => {
                       const { token } = readJoinResult(res);
-                      // Also sets the isGuest flag cookie — without it the middleware
-                      // bounces the guest to /login on the very next line's redirect.
                       if (token) storeGuestSession(token, id);
-                      // Navigate to the live stream for the guest
                       if (mod === "AGM") router.push(`/agm/live?eventId=${id}&guest=true`);
                       else router.push(`/events/live?eventId=${id}&guest=true`);
                     },
@@ -624,7 +614,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             Cancel
           </button>
         </section>
-      )}
+      ) */}
 
       {/* Sticky bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur px-4 py-3 md:left-64">
@@ -661,15 +651,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               >
                 {rsvping ? "Confirming…" : "RSVP & Join"}
               </Button>
-              {mod !== "AGM" && (
-                <Button
-                  className="flex-1"
-                  variant="outline"
-                  onClick={() => setShowGuestEntry(true)}
-                >
-                  <KeyRound className="h-4 w-4 mr-1.5" /> Guest code
-                </Button>
-              )}
             </div>
           </div>
         ) : event.waitlisted && !event.registered ? (
@@ -720,15 +701,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               >
                 {rsvping ? "Confirming…" : "Confirm Attendance (RSVP)"}
               </Button>
-              {!isEnded && mod !== "AGM" && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowGuestEntry(true)}
-                  title="Join as a guest with an access code"
-                >
-                  <KeyRound className="h-4 w-4" />
-                </Button>
-              )}
             </div>
           </div>
         )}
