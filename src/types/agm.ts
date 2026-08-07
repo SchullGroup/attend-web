@@ -34,6 +34,7 @@ export interface Resolution {
   forShares: number;
   againstShares: number;
   abstainShares: number;
+  shareWeightedTalliesEnabled?: boolean;
   // Candidate ("election") resolutions carry a list of candidates; each is voted on
   // independently. The API calls these `candidates` (the spec's "nominees" naming
   // was never shipped). A standard resolution has an empty/absent list.

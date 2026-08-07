@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Attend Web — Simple User Flow Guide</title>
+<style>
+  @page { size: A4; margin: 25mm 20mm; }
+  body {
+    font-family: Calibri, "Segoe UI", Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.45;
+    color: #000;
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 24px;
+  }
+  h1 { color: #2e74b5; font-size: 20pt; font-weight: normal; margin: 0 0 14px; }
+  h2 { color: #2e74b5; font-size: 14pt; font-weight: normal; margin: 26px 0 10px; }
+  h3 { color: #2e74b5; font-size: 12pt; font-weight: normal; margin: 18px 0 8px; }
+  p  { margin: 8px 0; }
+  ul { margin: 8px 0; padding-left: 34px; }
+  li { margin: 4px 0; }
+  ul ul { margin: 4px 0; list-style-type: none; padding-left: 8px; }
+  ul ul li:before { content: "- "; }
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 10pt; }
+  hr { border: none; border-top: 0; color: #000; margin: 14px 0; }
+  .rule:after { content: "---"; color: #000; }
+  strong { font-weight: bold; }
+  @media print { body { margin: 0; max-width: none; } h2, h3 { page-break-after: avoid; } ul { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<h1>Attend Web — Simple User Flow Guide</h1>
+
+<p>Welcome to the <strong>Attend Web</strong> testing guide! This document explains how to use and test the main features of the Attend web application in plain, easy-to-understand steps.</p>
+<p class="rule"></p>
+
+<h2>Quick Summary of User Roles</h2>
+<ul>
+  <li><strong>Guest User</strong>: Can join specific events using an access code without creating an account.</li>
+  <li><strong>Registered User</strong>: Has created an account, can browse events, RSVP, submit hackathon ideas, and manage their profile.</li>
+  <li><strong>Verified User (KYC Completed)</strong>: Has verified their identity using BVN and facial liveness check. Can participate and vote in AGMs (Annual General Meetings).</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 1: Visiting the Site as a Guest (No Account Needed)</h2>
+<p>If an organizer gives you an event access code, you don't need an account to join.</p>
+<h3>Steps:</h3>
+<ul>
+  <li>Go to the website home page.</li>
+  <li>Click on <strong>"Guest Access"</strong> or navigate to the Guest page.</li>
+  <li>Choose the event type (e.g., <strong>AGM</strong> or <strong>General Event</strong>).</li>
+  <li>Find your event and click <strong>"Join"</strong>.</li>
+  <li>Enter your <strong>Access Code</strong> (e.g., <code>AGM2026</code>) and your name.</li>
+  <li>Click <strong>"Join Event"</strong>.</li>
+</ul>
+<h3>Other ways to join as a guest:</h3>
+<ul>
+  <li><strong>From the event page itself</strong>: if you open an event page directly, it has its own "Have an access code?" panel. Enter the code there and you will be taken into the live event the same way.</li>
+  <li><strong>From an invite link</strong>: an organizer may send you a link that already contains the code. Opening it takes you straight into the guest join screen — you do not need to type the code.</li>
+</ul>
+<h3>What to expect:</h3>
+<ul>
+  <li>You will be taken directly into the live event screen.</li>
+  <li>You can watch the event live stream and read announcements.</li>
+  <li><strong>Note:</strong> If you close your browser tab, your guest session ends, and you will need to enter the code again.</li>
+  <li><strong>If your session expires</strong> while you are in the event, you will be returned to the Guest page with an orange banner saying your guest session has expired. Enter your access code again to rejoin.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 2: Creating a New Account</h2>
+<h3>Steps:</h3>
+<ul>
+  <li>On the home page, click <strong>"Register"</strong> or <strong>"Get Started"</strong>.</li>
+  <li>Fill in your details:
+    <ul>
+      <li><strong>Full Name</strong> (must include first name and last name, e.g., "Jane Doe")</li>
+      <li><strong>Email Address</strong> or <strong>Phone Number</strong></li>
+      <li><strong>Password</strong> — the screen shows three hints as you type: at least 8 characters, one capital letter, and a number.</li>
+    </ul>
+  </li>
+  <li><strong>Note for testers:</strong> those password hints are guidance only. The <strong>"Create Account"</strong> button stays clickable even if a hint is unticked, and a weak password is rejected by the server instead, with an error message. This is expected — please do not log it as a bug.</li>
+  <li>Click <strong>"Create Account"</strong>.</li>
+  <li>Check your email inbox for a <strong>6-digit verification code</strong>.</li>
+  <li>Type or paste the 6-digit code on the verification screen.</li>
+</ul>
+<h3>What to expect:</h3>
+<ul>
+  <li>Once you enter the 6th digit, the system automatically checks the code.</li>
+  <li>You will see a success message and be redirected to the Login page.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 3: Signing In &amp; Signing Out</h2>
+<h3>Signing In:</h3>
+<ul>
+  <li>Go to the <strong>Login</strong> page.</li>
+  <li>Type your registered <strong>Email Address</strong> or <strong>Phone Number</strong>.</li>
+  <li>Type your <strong>Password</strong>.</li>
+  <li>Click <strong>"Sign In"</strong>.</li>
+</ul>
+<h3>Signing Out:</h3>
+<ul>
+  <li>Click your profile picture or icon at the top right (or bottom navigation on mobile).</li>
+  <li>Click <strong>"Sign Out"</strong>.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 4: Resetting a Forgotten Password</h2>
+<h3>Steps:</h3>
+<ul>
+  <li>On the Login page, click <strong>"Forgot Password?"</strong>.</li>
+  <li>Enter your registered email address and click <strong>"Send Code"</strong>.</li>
+  <li>Check your email for a <strong>6-digit reset code</strong>.</li>
+  <li>On the Reset Password screen:
+    <ul>
+      <li>Enter the <strong>6-digit code</strong>.</li>
+      <li>Type your <strong>New Password</strong>.</li>
+      <li>Re-type the password in <strong>Confirm Password</strong>.</li>
+    </ul>
+  </li>
+  <li>Click <strong>"Update Password"</strong>.</li>
+  <li>Sign in using your new password.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 5: Identity Verification (KYC)</h2>
+<p>Identity verification is required before you can vote in company meetings (AGMs).</p>
+<h3>Steps:</h3>
+<ul>
+  <li>Go to <strong>Profile</strong> or click <strong>"Verify Identity"</strong> from the dashboard.</li>
+  <li><strong>Step 1: BVN Verification</strong>
+    <ul>
+      <li>Enter your 11-digit <strong>BVN</strong> (Bank Verification Number).</li>
+      <li>Enter your <strong>Date of Birth</strong> (<code>DD/MM/YYYY</code>).</li>
+      <li>Tick the consent box allowing the system to match your records.</li>
+      <li>Click <strong>"Continue"</strong>.</li>
+    </ul>
+  </li>
+  <li><strong>Step 2: Stockbroker CHN (Optional)</strong>
+    <ul>
+      <li>Enter your Clearing House Number (CHN) if you have one. It must be <strong>at least 10 characters</strong> long — the <strong>"Continue"</strong> button stays greyed out until it is.</li>
+      <li>If you do not have a CHN, click <strong>"Skip for now"</strong> to move on.</li>
+    </ul>
+  </li>
+  <li><strong>Step 3: Face Scan (Liveness Check)</strong>
+    <ul>
+      <li>Allow camera access when prompted by your browser.</li>
+      <li>Position your face inside the oval frame on screen.</li>
+      <li>Hold still — the system automatically takes your photo after 3 seconds.</li>
+    </ul>
+  </li>
+  <li><strong>Completion</strong>:
+    <ul>
+      <li>You will see a success message confirming your identity is verified.</li>
+    </ul>
+  </li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 6: Finding &amp; Joining Events</h2>
+<h3>Steps:</h3>
+<ul>
+  <li>Click <strong>"Events"</strong> or <strong>"General Events"</strong> in the navigation menu.</li>
+  <li>Browse upcoming, live, or past events.</li>
+  <li>Click on any event card to view its full details (date, venue/link, description, documents).</li>
+  <li><strong>Reserve a Seat (RSVP)</strong>:
+    <ul>
+      <li>Click <strong>"RSVP"</strong> to reserve your spot.</li>
+      <li>If an event is full, click <strong>"Join Waitlist"</strong>.</li>
+    </ul>
+  </li>
+  <li><strong>Cancel your RSVP</strong>:
+    <ul>
+      <li>Open the event you have booked and click <strong>"Cancel RSVP"</strong>.</li>
+      <li>Your spot is released and the button changes back to <strong>"RSVP"</strong>.</li>
+    </ul>
+  </li>
+  <li><strong>RSVP deadline (important for testers)</strong>:
+    <ul>
+      <li>Booking stays open until <strong>30 minutes after the event start time</strong>. This gives late arrivals a short grace period.</li>
+      <li>Once that 30 minutes has passed, the <strong>"RSVP"</strong> button is greyed out on purpose. This is expected behaviour, not a fault.</li>
+    </ul>
+  </li>
+  <li><strong>Join Live Stream</strong>:
+    <ul>
+      <li>When an event is live, click <strong>"Join Live"</strong> on the event page to watch in real-time.</li>
+    </ul>
+  </li>
+  <li><strong>QR Check-in (Physical Events)</strong>:
+    <ul>
+      <li>If attending in person, open <strong>"QR Check-in"</strong> to check in at the venue.</li>
+    </ul>
+  </li>
+  <li><strong>Past Events &amp; Gallery</strong>:
+    <ul>
+      <li>Click <strong>"Past Events"</strong> to browse events that have already finished, along with their recordings and documents.</li>
+      <li>Click <strong>"Gallery"</strong> to view photos from previous events.</li>
+    </ul>
+  </li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 7: Attending Product Launch Events</h2>
+<p>Product launches are special events where a company reveals a new product to press, partners, and the public. They work like normal events, with a few extra features.</p>
+<h3>Finding a Launch Event:</h3>
+<ul>
+  <li>Click <strong>"Launches"</strong> in the navigation menu (or find the event under <strong>Events</strong>).</li>
+  <li>Launch events show a countdown timer to the moment of the reveal.</li>
+  <li>Click the event card to open the branded launch page with the product details, speakers, and agenda.</li>
+</ul>
+<h3>Registering to Attend:</h3>
+<ul>
+  <li>Click <strong>"RSVP"</strong> to reserve your spot.</li>
+  <li>Your invitation may be for a specific audience group (for example Press/Media, VIP Guest, Partner, or General Public). The details you can see depend on your group.</li>
+  <li>If the event is full, click <strong>"Join Waitlist"</strong>.</li>
+</ul>
+<h3>Watching the Launch:</h3>
+<ul>
+  <li>When the launch begins, click <strong>"Join Live"</strong> to watch the broadcast.</li>
+  <li>Use the <strong>Q&amp;A</strong> tab to ask the product team a question.</li>
+  <li>Answer any <strong>live polls</strong> that appear on screen during the presentation.</li>
+</ul>
+<h3>Press Kit &amp; Documents:</h3>
+<ul>
+  <li>Launch materials (press releases, images, product sheets) are listed on the event page.</li>
+  <li><strong>Important:</strong> These files are usually <strong>embargoed</strong> — they stay locked until the launch moment.
+    <ul>
+      <li>Before release: the file is visible but cannot be downloaded.</li>
+      <li>After release: the file unlocks automatically and the download becomes available.</li>
+    </ul>
+  </li>
+  <li>You do not need to refresh anything — the files unlock on their own at the scheduled time.</li>
+</ul>
+<h3>After the Launch:</h3>
+<ul>
+  <li>The recording and any post-event documents appear on the event page.</li>
+  <li>Files sent to you are also saved under <strong>Profile → Documents</strong>.</li>
+</ul>
+<h3>What to expect:</h3>
+<ul>
+  <li>You should never be able to download an embargoed file early.</li>
+  <li>The countdown, the live stream, and the file unlock should all match the same launch time.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 8: Attending AGMs &amp; Voting</h2>
+<p>Virtual AGMs allow shareholder voting on company resolutions.</p>
+<h3>Pre-Voting (Voting before the meeting):</h3>
+<ul>
+  <li>Go to <strong>"AGM"</strong> from the main menu and select your meeting.</li>
+  <li>Click <strong>"Pre-Vote"</strong>.</li>
+  <li>For each resolution, choose <strong>For</strong>, <strong>Against</strong>, or <strong>Abstain</strong>.</li>
+  <li><strong>Director / nominee resolutions work differently</strong>: instead of one choice for the whole resolution, you are shown a list of candidates and you choose <strong>For</strong>, <strong>Against</strong> or <strong>Abstain</strong> for <strong>each candidate individually</strong>. The resolution only counts as answered once you have chosen for <strong>every</strong> candidate on the list.</li>
+  <li>Click <strong>"Submit Votes"</strong>.</li>
+</ul>
+<h3>Why is "Submit Votes" greyed out?</h3>
+<ul>
+  <li>The <strong>"Submit Votes"</strong> button only becomes active once you have answered <strong>every</strong> resolution in the "Open for voting" list.</li>
+  <li>The counter above the button shows your progress, for example "2 of 3 selected". If it reads 2 of 3, one resolution is still unanswered — including a nominee resolution where you have not chosen for all candidates.</li>
+  <li>This is the most common reason the button looks broken. It is working as intended.</li>
+</ul>
+<h3>Changing your vote:</h3>
+<ul>
+  <li>After submitting, your resolutions move into an <strong>"Already voted"</strong> section showing how you voted and the running results.</li>
+  <li>You can change your vote at any time until voting closes.</li>
+</ul>
+<h3>Appointing a Proxy (Someone to vote for you):</h3>
+<ul>
+  <li>On the AGM page, click <strong>"Appoint Proxy"</strong>.</li>
+  <li>Select whether your proxy is:
+    <ul>
+      <li><strong>The Meeting Chairman</strong>, or</li>
+      <li><strong>A Named Person</strong> (enter their full name and email address).</li>
+    </ul>
+  </li>
+  <li>Click <strong>"Confirm Appointment"</strong>.</li>
+  <li>You will receive a proxy confirmation code and QR code.</li>
+  <li><strong>Important:</strong> once you appoint a proxy, your own pre-voting is switched off. The Pre-Vote page shows an orange banner reading "Voting Managed by Appointed Proxy" and the For / Against / Abstain buttons are disabled. This is expected — your proxy votes on your behalf.</li>
+</ul>
+<h3>Revoking a Proxy (Taking back control of your vote):</h3>
+<ul>
+  <li>Go to the <strong>Pre-Vote</strong> page for that meeting.</li>
+  <li>In the orange proxy banner, click <strong>"Revoke Proxy"</strong>.</li>
+  <li>Once revoked, the voting buttons unlock and you can vote directly again.</li>
+</ul>
+<h3>Checking your past proxy appointments:</h3>
+<ul>
+  <li>Go to <strong>AGM → Proxy History</strong> to see every proxy you have appointed.</li>
+  <li>Each entry shows who the proxy was and its current state — active, revoked, or for a meeting that has already ended.</li>
+</ul>
+<h3>Voting Live During the AGM:</h3>
+<ul>
+  <li>Click <strong>"Join Live AGM"</strong> during the scheduled meeting time.</li>
+  <li>Watch the video stream and cast votes on live resolutions and polls as they appear.</li>
+  <li><strong>Asking questions</strong>: open the <strong>Q&amp;A</strong> tab and type your question. You can also <strong>upvote</strong> other shareholders' questions by tapping the arrow beside them — the most upvoted questions rise to the top so the chair can prioritise them.</li>
+  <li><strong>Quorum indicator</strong>: the screen shows a live count of attendance against the quorum needed for the meeting to be valid. Watch it update as more shareholders join.</li>
+</ul>
+<h3>Getting proof of how you voted (Vote Receipts):</h3>
+<ul>
+  <li>From the AGM page, click <strong>"My Receipts"</strong>.</li>
+  <li>You will see every vote you cast for that meeting, showing the resolution, your choice, and the time it was recorded.</li>
+  <li>Votes cast before the meeting are marked separately from votes cast live during the meeting.</li>
+  <li><strong>What to check:</strong> every vote you cast should appear exactly once, with the correct choice.</li>
+</ul>
+<h3>Reading the Minutes after the meeting:</h3>
+<ul>
+  <li>Once the AGM has ended, go to <strong>AGM → Minutes</strong> to read the official record of the meeting.</li>
+  <li>Minutes are only available after the meeting has finished — before then the page will show that they are not yet published.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 9: Innovation Challenges &amp; Hackathons</h2>
+<h3>Applying for a Challenge:</h3>
+<ul>
+  <li>Click <strong>"Innovation"</strong> or <strong>"Hackathons"</strong> in the menu.</li>
+  <li>Choose a challenge and click <strong>"Apply"</strong>.</li>
+  <li><strong>Step 1: Team Details</strong>: Enter your Team Name.</li>
+  <li><strong>Step 2: Project Idea</strong>: Enter your project title and a description (at least 10 characters).</li>
+  <li><strong>Step 3: Team Members</strong>: Add your team members' names, roles, and email addresses.</li>
+  <li>Upload any required files (e.g., pitch deck presentation or demo video).</li>
+  <li>Click <strong>"Submit Application"</strong>.</li>
+</ul>
+<h3>Tracking your application:</h3>
+<ul>
+  <li>Go to <strong>Innovation → My Applications</strong> to see every challenge you have applied to.</li>
+  <li>Each application shows its current stage, for example <strong>Submitted</strong>, <strong>Under Review</strong>, <strong>Shortlisted</strong>, or <strong>Selected</strong>.</li>
+  <li>You will also receive a notification in the app whenever your status changes.</li>
+</ul>
+<h3>Challenge Resources:</h3>
+<ul>
+  <li>Open a challenge and click <strong>"Resources"</strong> to find the materials provided by the organiser — rules, briefs, datasets, templates, and mentor session recordings.</li>
+  <li>Some resources are files you download; others are links that open in a new tab.</li>
+</ul>
+<h3>Certificates:</h3>
+<ul>
+  <li>After a challenge finishes, go to <strong>Innovation → Certificates</strong>.</li>
+  <li>Participation certificates are available to everyone who took part; winners' certificates are issued to placed teams.</li>
+  <li>Click to download your certificate.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 10: Profile, Documents &amp; Notifications</h2>
+<ul>
+  <li><strong>My Saved Events</strong>: Click the bookmark icon on any event to save it for quick access under <strong>Profile → Saved Events</strong>.</li>
+  <li><strong>Document Vault</strong>: Access files and documents from events you attended under <strong>Profile → Documents</strong>.</li>
+  <li><strong>Notifications</strong>: Click the bell icon at the top right to view alerts and updates.</li>
+  <li><strong>Help &amp; FAQ</strong>: Go to <strong>Profile → Help</strong> to read answers to common questions.</li>
+</ul>
+<h3>Changing your password (while signed in):</h3>
+<ul>
+  <li>Go to <strong>Profile → Change Password</strong>.</li>
+  <li>Enter your <strong>Current Password</strong>.</li>
+  <li>Enter your <strong>New Password</strong>, then re-type it in <strong>Confirm New Password</strong>.</li>
+  <li>Click <strong>"Update Password"</strong>.</li>
+  <li><strong>Note for testers:</strong> this screen only requires the new password to be <strong>at least 8 characters</strong> and to match the confirmation. It does <strong>not</strong> require a capital letter or a number, unlike the "Forgot Password" reset screen. This difference is known — please do not log it as a bug.</li>
+</ul>
+<h3>Notification Preferences:</h3>
+<ul>
+  <li>Go to <strong>Profile → Notification Preferences</strong>.</li>
+  <li>Turn the notification types you want on or off (for example event reminders, AGM alerts, or application updates).</li>
+  <li>Click <strong>"Save"</strong>.</li>
+  <li>Reload the page to confirm your choices were kept.</li>
+</ul>
+<h3>Marking notifications as read:</h3>
+<ul>
+  <li>Open the bell icon to see your notifications.</li>
+  <li>Click a single notification to mark it read, or click <strong>"Mark all read"</strong> to clear them all at once.</li>
+  <li><strong>"Mark all read"</strong> is greyed out when you have nothing unread — this is expected.</li>
+  <li>The number badge on the bell shows your unread count, and displays <strong>"9+"</strong> once you have more than nine.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 11: Searching</h2>
+<ul>
+  <li>On desktop, use the search box at the top of the screen.</li>
+  <li>Type what you are looking for — an event name, an AGM, or a challenge — and press <strong>Enter</strong>.</li>
+  <li>Results are shown grouped by type.</li>
+  <li><strong>Note:</strong> results only appear after you press Enter. The list does not update as you type.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Flow 12: First-time Setup (Onboarding)</h2>
+<ul>
+  <li>The first time you sign in to a new account, you may be shown a short onboarding screen.</li>
+  <li>It introduces the main areas of the app and prompts you to verify your identity (KYC) if you have not already.</li>
+  <li>You can move through it or skip it, and reach the dashboard either way.</li>
+</ul>
+<p class="rule"></p>
+
+<h2>Helpful Tips for Testers</h2>
+<ul>
+  <li><strong>Browser Advice</strong>: Use Google Chrome or Microsoft Edge for best performance.</li>
+  <li><strong>Camera Access</strong>: Ensure your webcam is enabled before starting the face scan (KYC) step.</li>
+  <li><strong>Session Expiry</strong>: If you stay inactive for a long time, the app will safely ask you to log in again.</li>
+</ul>
+
+</body>
+</html>

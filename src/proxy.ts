@@ -5,7 +5,11 @@ import type { NextRequest } from "next/server";
 // `/guest` and `/guest-join` are the guest entry points, and `/join` is the legacy invite
 // link that redirects into them — a guest has no account, so requiring a token here would
 // make guest access impossible to reach at all.
+// `/landing` is the public marketing site; the prefix match also covers /landing/features/*.
+// Landing page is currently disabled — the route tree is commented out, so keeping it
+// public would only expose a 404. Restore this entry alongside src/app/landing/.
 const publicRoutes = [
+  // "/landing",
   "/login",
   "/register",
   "/verify",
@@ -34,6 +38,12 @@ export function proxy(request: NextRequest) {
   const isGuestAllowed =
     !!request.cookies.get("isGuest") &&
     guestRoutes.some((route) => pathname.startsWith(route));
+
+  // Landing page disabled — a logged-out visitor at "/" now falls through to the
+  // protected-route check below and lands on /login, as it did before the marketing site.
+  // if (pathname === "/" && !hasToken) {
+  //   return NextResponse.redirect(new URL("/landing", request.url));
+  // }
 
   // If trying to access a protected route without a token, redirect to login
   if (!isPublicRoute && !hasToken && !isGuestAllowed) {
