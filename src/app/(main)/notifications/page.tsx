@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Bell, FileText, Megaphone, CalendarClock, Vote, Sparkles } from "lucide-react";
-import { useGetNotifications, useMarkRead, useMarkAllRead, useSubscribeDevice } from "@/api/notifications/hooks";
+import { useGetNotifications, useMarkRead, useMarkAllRead } from "@/api/notifications/hooks";
 import type { Notification } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { useRelativeTime } from "@/hooks/useRelativeTime";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 const ICONS: Record<string, typeof Bell> = {
   vote_open: Vote,
@@ -23,86 +24,17 @@ const TYPE_COLOR: Record<string, string> = {
   broadcast: "bg-purple-50 text-purple-600",
 };
 
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
 export default function NotificationsPage() {
   const { data, isLoading } = useGetNotifications({ size: 50 });
   const { mutate: markRead } = useMarkRead();
   const { mutate: markAllRead, isPending: markingAll } = useMarkAllRead();
-  const { mutateAsync: subscribeDevice } = useSubscribeDevice();
 
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [submittingPush, setSubmittingPush] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.pushManager.getSubscription().then((subscription) => {
-          setPushEnabled(!!subscription);
-        });
-      });
-    }
-  }, []);
-
-  async function handleTogglePush(checked: boolean) {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      alert("Push notifications are not supported on this browser.");
-      return;
-    }
-
-    setSubmittingPush(true);
-    try {
-      if (checked) {
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") {
-          alert("Notification permission denied.");
-          setSubmittingPush(false);
-          return;
-        }
-
-        const registration = await navigator.serviceWorker.register("/sw.js");
-        const activeRegistration = await navigator.serviceWorker.ready;
-
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_KEY;
-        if (!vapidKey) {
-          console.error("VAPID key not configured.");
-          setSubmittingPush(false);
-          return;
-        }
-
-        const subscription = await activeRegistration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        });
-
-        await subscribeDevice(subscription as any);
-        setPushEnabled(true);
-      } else {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          await subscription.unsubscribe();
-        }
-        setPushEnabled(false);
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert(e.message || "Failed to update push subscription.");
-    } finally {
-      setSubmittingPush(false);
-    }
-  }
+  const {
+    enabled: pushEnabled,
+    busy: submittingPush,
+    message: pushMsg,
+    toggle: handleTogglePush,
+  } = usePushSubscription();
 
   const notifications = data?.data?.notifications ?? [];
   const unreadCount = data?.data?.unreadCount ?? 0;
@@ -141,31 +73,47 @@ export default function NotificationsPage() {
         </Button>
       </header>
 
-      <div className="flex items-center justify-between rounded-2xl border border-border bg-white p-4 shadow-sm">
-        <div className="space-y-0.5 pr-4">
-          <h3 className="text-sm font-semibold text-foreground">Web Push Notifications</h3>
-          <p className="text-xs text-muted-foreground leading-normal">
-            Receive live meeting alerts, reminders, and vote opening broadcasts instantly.
-          </p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={pushEnabled}
-          disabled={submittingPush}
-          onClick={() => handleTogglePush(!pushEnabled)}
-          className={cn(
-            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50",
-            pushEnabled ? "bg-primary" : "bg-muted"
-          )}
-        >
-          <span
+      <div className="space-y-3 rounded-2xl border border-border bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5 pr-4">
+            <h3 className="text-sm font-semibold text-foreground">Web Push Notifications</h3>
+            <p className="text-xs text-muted-foreground leading-normal">
+              Receive live meeting alerts, reminders, and vote opening broadcasts instantly.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pushEnabled}
+            disabled={submittingPush}
+            onClick={() => handleTogglePush(!pushEnabled)}
             className={cn(
-              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-              pushEnabled ? "translate-x-5" : "translate-x-0"
+              "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50",
+              pushEnabled ? "bg-primary" : "bg-muted"
             )}
-          />
-        </button>
+          >
+            <span
+              className={cn(
+                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                pushEnabled ? "translate-x-5" : "translate-x-0"
+              )}
+            />
+          </button>
+        </div>
+
+        {pushMsg && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            {pushMsg}
+          </p>
+        )}
+
+        <p className="text-xs text-muted-foreground">
+          Email and in-app alerts are configured separately in{" "}
+          <Link href="/profile/notification-preferences" className="font-medium text-primary hover:underline">
+            Notification Preferences
+          </Link>
+          .
+        </p>
       </div>
 
       {notifications.length === 0 ? (

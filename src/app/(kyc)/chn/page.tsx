@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Lock } from "lucide-react";
-import { useKycStep2, useKycStep2Skip } from "@/api/kyc/hooks";
+import { useKycStep2, useKycStep2Skip, useGetKycStatus } from "@/api/kyc/hooks";
+import { getStoredBvn } from "@/lib/kyc-progress";
 
 export default function ChnPage() {
   const router = useRouter();
@@ -14,14 +15,20 @@ export default function ChnPage() {
 
   const { mutate: submitStep2, isPending: submitting } = useKycStep2();
   const { mutate: skipStep2, isPending: skipping } = useKycStep2Skip();
+  const { data: kycResp, isLoading: kycLoading } = useGetKycStatus();
   const busy = submitting || skipping;
 
+  const step1Done = !!kycResp?.data?.steps?.step1?.completed;
+
   useEffect(() => {
-    // Step 1 (BVN) must have run first — it stores the BVN we need for step 3.
-    if (!sessionStorage.getItem("kyc_bvn")) {
+    // Step 1 (BVN) must have run first. The backend is the authority on that — a locally
+    // stored BVN only means step 1 ran *in this browser*, so someone resuming on a new
+    // device would previously get bounced back to re-enter a BVN already on file.
+    if (kycLoading) return;
+    if (!step1Done && !getStoredBvn()) {
       router.replace("/bvn");
     }
-  }, [router]);
+  }, [router, kycLoading, step1Done]);
 
   function handleError(err: any) {
     const msg = err?.response?.data?.message || err?.message || "";

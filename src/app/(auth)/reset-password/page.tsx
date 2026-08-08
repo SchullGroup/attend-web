@@ -88,6 +88,12 @@ export default function ResetPasswordPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Enter the code sent to your email and choose a new password.
         </p>
+        {/* Same delivery problem as the signup code — this screen waits on an emailed OTP
+            too, so it needs the same spam-folder hint rather than only /verify having it. */}
+        <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+          It usually arrives within a minute. If it doesn&apos;t, check your spam or junk
+          folder.
+        </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">

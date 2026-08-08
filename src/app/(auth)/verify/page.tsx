@@ -140,6 +140,12 @@ function VerifyForm() {
           <br />
           <span className="font-semibold text-foreground">{maskEmail(email)}</span>
         </p>
+        {/* Testers reported codes never arriving; the most common cause is spam filing, and
+            saying so up front costs nothing when it's a genuine delivery failure. */}
+        <p className="mx-auto mt-3 max-w-xs rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+          It usually arrives within a minute. If it doesn&apos;t, check your spam or junk
+          folder before requesting another code.
+        </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-5" onPaste={handlePaste}>

@@ -3,15 +3,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Fingerprint, ShieldCheck, Calendar, AlertCircle, ChevronDown } from "lucide-react";
-import { useKycStep1 } from "@/api/kyc/hooks";
+import { Fingerprint, ShieldCheck, Calendar, AlertCircle, ChevronDown, CheckCircle2 } from "lucide-react";
+import { useKycStep1, useGetKycStatus } from "@/api/kyc/hooks";
 import { useGetMe } from "@/api/auth/hooks";
+import { setStoredBvn } from "@/lib/kyc-progress";
 import { cn } from "@/lib/utils";
 
 export default function BvnPage() {
   const router = useRouter();
   const { data: meData } = useGetMe();
   const currentUser = meData?.data;
+
+  // A BVN already accepted by the backend must not be re-submitted — resuming users
+  // landed here and were asked to re-enter details that were already verified.
+  const { data: kycResp } = useGetKycStatus();
+  const step1 = kycResp?.data?.steps?.step1;
+  const alreadyVerified = !!step1?.completed;
 
   // Regulatory consent — an un-ticked checkbox gates the submit button, with the
   // full NDPA/CBN disclosure available inline rather than behind a blocking modal.
@@ -75,19 +82,46 @@ export default function BvnPage() {
       payload,
       {
         onSuccess: () => {
-          sessionStorage.setItem("kyc_bvn", bvn);
+          setStoredBvn(bvn);
           router.push("/chn");
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.message || err?.message || "";
           if (/already.*verif/i.test(msg)) {
-            sessionStorage.setItem("kyc_bvn", bvn);
+            setStoredBvn(bvn);
             router.push("/chn");
             return;
           }
           setErrorMsg(msg || "We couldn't verify your BVN. Please check your BVN and Date of Birth and try again.");
         },
       },
+    );
+  }
+
+  if (alreadyVerified) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          </div>
+          <h1 className="text-xl font-bold text-foreground">BVN already verified</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {step1?.pendingReview
+              ? "Your BVN is on file and awaiting review. There's nothing more to do on this step."
+              : "We've already confirmed your BVN, so you can skip straight to the next step."}
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <Button type="button" variant="outline" fullWidth onClick={() => router.push("/intro")}>
+            Back
+          </Button>
+          <Button fullWidth onClick={() => router.push("/chn")}>
+            Continue
+          </Button>
+        </div>
+      </div>
     );
   }
 

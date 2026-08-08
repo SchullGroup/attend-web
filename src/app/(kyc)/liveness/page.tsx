@@ -5,11 +5,19 @@ import { Button } from "@/components/ui/Button";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBvnSelfieCheck, useKycStep3 } from "@/api/kyc/hooks";
+import { getStoredBvn, getStoredSelfie, clearKycProgress } from "@/lib/kyc-progress";
 
 type Stage = "idle" | "detecting" | "verifying" | "verified";
 
 const OVAL_W = 224;
 const OVAL_H = 296;
+
+// The capture used to be sent at the camera's native resolution, which on a modern phone
+// is 8-12MP — a multi-megabyte base64 string for a face match that only needs a few
+// hundred pixels. Downscaling before encoding keeps the payload small enough that the
+// request itself can't be what fails, and steps the quality down if it's still large.
+const MAX_EDGE = 720;
+const MAX_BYTES = 900_000;
 
 export default function LivenessPage() {
   const router = useRouter();
@@ -24,7 +32,7 @@ export default function LivenessPage() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // Check if photo was already verified during Step 1 (BVN & Photo Match)
-  const savedSelfie = typeof window !== "undefined" ? sessionStorage.getItem("kyc_selfie") : null;
+  const savedSelfie = getStoredSelfie();
 
   // Scan line (detecting state)
   const scanDirRef = useRef(1);
@@ -64,15 +72,14 @@ export default function LivenessPage() {
 
   function submitSelfie(selfieImage: string) {
     setStage("verifying");
-    const storedBvn = sessionStorage.getItem("kyc_bvn");
+    const storedBvn = getStoredBvn();
 
     const doStep3 = () => {
       submitStep3(
         { selfieImage },
         {
           onSuccess: () => {
-            sessionStorage.removeItem("kyc_bvn");
-            sessionStorage.removeItem("kyc_selfie");
+            clearKycProgress();
             setStage("verified");
           },
           onError: (err: any) => {
@@ -136,14 +143,30 @@ export default function LivenessPage() {
   function captureAndSubmit() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
+
+    // `videoWidth` stays 0 until the first frame has actually arrived. Firing capture off a
+    // timer meant a slow camera could be photographed before it had produced anything, which
+    // reads to the user as "we couldn't capture a clear image" on a perfectly good attempt.
+    if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
+      stopCamera();
+      setErrorMsg(
+        "Your camera wasn't ready yet. Please try again and hold still for a moment.",
+      );
+      setStage("idle");
+      return;
+    }
+
+    const scale = Math.min(1, MAX_EDGE / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+
+    const ctx = canvas.getContext("2d");
     let selfieImage = "";
-    if (video && canvas && video.videoWidth) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        selfieImage = canvas.toDataURL("image/jpeg", 0.8).split(",")[1] ?? "";
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      for (const quality of [0.8, 0.6, 0.45]) {
+        selfieImage = canvas.toDataURL("image/jpeg", quality).split(",")[1] ?? "";
+        if (selfieImage.length <= MAX_BYTES) break;
       }
     }
     stopCamera();
@@ -187,11 +210,24 @@ export default function LivenessPage() {
       setPulseExpanded((v) => !v);
     }, 900);
 
-    detectTimerRef.current = setTimeout(() => {
+    // Capture once the scan animation has run *and* the camera is actually producing
+    // frames. The old fixed 2.8s timer assumed the second was implied by the first; on a
+    // slow-starting camera it wasn't, and the shot was taken of a blank stream.
+    let waited = 0;
+    const attemptCapture = () => {
+      const video = videoRef.current;
+      const ready = !!video && video.readyState >= 2 && video.videoWidth > 0;
+      if (!ready && waited < 5000) {
+        waited += 200;
+        detectTimerRef.current = setTimeout(attemptCapture, 200);
+        return;
+      }
       clearInterval(scanIntervalRef.current!);
       clearInterval(pulseIntervalRef.current!);
       captureAndSubmit();
-    }, 2800);
+    };
+
+    detectTimerRef.current = setTimeout(attemptCapture, 2800);
 
     return () => {
       clearInterval(scanIntervalRef.current!);
@@ -203,8 +239,7 @@ export default function LivenessPage() {
 
   function onSkip() {
     stopCamera();
-    sessionStorage.removeItem("kyc_bvn");
-    sessionStorage.removeItem("kyc_selfie");
+    clearKycProgress();
     router.push("/success");
   }
 
@@ -355,7 +390,7 @@ export default function LivenessPage() {
             <div className="mt-2 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-gray-900 animate-pulse" />
               <span className="text-xs text-muted-foreground">
-                {stage === "verifying" ? "Submitting…" : "Analyzing biometrics…"}
+                {stage === "verifying" ? "Submitting…" : "Framing your photo…"}
               </span>
             </div>
           )}
