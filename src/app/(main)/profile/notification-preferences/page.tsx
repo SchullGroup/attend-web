@@ -7,27 +7,13 @@ import { cn } from "@/lib/utils";
 import {
   useGetNotificationPreferences,
   useSaveNotificationPreferences,
-  useSubscribeDevice,
 } from "@/api/notifications/hooks";
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 export default function NotificationPreferencesPage() {
   const router = useRouter();
   const { data: prefResp, isLoading } = useGetNotificationPreferences();
   const { mutate: savePreferences, isPending: savingPrefs } = useSaveNotificationPreferences();
-  const { mutateAsync: subscribeDevice } = useSubscribeDevice();
 
   const [emailRsvp, setEmailRsvp] = useState(false);
   const [emailReminder, setEmailReminder] = useState(false);
@@ -37,8 +23,23 @@ export default function NotificationPreferencesPage() {
   const [inAppReminder, setInAppReminder] = useState(false);
   const [inAppDoc, setInAppDoc] = useState(false);
 
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [submittingPush, setSubmittingPush] = useState(false);
+  const {
+    enabled: pushEnabled,
+    busy: submittingPush,
+    message: pushMsg,
+    toggle: handleTogglePush,
+  } = usePushSubscription();
+
+  // The toggles are local state until Save is pressed. Without a baseline to compare against
+  // there was no way to tell the user their flips weren't persisted yet — they read the
+  // switch position as the saved value and navigated away.
+  const [baseline, setBaseline] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  const snapshot = JSON.stringify([
+    emailRsvp, emailReminder, emailDoc, inAppRsvp, inAppReminder, inAppDoc,
+  ]);
+  const isDirty = baseline !== null && baseline !== snapshot;
 
   useEffect(() => {
     if (prefResp?.data) {
@@ -49,77 +50,55 @@ export default function NotificationPreferencesPage() {
       setInAppRsvp(p.inAppRsvpConfirmation);
       setInAppReminder(p.inAppEventReminder);
       setInAppDoc(p.inAppNewDocument);
+      setBaseline(JSON.stringify([
+        p.emailRsvpConfirmation, p.emailEventReminder, p.emailNewDocument,
+        p.inAppRsvpConfirmation, p.inAppEventReminder, p.inAppNewDocument,
+      ]));
     }
   }, [prefResp]);
 
+  // A stale "Preferences saved." next to a freshly flipped switch would claim the new value
+  // was persisted, so the confirmation clears the moment anything changes again.
   useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.pushManager.getSubscription().then((subscription) => {
-          setPushEnabled(!!subscription);
-        });
-      });
-    }
-  }, []);
+    setSaveMsg(null);
+  }, [snapshot]);
 
-  async function handleTogglePush(checked: boolean) {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      alert("Push notifications are not supported on this browser.");
-      return;
-    }
-
-    setSubmittingPush(true);
-    try {
-      if (checked) {
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") {
-          alert("Notification permission denied.");
-          setSubmittingPush(false);
-          return;
-        }
-
-        const registration = await navigator.serviceWorker.register("/sw.js");
-        const activeRegistration = await navigator.serviceWorker.ready;
-
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_KEY;
-        if (!vapidKey) {
-          console.error("VAPID key not configured.");
-          setSubmittingPush(false);
-          return;
-        }
-
-        const subscription = await activeRegistration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        });
-
-        await subscribeDevice(subscription as any);
-        setPushEnabled(true);
-      } else {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          await subscription.unsubscribe();
-        }
-        setPushEnabled(false);
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert(e.message || "Failed to update push subscription.");
-    } finally {
-      setSubmittingPush(false);
-    }
-  }
+  // Closing the tab mid-edit silently discarded the changes. The browser prompt is the only
+  // reliable warning available here.
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty]);
 
   function handleSave() {
-    savePreferences({
-      emailRsvpConfirmation: emailRsvp,
-      emailEventReminder: emailReminder,
-      emailNewDocument: emailDoc,
-      inAppRsvpConfirmation: inAppRsvp,
-      inAppEventReminder: inAppReminder,
-      inAppNewDocument: inAppDoc,
-    });
+    setSaveMsg(null);
+    savePreferences(
+      {
+        emailRsvpConfirmation: emailRsvp,
+        emailEventReminder: emailReminder,
+        emailNewDocument: emailDoc,
+        inAppRsvpConfirmation: inAppRsvp,
+        inAppEventReminder: inAppReminder,
+        inAppNewDocument: inAppDoc,
+      },
+      {
+        onSuccess: () => {
+          setBaseline(snapshot);
+          setSaveMsg("Preferences saved.");
+        },
+        onError: (err: any) => {
+          setSaveMsg(
+            err?.response?.data?.message ||
+              "We couldn't save your preferences. Please try again.",
+          );
+        },
+      },
+    );
   }
 
   if (isLoading) {
@@ -176,6 +155,12 @@ export default function NotificationPreferencesPage() {
             />
           </button>
         </div>
+
+        {pushMsg && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            {pushMsg}
+          </p>
+        )}
       </section>
 
       {/* Email Preferences */}
@@ -232,9 +217,29 @@ export default function NotificationPreferencesPage() {
         </div>
       </section>
 
-      <div className="flex justify-end">
-        <Button onClick={handleSave} loading={savingPrefs} className="flex items-center gap-2 px-6">
-          <Save className="h-4 w-4" /> Save Preferences
+      <div className="flex items-center justify-end gap-4">
+        {saveMsg && (
+          <p
+            className={cn(
+              "text-xs font-medium",
+              saveMsg === "Preferences saved." ? "text-emerald-700" : "text-red-600",
+            )}
+          >
+            {saveMsg}
+          </p>
+        )}
+        {isDirty && !saveMsg && (
+          <p className="text-xs font-medium text-amber-700">
+            You have unsaved changes.
+          </p>
+        )}
+        <Button
+          onClick={handleSave}
+          loading={savingPrefs}
+          disabled={!isDirty || savingPrefs}
+          className="flex items-center gap-2 px-6"
+        >
+          <Save className="h-4 w-4" /> {savingPrefs ? "Saving…" : "Save Preferences"}
         </Button>
       </div>
     </div>
