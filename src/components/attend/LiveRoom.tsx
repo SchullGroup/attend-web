@@ -506,8 +506,9 @@ export function LiveRoom({
     );
   }
 
-  // A badge for resolution state. In the read-only guest ballot this is exactly what would
-  // read as a prompt the guest can't act on, so there it's dropped entirely.
+  // A badge for resolution state. Shown in the read-only guest ballot too — it is a statement of
+  // where the resolution stands, not a prompt to act, and without it a guest cannot tell an open
+  // resolution from a closed one. The "Voted X" branch never fires for a guest, who has no vote.
   function statusBadge(r: Resolution) {
     const v = (r.myVote || "").toUpperCase();
     const s = (r.status || "").toUpperCase();
@@ -829,9 +830,10 @@ export function LiveRoom({
               {showBallot &&
                 tab === "ballot" &&
                 (ballotReadOnly ? (
-                  /* Read-only guest ballot: the full resolution list with live tallies, and
-                     nothing that implies the guest can act. No status badges, no countdown,
-                     no vote buttons — the proxy-code path is folded away below. */
+                  /* Read-only guest ballot: the full resolution list with live tallies, plus the
+                     Waiting/Open/Closed badge so a guest can tell which resolutions are still
+                     being voted on. Nothing actionable — no countdown, no vote buttons, and the
+                     proxy-code path is folded away below. */
                   sortedRes.length > 0 ? (
                     <div className="space-y-2">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -839,9 +841,20 @@ export function LiveRoom({
                       </p>
                       {sortedRes.map((r, idx) => {
                         const showResult = r.forCount + r.againstCount + r.abstainCount > 0;
+                        const { label, tone } = statusBadge(r);
                         return (
                           <div key={r.id} className="rounded-xl border border-border p-3">
-                            <p className="text-[11px] text-muted-foreground">Resolution {idx + 1}</p>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-[11px] text-muted-foreground">Resolution {idx + 1}</p>
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                  tone,
+                                )}
+                              >
+                                {label}
+                              </span>
+                            </div>
                             <p className="text-sm font-medium text-foreground">{r.title}</p>
                             {r.description && (
                               <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>

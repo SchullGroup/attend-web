@@ -12,6 +12,7 @@ const FORMATS = ["All", "Virtual", "Hybrid", "In-Person"] as const;
 type Format = (typeof FORMATS)[number];
 
 const EVENT_COLOR: Record<string, string> = {
+  AGM_EGM: "#1a6b3c",
   AGM: "#1a6b3c",
   PRODUCT_LAUNCH: "#f97316",
   LAUNCH: "#f97316",
