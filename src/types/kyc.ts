@@ -23,6 +23,14 @@ export interface KycStatusData {
   rejected: boolean;
   rejectionReason?: string;
   currentStep: number;
+  /**
+   * The verified BVN, returned by the backend once step 1 is on file.
+   *
+   * This is the only place the client should obtain a BVN. It is deliberately NOT
+   * persisted anywhere on the device — storing a BVN in localStorage/sessionStorage
+   * leaves it readable on shared machines long after the session ends.
+   */
+  bvn?: string;
   steps: {
     step1: KycStepDetail;
     step2: KycStepDetail;

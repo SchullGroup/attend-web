@@ -6,9 +6,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Left brand panel — hidden on small screens */}
       <aside className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-zinc-900 p-12 text-white md:flex">
         {/* Subtle background shapes */}
-        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-white/[0.03]" />
-        <div className="absolute bottom-0 right-0 h-[500px] w-[500px] rounded-full bg-white/[0.03]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-white/[0.02]" />
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-white/3" />
+        <div className="absolute bottom-0 right-0 h-125 w-125 rounded-full bg-white/3" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-white/2" />
 
         <div className="relative">
           <img

@@ -65,6 +65,22 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+/**
+ * Classify a failed refresh so the login page can explain itself.
+ *
+ * The backend returns a distinct `error` for each case ("Session invalidated" when another
+ * device signed in, "Session expired" after 2h of inactivity). Matched loosely on both the
+ * error and the message: these strings are prose, not a contract, so a reworded message
+ * should degrade to the generic redirect rather than to the wrong explanation.
+ */
+function logoutReason(err: any): "other-device" | "idle" | null {
+  const body = err?.response?.data ?? {};
+  const text = `${body.error ?? ""} ${body.message ?? ""}`.toLowerCase();
+  if (/another device|invalidated/.test(text)) return "other-device";
+  if (/inactivity|expired after/.test(text)) return "idle";
+  return null;
+}
+
 apiClient.interceptors.response.use(
   (response: any) => {
     return response;
@@ -139,11 +155,15 @@ apiClient.interceptors.response.use(
 
         processQueue(null, newAccessToken);
         return apiClient(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         processQueue(refreshError, null);
         Cookies.remove("accessToken");
         if (typeof window !== "undefined") {
-          window.location.href = "/login";
+          // Why the session ended decides what the login page says. Backend distinguishes
+          // "signed in elsewhere" from a 2h inactivity timeout, and a user who sees neither
+          // reason assumes the app logged them out at random.
+          const reason = logoutReason(refreshError);
+          window.location.href = reason ? `/login?reason=${reason}` : "/login";
         }
         return Promise.reject(refreshError);
       } finally {

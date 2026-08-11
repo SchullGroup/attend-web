@@ -1,16 +1,20 @@
 import { KycStatusData } from "@/types";
 
-// The KYC step pages hand two values forward: the BVN entered at step 1 (needed for the
-// optional selfie re-check at step 3) and a selfie already matched during step 1.
+// The KYC step pages hand one value forward: a selfie already matched during step 1, so
+// step 3 doesn't ask the user to pose for the camera a second time.
 //
-// These used to live in sessionStorage, which empties when the tab closes. A user who
-// verified their BVN, closed the tab and came back was bounced to /bvn even though the
-// backend had step 1 on file — the CHN page's guard read the missing key as "step 1 never
-// ran". localStorage survives the tab, so resuming works the way the API always intended.
+// The BVN used to be kept here too. It isn't any more, and must not come back — a BVN in
+// localStorage stays readable on a shared machine long after the session ends. The BVN
+// needed for the step-3 selfie re-check is read from `GET /participant/kyc`, which returns
+// it once step 1 is on file.
 //
-// Both values are cleared as soon as step 3 submits, and on an explicit skip.
-const BVN_KEY = "kyc_bvn";
+// The selfie is cleared as soon as step 3 submits, and on an explicit skip.
 const SELFIE_KEY = "kyc_selfie";
+
+// A BVN written by an earlier build of the app is still sitting in storage on devices that
+// have used the KYC flow before. Clear it on first load so the removal reaches users who
+// already have one, not just new sessions.
+const LEGACY_BVN_KEY = "kyc_bvn";
 
 const canUseStorage = () => typeof window !== "undefined";
 
@@ -47,14 +51,20 @@ function safeRemove(key: string) {
   }
 }
 
-export const getStoredBvn = () => safeGet(BVN_KEY);
-export const setStoredBvn = (bvn: string) => safeSet(BVN_KEY, bvn);
 export const getStoredSelfie = () => safeGet(SELFIE_KEY);
 export const setStoredSelfie = (selfie: string) => safeSet(SELFIE_KEY, selfie);
 
+/**
+ * Delete any BVN left behind by an earlier build. Safe to call repeatedly and on every
+ * load — it only removes a key nothing writes any more.
+ */
+export function purgeLegacyStoredBvn() {
+  safeRemove(LEGACY_BVN_KEY);
+}
+
 export function clearKycProgress() {
-  safeRemove(BVN_KEY);
   safeRemove(SELFIE_KEY);
+  purgeLegacyStoredBvn();
 }
 
 export const KYC_STEP_PATHS = ["/bvn", "/chn", "/liveness"] as const;

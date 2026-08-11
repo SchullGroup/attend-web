@@ -1,70 +1,90 @@
 # What We Need From Backend
 
----
+Updated 10 Aug 2026, after your reply of 8 Aug.
 
-### 1. Notifications
+Everything you answered has been removed and applied on our side — the notification `type` list,
+`pushEnabled`, `DELETE /device-tokens`, and the stable `code` field. Thank you, that was useful and
+saved us guessing.
 
-**Push — blocking, nothing works without these:**
-
-1. **The VAPID public key**, so we can set `NEXT_PUBLIC_VAPID_KEY`.
-2. **Confirm which system**, and give us the endpoint + exact payload:
-   - **Web Push** — we send `{ endpoint, keys: { p256dh, auth } }`, or
-   - **Firebase (FCM)** — we send a token string.
-
-   `POST /api/v1/device-tokens` takes `{ token, platform }`, which suggests FCM, but please
-   confirm. We can't build until this is answered.
-3. **How do we unsubscribe a device?** There's no endpoint for it, so switching push off only
-   clears the browser subscription — your side keeps sending.
-
-**Preferences:**
-
-4. **Does the push toggle need to be saved to the preferences record?**
-   `PUT /api/v1/participant/notification-preferences` takes six flags (email + in-app × RSVP,
-   reminder, document) — nothing for push. If push on/off should persist per user rather than
-   per browser, we need a seventh flag.
-5. **Are the preference flags actually honoured when you send?** i.e. if a user turns off
-   `emailEventReminder`, does the reminder email stop. We can save them; we can't verify they
-   do anything.
-
-**Notification feed:**
-
-6. **The full list of `type` values** you send on `GET /api/v1/participant/notifications`.
-   We're matching on `vote_open`, `event_reminder`, `application_update`, `document`,
-   `broadcast` — guessed, not confirmed. Anything outside that list renders a generic bell.
-7. **What is `referenceId` for each type** — event ID, resolution ID, document ID? We want to
-   make notifications tappable (open the vote, open the event) and can't route without knowing
-   what the ID points at.
+**Push/Firebase has moved to [PARKED_PUSH_NOTIFICATIONS.md](./PARKED_PUSH_NOTIFICATIONS.md)** — it is
+descoped for this sprint and needs an owner rather than an answer from you. Below is only what is
+still open and still live.
 
 ---
 
-### 2. Email delivery
+### 1. The preference flags are stored but never applied
 
-1. Confirm **SPF, DKIM and DMARC** are configured and passing on the sending domain.
-2. For the testers who got no code — send us the **message-ID from the mail provider logs**, or
-   confirm there isn't one.
+You confirmed the six flags are read and written but never consulted before sending. So our
+Notification Preferences screen currently shows six switches that save correctly, confirm
+"Preferences saved.", and change nothing about what the user actually receives.
+
+We have told QA this so it isn't retested as working.
+
+**The ask: is honouring them scheduled, and roughly when?** This is the one item on this list that
+users can already see is wrong.
+
+One related judgement call we can't make for you:
+
+**Should an organiser-composed notice respect these flags, or override them?**
+`POST /client/events/{id}/notify` is manual — a person types the message and sends it. If an
+organiser sends "the venue has changed", arguably that should reach everyone regardless of
+preference. If they send "don't forget Thursday", it probably shouldn't. Our read is that manual
+notices should **override** preferences and only automated sends should respect them — but it's your
+call, and it decides where the check goes.
 
 ---
 
-### 3. The failing BVN/selfie check
+### 2. Automated event reminders don't exist
 
-For that tester's attempt on `POST /api/v1/kyc/bvn-selfie/v2`:
+We searched all 305 endpoints for anything scheduling-related — nothing in paths or schemas — which
+matches your note that no scheduled job sends reminders.
 
-1. The **status code and full error body Dojah returned**.
-2. Whether **NIBSS has a photo on file** for that BVN.
-3. Confirm whether the request was **rejected on size**.
-4. **Is the `bvn-selfie/v2` call before step 3 required?** Step 3 already does a liveness check.
-   If it's redundant we'll remove it.
+To be precise about what is and isn't there: `POST /client/events/{id}/notify` works, so an organiser
+**can** send "the AGM starts tomorrow" today. What's missing is anything that fires on its own.
+
+For automated reminders to work, we think you'd need:
+
+1. A scheduled job that finds events starting soon and sends.
+2. The `emailEventReminder` / `inAppEventReminder` flags checked before each send (same fix as
+   item 1 — shared work, not extra).
+3. A record that a reminder was sent, so a restart doesn't re-fire it.
+4. **An in-app notification row with a type name we can map** — something like `EVENT_REMINDER`.
+   Without this, reminders go out by email/SMS only and never appear in the bell.
+5. A decision on offsets — 24h before? 1h? Both?
+
+**The ask: is this in scope, and should the offsets be fixed platform-wide or configurable per
+event?** Fixed is simpler for everyone and we'd recommend it for v1 — configurable means new fields
+on the event plus new UI in the admin app.
 
 ---
 
-### 4. Error responses (not urgent)
+### 3. Split the two ambiguous `referenceId` types
 
-Return a stable **`code`** field alongside `message` on errors, so we can map to our own copy
-instead of showing users the raw backend string.
+Yes please, to the split you offered.
+
+`PROXY_VOTE_CAST` and `HACKATHON_APPLIED` each carry a different kind of ID depending on how they
+were triggered, so we can't route a tap without guessing what the ID points at. Splitting them now —
+while nothing depends on them yet — is cheaper than versioning it later.
+
+---
+
+### 4. Do organiser broadcasts reach the in-app bell?
+
+Your type list has no `BROADCAST` entry, and `BroadcastRequest.channel` offers only `EMAIL`, `SMS`,
+`PUSH`, `ALL` — no `IN_APP`.
+
+Reading those together: **an organiser broadcast never appears in the participant's in-app
+notification feed.** Please confirm that's correct and intended.
+
+If a broadcast *should* show up in the bell, it needs a notification row written and a type name we
+can map — same as item 2.4 above.
 
 ---
 
 ### 5. One decision for you
 
-There is **no error tracking** on the web app — no Sentry, nothing server-side. When a user hits
-a failure, nobody finds out unless they tell us. Worth deciding whether to add it before launch.
+There is **no error tracking** on the web app — no Sentry, nothing server-side. When a user hits a
+failure, nobody finds out unless they tell us.
+
+Not a bug and not yours to fix — flagging it because it's worth deciding before launch rather than
+after.

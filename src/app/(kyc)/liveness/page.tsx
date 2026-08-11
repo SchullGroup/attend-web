@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBvnSelfieCheck, useKycStep3 } from "@/api/kyc/hooks";
-import { getStoredBvn, getStoredSelfie, clearKycProgress } from "@/lib/kyc-progress";
+import { useBvnSelfieCheck, useKycStep3, useGetKycStatus } from "@/api/kyc/hooks";
+import { getStoredSelfie, clearKycProgress } from "@/lib/kyc-progress";
 
 type Stage = "idle" | "detecting" | "verifying" | "verified";
 
@@ -26,6 +26,12 @@ export default function LivenessPage() {
 
   const { mutate: bvnSelfieCheck } = useBvnSelfieCheck();
   const { mutate: submitStep3 } = useKycStep3();
+
+  // The BVN comes from the KYC record the backend already holds. It is never stored on
+  // the device — a BVN in localStorage stays readable on a shared machine long after the
+  // session ends, which we're not permitted to do.
+  const { data: kycResp } = useGetKycStatus();
+  const verifiedBvn = kycResp?.data?.bvn;
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -72,7 +78,6 @@ export default function LivenessPage() {
 
   function submitSelfie(selfieImage: string) {
     setStage("verifying");
-    const storedBvn = getStoredBvn();
 
     const doStep3 = () => {
       submitStep3(
@@ -94,10 +99,10 @@ export default function LivenessPage() {
       );
     };
 
-    if (storedBvn) {
+    if (verifiedBvn) {
       // Standalone BVN + selfie re-check before submitting liveness.
       bvnSelfieCheck(
-        { bvn: storedBvn, selfieImage },
+        { bvn: verifiedBvn, selfieImage },
         {
           // A failed match is still HTTP 200 — the result is `data.valid`, not the
           // status code. Reading only onSuccess (as this did) let every failed match
