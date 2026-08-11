@@ -6,10 +6,32 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { Mail, CheckCircle2 } from "lucide-react";
 import { useVerifyEmail, useResendEmailOtp } from "@/api/auth/hooks";
+import { apiErrorMessage } from "@/lib/api-error";
 
 function maskEmail(email: string): string {
   if (!email) return "your email";
   return email.replace(/^(.{2})(.*)(@.*)$/, (_, a, b, c) => a + b.replace(/./g, "•") + c);
+}
+
+/**
+ * How long "Resend code" stays locked, in seconds.
+ *
+ * Tied to the backend's OTP lifetime, which is 2 minutes (confirmed 2026-08-11): asking for a
+ * new code while the old one is still valid is refused with "Please wait N second(s)...". At the
+ * previous 60s the button went live a full minute before the server would honour it, so the one
+ * person who most needs it — someone whose code never arrived — got an error for clicking a
+ * button that looked ready.
+ *
+ * The countdown starts when this page mounts, a moment *after* the server created the code, so it
+ * expires slightly late rather than early. That is the safe direction; shortening it is not.
+ */
+const RESEND_COOLDOWN_SECONDS = 120;
+
+/** "1:59" past a minute, "45s" under it — a raw "117s" is hard to read as a wait. */
+function formatCooldown(total: number): string {
+  if (total < 60) return `${total}s`;
+  const mins = Math.floor(total / 60);
+  return `${mins}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function VerifyForm() {
@@ -21,7 +43,7 @@ function VerifyForm() {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(60);
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -93,9 +115,7 @@ function VerifyForm() {
         },
         onError: (err: any) => {
           setError(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Verification failed. Check your code and try again.",
+            apiErrorMessage(err, "Verification failed. Check your code and try again."),
           );
         },
       },
@@ -123,14 +143,12 @@ function VerifyForm() {
       {
         onSuccess: () => {
           setDigits(["", "", "", "", "", ""]);
-          setResendCooldown(60);
+          setResendCooldown(RESEND_COOLDOWN_SECONDS);
           refs.current[0]?.focus();
         },
         onError: (err: any) => {
           setError(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Couldn't resend the code. Please try again.",
+            apiErrorMessage(err, "Couldn't resend the code. Please try again."),
           );
         },
       },
@@ -210,7 +228,7 @@ function VerifyForm() {
           Didn&apos;t receive a code?{" "}
           {resendCooldown > 0 ? (
             <span className="font-semibold text-muted-foreground">
-              Resend in {resendCooldown}s
+              Resend in {formatCooldown(resendCooldown)}
             </span>
           ) : (
             <button

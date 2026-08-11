@@ -27,7 +27,6 @@ export interface EventListItem {
   bannerUrl?: string | null;
   brandPrimary?: string | null;
   brandAccent?: string | null;
-  lateRsvpMinutes?: number;
 }
 
 export interface SpeakerItem {
@@ -78,7 +77,6 @@ export interface EventDetail {
   bannerUrl?: string | null;
   brandPrimary?: string | null;
   brandAccent?: string | null;
-  lateRsvpMinutes?: number;
 }
 
 // Public guest browse (`GET /guest/events`) returns a deliberately slim event — no

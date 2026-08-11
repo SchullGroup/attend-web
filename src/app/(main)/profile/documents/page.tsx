@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { ArrowLeft, Download, FileText, FileBarChart2, FileCheck2, FileSignature } from "lucide-react";
 import { useGetDocuments } from "@/api/documents/hooks";
+import type { ParticipantDocument } from "@/types";
 
 const TYPE_META: Record<string, { Icon: typeof FileText; bg: string; color: string; label: string }> = {
   notice: { Icon: FileText, bg: "bg-blue-50", color: "text-blue-700", label: "Notice" },
@@ -9,6 +10,29 @@ const TYPE_META: Record<string, { Icon: typeof FileText; bg: string; color: stri
   report: { Icon: FileBarChart2, bg: "bg-orange-50", color: "text-orange-700", label: "Report" },
   proxy: { Icon: FileSignature, bg: "bg-purple-50", color: "text-purple-700", label: "Proxy form" },
 };
+
+/**
+ * The name to show for a document.
+ *
+ * `title` is the admin's own name for it — required at upload and stored separately from the
+ * filename, so it is always the field to display. It is only blank on rows saved before that was
+ * enforced; those fall back to the filename minus its extension so no row renders nameless.
+ */
+function documentName(d: ParticipantDocument): string {
+  const title = d.title?.trim();
+  if (title) return title;
+  const file = d.originalFilename?.trim();
+  if (file) return file.replace(/\.[a-z0-9]{1,8}$/i, "");
+  return "Untitled document";
+}
+
+/** The spec sends only `sizeBytes`; the deployed response also sends a ready-made `sizeLabel`. */
+function sizeLabel(d: ParticipantDocument): string {
+  if (d.sizeLabel) return d.sizeLabel;
+  if (!d.sizeBytes) return "";
+  const kb = d.sizeBytes / 1024;
+  return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+}
 
 interface DocRow {
   id: string;
@@ -23,14 +47,18 @@ export default function DocumentsPage() {
   const { data, isLoading } = useGetDocuments();
   const apiDocs = data?.data?.documents ?? [];
 
-  const docs: DocRow[] = apiDocs.map((d) => ({
-    id: d.id,
-    typeKey: (d.documentType || "").toLowerCase(),
-    title: d.title,
-    meta: d.downloadCount > 0 ? `${d.sizeLabel} · ${d.downloadCount} downloads` : d.sizeLabel,
-    eventTitle: d.eventTitle,
-    downloadUrl: d.downloadUrl,
-  }));
+  const docs: DocRow[] = apiDocs.map((d) => {
+    const size = sizeLabel(d);
+    return {
+      id: d.id,
+      typeKey: (d.documentType || "").toLowerCase(),
+      title: documentName(d),
+      meta: d.downloadCount ? `${size} · ${d.downloadCount} downloads` : size,
+      // Field names differ between the spec and the deployed response; take whichever arrives.
+      eventTitle: d.eventTitle || d.eventName || "",
+      downloadUrl: d.downloadUrl || d.fileUrl || "",
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -70,7 +98,7 @@ export default function DocumentsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground">{d.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {meta.label} · {d.meta}
+                    {[meta.label, d.meta].filter(Boolean).join(" · ")}
                   </p>
                   {d.eventTitle && (
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">{d.eventTitle}</p>

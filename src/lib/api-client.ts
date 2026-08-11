@@ -68,15 +68,19 @@ const processQueue = (error: any, token: string | null = null) => {
 /**
  * Classify a failed refresh so the login page can explain itself.
  *
- * The backend returns a distinct `error` for each case ("Session invalidated" when another
- * device signed in, "Session expired" after 2h of inactivity). Matched loosely on both the
- * error and the message: these strings are prose, not a contract, so a reworded message
- * should degrade to the generic redirect rather than to the wrong explanation.
+ * `code` is the contract and is checked first — backend added stable codes on 2026-08-11
+ * (SESSION_REVOKED for a login from another device). The prose match is a fallback for
+ * responses predating those codes; it deliberately covers both the old wording
+ * ("Session invalidated") and the new ("Session revoked"). An unrecognised failure
+ * degrades to the generic redirect rather than to a wrong explanation.
  */
 function logoutReason(err: any): "other-device" | "idle" | null {
   const body = err?.response?.data ?? {};
+  const code = String(body.code ?? "").toUpperCase();
+  if (code === "SESSION_REVOKED") return "other-device";
+
   const text = `${body.error ?? ""} ${body.message ?? ""}`.toLowerCase();
-  if (/another device|invalidated/.test(text)) return "other-device";
+  if (/another device|invalidated|revoked/.test(text)) return "other-device";
   if (/inactivity|expired after/.test(text)) return "idle";
   return null;
 }

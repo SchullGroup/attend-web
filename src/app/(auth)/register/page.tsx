@@ -6,6 +6,8 @@ import { Mail, Lock, User, Phone, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useRegister } from "@/api/auth/hooks";
+import { apiErrorMessage } from "@/lib/api-error";
+import { DIAL_CODE, stripDialCode, toE164 } from "@/lib/phone";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -48,7 +50,10 @@ export default function RegisterPage() {
       setErrorMsg("Please enter your first and last name.");
       return;
     }
-    if (!form.email.trim() && !form.phone.trim()) {
+    // The field holds the local part; the API gets E.164, matching what the login form
+    // sends so an account created here can be signed into by phone.
+    const phoneE164 = toE164(form.phone);
+    if (!form.email.trim() && !phoneE164) {
       setErrorMsg("Please provide at least an email address or phone number.");
       return;
     }
@@ -66,22 +71,18 @@ export default function RegisterPage() {
         firstName,
         lastName,
         email: form.email,
-        phone: form.phone,
+        phone: phoneE164,
         password: form.password,
       },
       {
         onSuccess: () => {
           // OTP is sent to the email or phone; verify page reads it from here
           if (form.email) sessionStorage.setItem("pendingVerifyEmail", form.email);
-          if (form.phone) sessionStorage.setItem("pendingVerifyPhone", form.phone);
+          if (phoneE164) sessionStorage.setItem("pendingVerifyPhone", phoneE164);
           router.push("/verify");
         },
         onError: (err: any) => {
-          setErrorMsg(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Registration failed. Please try again.",
-          );
+          setErrorMsg(apiErrorMessage(err, "Registration failed. Please try again."));
         },
       },
     );
@@ -127,10 +128,13 @@ export default function RegisterPage() {
           name="phone"
           label="Phone"
           type="tel"
+          inputMode="tel"
           leftIcon={<Phone className="h-4 w-4" />}
-          placeholder="+234 800 000 0000"
+          prefix={DIAL_CODE}
+          placeholder="801 234 5678"
           value={form.phone}
-          onChange={(e) => update("phone", e.target.value)}
+          // Drop anything duplicating the pinned code so the field never reads "+234 0801…".
+          onChange={(e) => update("phone", stripDialCode(e.target.value))}
         />
         <p className="-mt-2 text-[11px] text-muted-foreground">
           At least one of email or phone is required.

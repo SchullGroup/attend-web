@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Link from "next/link";
 import { useResetPassword } from "@/api/auth/hooks";
+import { apiErrorMessage } from "@/lib/api-error";
 
 const RULES = [
   { label: "At least 8 characters", test: (p: string) => p.length >= 8 },
@@ -46,9 +47,7 @@ export default function ResetPasswordPage() {
         },
         onError: (err: any) => {
           setErrorMsg(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Reset failed. Check your code and try again.",
+            apiErrorMessage(err, "Reset failed. Check your code and try again."),
           );
         },
       },
