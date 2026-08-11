@@ -3,6 +3,12 @@ export interface LoginRequest {
   emailOrPhone?: string;
   email?: string;
   password: string;
+  /**
+   * Stable per-install id (see `lib/device-id`). The backend invalidates the previous
+   * device's session when this differs from the last login. Optional on the wire —
+   * omitting it just skips single-device enforcement for that login.
+   */
+  deviceId?: string;
 }
 
 export interface ChangePasswordRequest {

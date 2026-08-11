@@ -1,28 +1,12 @@
 "use client";
 import Link from "next/link";
-import { Bell, FileText, Megaphone, CalendarClock, Vote, Sparkles } from "lucide-react";
 import { useGetNotifications, useMarkRead, useMarkAllRead } from "@/api/notifications/hooks";
 import type { Notification } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { useRelativeTime } from "@/hooks/useRelativeTime";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
-
-const ICONS: Record<string, typeof Bell> = {
-  vote_open: Vote,
-  event_reminder: CalendarClock,
-  application_update: Sparkles,
-  document: FileText,
-  broadcast: Megaphone,
-};
-
-const TYPE_COLOR: Record<string, string> = {
-  vote_open: "bg-red-50 text-red-600",
-  event_reminder: "bg-amber-50 text-amber-600",
-  application_update: "bg-emerald-50 text-emerald-600",
-  document: "bg-blue-50 text-blue-600",
-  broadcast: "bg-purple-50 text-purple-600",
-};
+import { notificationStyle } from "@/lib/notification-types";
 
 export default function NotificationsPage() {
   const { data, isLoading } = useGetNotifications({ size: 50 });
@@ -160,8 +144,7 @@ function NotificationItem({
   notification: Notification;
   onRead?: () => void;
 }) {
-  const Icon = ICONS[n.type] ?? Bell;
-  const colorClass = TYPE_COLOR[n.type] ?? "bg-muted text-muted-foreground";
+  const { icon: Icon, color: colorClass } = notificationStyle(n.type);
   const timeLabel = useRelativeTime(n.createdAt);
 
   return (

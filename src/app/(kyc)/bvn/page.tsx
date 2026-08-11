@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/Input";
 import { Fingerprint, ShieldCheck, Calendar, AlertCircle, ChevronDown, CheckCircle2 } from "lucide-react";
 import { useKycStep1, useGetKycStatus } from "@/api/kyc/hooks";
 import { useGetMe } from "@/api/auth/hooks";
-import { setStoredBvn } from "@/lib/kyc-progress";
 import { cn } from "@/lib/utils";
 
 export default function BvnPage() {
@@ -82,13 +81,11 @@ export default function BvnPage() {
       payload,
       {
         onSuccess: () => {
-          setStoredBvn(bvn);
           router.push("/chn");
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.message || err?.message || "";
           if (/already.*verif/i.test(msg)) {
-            setStoredBvn(bvn);
             router.push("/chn");
             return;
           }

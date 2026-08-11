@@ -44,6 +44,12 @@ const NAV = [
   { label: "Profile", href: "/profile", icon: UserIcon, match: (p: string, m?: string) => p.startsWith("/profile") },
 ];
 
+// A guest has no account, so every participant route behind these tabs 401s. Rather than
+// hide them — which would leave a guest wondering what the app is — they stay visible but
+// inert, with the not-allowed cursor as the signal. AGM is the exception: a guest is
+// invited to exactly one meeting and reaches it through the AGM section.
+const GUEST_ALLOWED = new Set(["/agm"]);
+
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const router = useRouter();
@@ -147,6 +153,18 @@ export function NavShell({ children }: { children: React.ReactNode }) {
           {NAV.map((item) => {
             const active = item.match(pathname, currentModule);
             const Icon = item.icon;
+            if (isGuest && !GUEST_ALLOWED.has(item.href)) {
+              return (
+                <span
+                  key={item.href}
+                  aria-disabled="true"
+                  className="flex cursor-not-allowed select-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/45"
+                >
+                  <Icon className="h-4.5 w-4.5" />
+                  {item.label}
+                </span>
+              );
+            }
             return (
               <Link
                 key={item.href}
@@ -262,16 +280,26 @@ export function NavShell({ children }: { children: React.ReactNode }) {
             const Icon = item.icon;
             return (
               <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium",
-                    active ? "text-primary" : "text-muted-foreground",
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
+                {isGuest && !GUEST_ALLOWED.has(item.href) ? (
+                  <span
+                    aria-disabled="true"
+                    className="flex cursor-not-allowed select-none flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium text-muted-foreground/45"
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.label}
+                  </span>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium",
+                      active ? "text-primary" : "text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.label}
+                  </Link>
+                )}
               </li>
             );
           })}

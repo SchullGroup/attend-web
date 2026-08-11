@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Phone, Lock } from "lucide-react";
+import { Mail, Phone, Lock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLogin } from "@/api/auth/hooks";
+import { getDeviceId } from "@/lib/device-id";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,32 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [needsVerify, setNeedsVerify] = useState(false);
+  const [justVerifiedEmail, setJustVerifiedEmail] = useState<string | null>(null);
+  const [sessionEnded, setSessionEnded] = useState<string | null>(null);
+
+  // A freshly verified account lands here straight from /verify. Read the marker on mount
+  // rather than during render — sessionStorage doesn't exist during SSR — and clear it
+  // immediately so the banner shows once and doesn't reappear on a later visit.
+  useEffect(() => {
+    const verified = sessionStorage.getItem("justVerifiedEmail");
+    if (verified) {
+      setJustVerifiedEmail(verified);
+      setIdentifier(verified);
+    }
+    sessionStorage.removeItem("justVerifiedEmail");
+
+    // api-client appends ?reason= when it forces a logout, so the user is told why they
+    // ended up back here. Read via window rather than useSearchParams: this page has no
+    // Suspense boundary and that hook would opt the whole route out of static rendering.
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    if (reason === "other-device") {
+      setSessionEnded(
+        "You were signed out because your account was used to sign in on another device.",
+      );
+    } else if (reason === "idle") {
+      setSessionEnded("Your session expired after 2 hours of inactivity. Please sign in again.");
+    }
+  }, []);
 
   // Detect whether the user typed an email or phone number for icon/autocomplete hints.
   const looksLikePhone = /^\+?\d[\d\s-]{5,}$/.test(identifier.trim());
@@ -29,6 +56,8 @@ export default function LoginPage() {
         emailOrPhone: cleanId,
         email: cleanId,
         password,
+        // Lets the backend invalidate whatever device was signed in before this one.
+        deviceId: getDeviceId(),
       },
       {
         onSuccess: () => router.push("/"),
@@ -66,6 +95,20 @@ export default function LoginPage() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
+        {sessionEnded && !errorMsg && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <span>{sessionEnded}</span>
+          </div>
+        )}
+        {justVerifiedEmail && !errorMsg && (
+          <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            <span>
+              Your email is verified. Enter your password to sign in.
+            </span>
+          </div>
+        )}
         {errorMsg && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
             {errorMsg}

@@ -24,11 +24,17 @@ export default function NotificationPreferencesPage() {
   const [inAppDoc, setInAppDoc] = useState(false);
 
   const {
-    enabled: pushEnabled,
+    enabled: pushSubscribed,
     busy: submittingPush,
     message: pushMsg,
     toggle: handleTogglePush,
   } = usePushSubscription();
+
+  // Backend stores a pushEnabled flag per user; the hook above only knows whether *this
+  // browser* holds a subscription. Track the saved value separately so the switch shows the
+  // user's stored intent on a device that has never subscribed.
+  const [pushPref, setPushPref] = useState(false);
+  const pushOn = pushPref || pushSubscribed;
 
   // The toggles are local state until Save is pressed. Without a baseline to compare against
   // there was no way to tell the user their flips weren't persisted yet — they read the
@@ -37,7 +43,7 @@ export default function NotificationPreferencesPage() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   const snapshot = JSON.stringify([
-    emailRsvp, emailReminder, emailDoc, inAppRsvp, inAppReminder, inAppDoc,
+    emailRsvp, emailReminder, emailDoc, inAppRsvp, inAppReminder, inAppDoc, pushPref,
   ]);
   const isDirty = baseline !== null && baseline !== snapshot;
 
@@ -50,9 +56,10 @@ export default function NotificationPreferencesPage() {
       setInAppRsvp(p.inAppRsvpConfirmation);
       setInAppReminder(p.inAppEventReminder);
       setInAppDoc(p.inAppNewDocument);
+      setPushPref(p.pushEnabled);
       setBaseline(JSON.stringify([
         p.emailRsvpConfirmation, p.emailEventReminder, p.emailNewDocument,
-        p.inAppRsvpConfirmation, p.inAppEventReminder, p.inAppNewDocument,
+        p.inAppRsvpConfirmation, p.inAppEventReminder, p.inAppNewDocument, p.pushEnabled,
       ]));
     }
   }, [prefResp]);
@@ -85,6 +92,7 @@ export default function NotificationPreferencesPage() {
         inAppRsvpConfirmation: inAppRsvp,
         inAppEventReminder: inAppReminder,
         inAppNewDocument: inAppDoc,
+        pushEnabled: pushPref,
       },
       {
         onSuccess: () => {
@@ -92,9 +100,14 @@ export default function NotificationPreferencesPage() {
           setSaveMsg("Preferences saved.");
         },
         onError: (err: any) => {
+          // Backend now returns a stable `code` on every failure. Branch on that, not on
+          // the message wording, which is display copy and can change.
+          const code = err?.response?.data?.code;
           setSaveMsg(
-            err?.response?.data?.message ||
-              "We couldn't save your preferences. Please try again.",
+            code === "UNAUTHORIZED"
+              ? "Your session expired. Sign in again to save your preferences."
+              : err?.response?.data?.message ||
+                  "We couldn't save your preferences. Please try again.",
           );
         },
       },
@@ -139,18 +152,24 @@ export default function NotificationPreferencesPage() {
           <button
             type="button"
             role="switch"
-            aria-checked={pushEnabled}
+            aria-checked={pushOn}
             disabled={submittingPush}
-            onClick={() => handleTogglePush(!pushEnabled)}
+            onClick={() => {
+              // Two things have to happen: record the preference for saving, and ask the
+              // browser for a subscription. The preference is the part that persists —
+              // the browser half is a no-op until push is configured.
+              setPushPref(!pushOn);
+              handleTogglePush(!pushOn);
+            }}
             className={cn(
               "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50",
-              pushEnabled ? "bg-primary" : "bg-muted"
+              pushOn ? "bg-primary" : "bg-muted"
             )}
           >
             <span
               className={cn(
                 "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                pushEnabled ? "translate-x-5" : "translate-x-0"
+                pushOn ? "translate-x-5" : "translate-x-0"
               )}
             />
           </button>

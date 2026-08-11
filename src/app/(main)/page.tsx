@@ -177,7 +177,9 @@ export default function HomePage() {
                 <ShieldCheck className="h-3.5 w-3.5" /> KYC verified
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 backdrop-blur">
+              // Amber has to be carried by the text and border, not a translucent fill:
+              // a low-opacity amber over the near-black hero composites to olive/brown.
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-orange-400/10 px-3 py-1.5 text-xs font-semibold text-amber-200 backdrop-blur">
                 <AlertCircle className="h-3.5 w-3.5" /> KYC pending
               </span>
             )}
@@ -185,9 +187,13 @@ export default function HomePage() {
         </div>
 
         {!verified && (
+          // Same gradient as the Launches tile (from-orange-500 to-rose-500) so the one
+          // "action required" element reads in the orange family used by the cards below.
+          // Opaque, not a tint — translucent orange over the near-black hero composites to
+          // the olive/brown QA flagged.
           <Link
             href="/intro"
-            className="relative mt-5 flex items-center justify-between rounded-2xl border border-amber-300/50 bg-amber-400/20 px-4 py-3 text-sm font-medium backdrop-blur transition-colors hover:bg-amber-400/30"
+            className="relative mt-5 flex items-center justify-between rounded-2xl bg-linear-to-r from-orange-500 to-amber-300 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition-opacity hover:opacity-90"
           >
             <span className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />

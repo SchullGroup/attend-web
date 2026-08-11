@@ -125,6 +125,11 @@ export function LiveRoom({
   // on the view payload, and may then vote directly — no per-vote code entry. Read live
   // from the polled view so a resumed session re-checks it without re-parsing the token.
   const guestCanVote = isGuest && !!(guestViewResp?.data as { canVote?: boolean } | undefined)?.canVote;
+  // A guest with no proxy rights watches the ballot for the record: every resolution and
+  // its live tally, but none of the voting apparatus — no per-resolution status badge, no
+  // countdown, no FOR/AGAINST/ABSTAIN. Showing an "Open" badge to someone who cannot act
+  // on it reads as a prompt they're being denied.
+  const ballotReadOnly = isGuest && !guestCanVote;
   const canSubmitQA = session.user ? session.user.capabilities.includes("QA") : true;
 
   // Zoom's gallery view needs SharedArrayBuffer → the page must be cross-origin
@@ -201,6 +206,10 @@ export function LiveRoom({
   const { mutate: guestProxyVote, isPending: guestProxyVoting } = useGuestProxyVote(eventId, guestToken);
   const { mutate: guestVote, isPending: guestVoting } = useGuestVote(eventId, guestToken);
   const [proxyCode, setProxyCode] = useState("");
+  // In the guest read-only ballot the proxy-code entry is collapsed behind this toggle.
+  // It's the only way a plain guest can reach the vote buttons, so it can't be deleted —
+  // but it stays out of sight for the majority of guests, who hold no proxy.
+  const [showProxyEntry, setShowProxyEntry] = useState(false);
   // A proxy guest and a voting participant share the same ballot; this is its busy flag.
   const castPending = voting || guestVoting;
 
@@ -497,6 +506,18 @@ export function LiveRoom({
     );
   }
 
+  // A badge for resolution state. In the read-only guest ballot this is exactly what would
+  // read as a prompt the guest can't act on, so there it's dropped entirely.
+  function statusBadge(r: Resolution) {
+    const v = (r.myVote || "").toUpperCase();
+    const s = (r.status || "").toUpperCase();
+    if (v) return { label: `Voted ${v.charAt(0) + v.slice(1).toLowerCase()}`, tone: "bg-emerald-100 text-emerald-700" };
+    if (s === "OPEN") return { label: "Open", tone: "bg-amber-100 text-amber-700" };
+    if (s === "CLOSED") return { label: "Closed", tone: "bg-slate-100 text-slate-600" };
+    if (s === "WAITING") return { label: "Waiting", tone: "bg-slate-100 text-slate-600" };
+    return { label: "Pending", tone: "bg-slate-100 text-slate-600" };
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -637,8 +658,10 @@ export function LiveRoom({
               </button>
           </div>
 
-          {/* Countdown strip — driven by the open resolution's secondsRemaining (AGM only) */}
-          {showBallot && openRes && (
+          {/* Countdown strip — driven by the open resolution's secondsRemaining (AGM only).
+              Hidden in the read-only guest ballot: "Voting open · 30s remaining" is a call
+              to act, and the guest has nothing to act with. */}
+          {showBallot && openRes && !ballotReadOnly && (
             <div
               className={cn(
                 "mt-2 flex items-center gap-2 rounded-xl px-4 py-2.5 transition-colors",
@@ -653,7 +676,9 @@ export function LiveRoom({
             </div>
           )}
 
-          {showBallot && (
+          {/* Also hidden for read-only guests: Quorum is a participant-only endpoint (so it
+              renders "—" for them), and the Status cell is the "Waiting"/"Open" badge again. */}
+          {showBallot && !ballotReadOnly && (
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div className="rounded-xl border border-border bg-white p-3 text-center">
                 <p className="text-xs text-muted-foreground">Quorum</p>
@@ -803,7 +828,141 @@ export function LiveRoom({
 
               {showBallot &&
                 tab === "ballot" &&
-                (openRes ? (
+                (ballotReadOnly ? (
+                  /* Read-only guest ballot: the full resolution list with live tallies, and
+                     nothing that implies the guest can act. No status badges, no countdown,
+                     no vote buttons — the proxy-code path is folded away below. */
+                  sortedRes.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Resolutions
+                      </p>
+                      {sortedRes.map((r, idx) => {
+                        const showResult = r.forCount + r.againstCount + r.abstainCount > 0;
+                        return (
+                          <div key={r.id} className="rounded-xl border border-border p-3">
+                            <p className="text-[11px] text-muted-foreground">Resolution {idx + 1}</p>
+                            <p className="text-sm font-medium text-foreground">{r.title}</p>
+                            {r.description && (
+                              <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>
+                            )}
+                            {r.candidates && r.candidates.length > 0 ? (
+                              <div className="mt-3 space-y-2 border-t border-border pt-2">
+                                {r.candidates.map((c) => (
+                                  <div key={c.id}>
+                                    <p className="text-xs font-medium text-foreground">{c.name}</p>
+                                    <CandidateTally candidate={c} />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : showResult ? (
+                              <div className="mt-3 space-y-3 border-t border-border pt-2">
+                                <ResolutionBars r={r} />
+                                {r.bySource && <SourceBreakdown bySource={r.bySource} />}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+
+                      <p className="pt-1 text-[11px] text-muted-foreground">
+                        You&apos;re viewing this meeting as a guest. Results update live; voting is
+                        open to shareholders and their appointed proxies.
+                      </p>
+
+                      {/* The only route from guest to voter. Collapsed by default so it isn't
+                          an invitation, but reachable for someone actually holding a code. */}
+                      {!showProxyEntry ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowProxyEntry(true)}
+                          className="text-[11px] font-semibold text-primary hover:underline"
+                        >
+                          I have a proxy code
+                        </button>
+                      ) : (
+                        <div className="space-y-2 rounded-xl border border-border bg-slate-50/70 p-3.5">
+                          <div>
+                            <p className="text-xs font-semibold text-foreground">Proxy code</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Enter the 10-digit code given to you by a shareholder to vote on
+                              their behalf.
+                            </p>
+                          </div>
+                          <input
+                            className="w-full rounded-xl border border-border bg-white px-3 py-2 font-mono text-xs tracking-widest outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                            placeholder="e.g. 0417382951"
+                            maxLength={10}
+                            value={proxyCode}
+                            onChange={(e) => setProxyCode(e.target.value)}
+                          />
+                          {voteMsg && (
+                            <div
+                              className={cn(
+                                "rounded-xl border px-3 py-2 text-xs font-medium",
+                                voteMsg.kind === "ok"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-red-200 bg-red-50 text-red-600",
+                              )}
+                            >
+                              {voteMsg.text}
+                            </div>
+                          )}
+                          {/* Only an open resolution can take a proxy vote. */}
+                          {openRes ? (
+                            <>
+                              <p className="text-[11px] font-medium text-foreground">
+                                Voting on Resolution {openPos}: {openRes.title}
+                              </p>
+                              {openRes.candidates && openRes.candidates.length > 0 ? (
+                                <NomineeBallot
+                                  candidates={openRes.candidates}
+                                  title={openRes.title}
+                                  onVoteCast={handleGuestProxyCandidateVote}
+                                  isPending={guestProxyVoting || proxyCode.trim().length !== 10}
+                                />
+                              ) : (
+                                <div className="grid grid-cols-3 gap-2">
+                                  {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
+                                    const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
+                                    const tone =
+                                      opt === "FOR"
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                        : opt === "AGAINST"
+                                        ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                                        : "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200";
+                                    return (
+                                      <button
+                                        key={opt}
+                                        disabled={proxyCode.trim().length !== 10 || guestProxyVoting}
+                                        onClick={() => handleGuestProxyVoteChoice(opt)}
+                                        className={cn(
+                                          "flex flex-col items-center gap-1 rounded-xl border px-2 py-2.5 text-xs font-semibold capitalize transition-colors disabled:opacity-40",
+                                          tone,
+                                        )}
+                                      >
+                                        <Icon className="h-3.5 w-3.5" />
+                                        {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground">
+                              No resolution is open for voting right now.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      No resolutions for this meeting yet.
+                    </div>
+                  )
+                ) : openRes ? (
                   <div className="space-y-4">
                     {advanceNote && (
                       <div className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
@@ -1050,14 +1209,7 @@ export function LiveRoom({
                       {allClosed ? "Results" : "Resolutions"}
                     </p>
                     {sortedRes.map((r, idx) => {
-                      const v = (r.myVote || "").toUpperCase();
-                      const s = (r.status || "").toUpperCase();
-                      const label = v
-                        ? `Voted ${v.charAt(0) + v.slice(1).toLowerCase()}`
-                        : s === "OPEN" ? "Open" : s === "CLOSED" ? "Closed" : s === "WAITING" ? "Waiting" : "Pending";
-                      const tone = v
-                        ? "bg-emerald-100 text-emerald-700"
-                        : s === "OPEN" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600";
+                      const { label, tone } = statusBadge(r);
                       // Show the tally as soon as any vote exists, not only once the
                       // resolution closes — a proxy/guest watching the ballot should see
                       // the count move live, the same as the open-resolution panel does.

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import { Mail } from "lucide-react";
+import { Mail, CheckCircle2 } from "lucide-react";
 import { useVerifyEmail, useResendEmailOtp } from "@/api/auth/hooks";
 
 function maskEmail(email: string): string {
@@ -42,6 +42,9 @@ function VerifyForm() {
     const next = [...digits];
     next[i] = v;
     setDigits(next);
+    // With the auto-submit re-entrancy guard in verifyCode, an edit mid-flight is a no-op
+    // on purpose — the request is already going out and would otherwise be resent.
+    if (isPending || success) return;
     if (v && i < 5) refs.current[i + 1]?.focus();
     if (next.every(Boolean)) verifyCode(next.join(""));
   }
@@ -63,6 +66,11 @@ function VerifyForm() {
   }
 
   function verifyCode(code: string) {
+    // The last-digit auto-submit re-fires on any subsequent edit, so an impatient user
+    // could send the same OTP twice. The second attempt hits a code the backend has
+    // already consumed and comes back "invalid", painting an error over a verification
+    // that actually succeeded.
+    if (isPending || success) return;
     if (!email) {
       setError("No email found. Please go back and register again.");
       return;
@@ -74,7 +82,14 @@ function VerifyForm() {
         onSuccess: () => {
           setSuccess(true);
           sessionStorage.removeItem("pendingVerifyEmail");
-          setTimeout(() => router.push("/login"), 1500);
+          sessionStorage.removeItem("pendingVerifyPhone");
+          // Hand the address to the login page, which repeats the confirmation and
+          // prefills the field — so the message survives the navigation instead of
+          // vanishing into a "Welcome back" screen that acknowledges nothing.
+          // sessionStorage rather than a query param: an email in the URL ends up in
+          // browser history and server access logs.
+          sessionStorage.setItem("justVerifiedEmail", email);
+          router.push("/login");
         },
         onError: (err: any) => {
           setError(
@@ -172,13 +187,23 @@ function VerifyForm() {
 
         {error && <p className="text-center text-xs text-red-500">{error}</p>}
         {success && (
-          <p className="text-center text-xs text-emerald-600">
-            Email verified! Redirecting to sign in…
+          <p className="flex items-center justify-center gap-1.5 text-center text-sm font-semibold text-emerald-600">
+            <CheckCircle2 className="h-4 w-4" />
+            Email verified — taking you to sign in…
           </p>
         )}
 
-        <Button type="submit" fullWidth size="lg" loading={isPending} disabled={!filled || isPending}>
-          {isPending ? "Verifying…" : "Confirm code"}
+        <Button
+          type="submit"
+          fullWidth
+          size="lg"
+          loading={isPending}
+          // Stays disabled through the redirect. Letting it revert to an enabled
+          // "Confirm code" the moment the request settled is what made a successful
+          // verification look like the form was still waiting for input.
+          disabled={!filled || isPending || success}
+        >
+          {success ? "Verified" : isPending ? "Verifying…" : "Confirm code"}
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">

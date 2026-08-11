@@ -15,12 +15,27 @@ export default function RegisterPage() {
     email: "",
     phone: "",
     password: "",
+    confirmPassword: "",
   });
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function update<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
   }
+
+  // The three rules mirrored under the password field. Also gates submit, so a password
+  // the backend would reject never costs the user a round trip.
+  const passwordRules = [
+    { label: "At least 8 characters", ok: form.password.length >= 8 },
+    { label: "One capital letter", ok: /[A-Z]/.test(form.password) },
+    { label: "Contains a number", ok: /\d/.test(form.password) },
+  ];
+  const passwordValid = passwordRules.every((r) => r.ok);
+  // Only a mismatch counts, not a half-typed confirmation — the inline error would
+  // otherwise flash red from the first keystroke.
+  const passwordsMatch = form.password === form.confirmPassword;
+  const confirmError =
+    form.confirmPassword.length > 0 && !passwordsMatch ? "Passwords do not match." : undefined;
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +50,14 @@ export default function RegisterPage() {
     }
     if (!form.email.trim() && !form.phone.trim()) {
       setErrorMsg("Please provide at least an email address or phone number.");
+      return;
+    }
+    if (!passwordValid) {
+      setErrorMsg("Please choose a password that meets all three requirements.");
+      return;
+    }
+    if (!passwordsMatch) {
+      setErrorMsg("Passwords do not match.");
       return;
     }
 
@@ -117,6 +140,7 @@ export default function RegisterPage() {
             name="password"
             label="Password"
             type="password"
+            autoComplete="new-password"
             leftIcon={<Lock className="h-4 w-4" />}
             placeholder="Min 8 characters"
             value={form.password}
@@ -124,11 +148,7 @@ export default function RegisterPage() {
           />
           {form.password.length > 0 && (
             <ul className="mt-2 space-y-1">
-              {[
-                { label: "At least 8 characters", ok: form.password.length >= 8 },
-                { label: "One capital letter", ok: /[A-Z]/.test(form.password) },
-                { label: "Contains a number", ok: /\d/.test(form.password) },
-              ].map((h) => (
+              {passwordRules.map((h) => (
                 <li key={h.label} className="flex items-center gap-1.5">
                   {h.ok
                     ? <Check className="h-3.5 w-3.5 text-green-600" strokeWidth={2.5} />
@@ -142,7 +162,24 @@ export default function RegisterPage() {
             </ul>
           )}
         </div>
-        <Button type="submit" fullWidth size="lg" loading={isPending}>
+        <Input
+          name="confirmPassword"
+          label="Confirm password"
+          type="password"
+          autoComplete="new-password"
+          leftIcon={<Lock className="h-4 w-4" />}
+          placeholder="Re-enter your password"
+          value={form.confirmPassword}
+          onChange={(e) => update("confirmPassword", e.target.value)}
+          error={confirmError}
+        />
+        <Button
+          type="submit"
+          fullWidth
+          size="lg"
+          loading={isPending}
+          disabled={isPending || !passwordValid || !passwordsMatch || !form.confirmPassword}
+        >
           {isPending ? "Creating account" : "Create account"}
         </Button>
       </form>
