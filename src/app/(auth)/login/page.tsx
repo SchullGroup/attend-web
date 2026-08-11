@@ -7,11 +7,19 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLogin } from "@/api/auth/hooks";
 import { getDeviceId } from "@/lib/device-id";
+import { apiErrorMessage } from "@/lib/api-error";
+import { DIAL_CODE, stripDialCode, toE164 } from "@/lib/phone";
+import { cn } from "@/lib/utils";
+
+type LoginMode = "email" | "phone";
 
 export default function LoginPage() {
   const router = useRouter();
   const { mutate: loginMutation, isPending } = useLogin();
-  const [identifier, setIdentifier] = useState("");
+  const [mode, setMode] = useState<LoginMode>("email");
+  const [email, setEmail] = useState("");
+  // Local part only — the "+234" is pinned in the field, not typed.
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [needsVerify, setNeedsVerify] = useState(false);
@@ -25,7 +33,8 @@ export default function LoginPage() {
     const verified = sessionStorage.getItem("justVerifiedEmail");
     if (verified) {
       setJustVerifiedEmail(verified);
-      setIdentifier(verified);
+      setEmail(verified);
+      setMode("email");
     }
     sessionStorage.removeItem("justVerifiedEmail");
 
@@ -42,14 +51,14 @@ export default function LoginPage() {
     }
   }, []);
 
-  // Detect whether the user typed an email or phone number for icon/autocomplete hints.
-  const looksLikePhone = /^\+?\d[\d\s-]{5,}$/.test(identifier.trim());
+  // Whichever tab is showing supplies the credential. Phones go up as E.164
+  // ("+2348012345678"); emails are sent exactly as typed.
+  const cleanId = mode === "phone" ? toE164(phone) : email.trim();
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
     setNeedsVerify(false);
-    const cleanId = identifier.trim();
     loginMutation(
       {
         identifier: cleanId,
@@ -62,8 +71,7 @@ export default function LoginPage() {
       {
         onSuccess: () => router.push("/"),
         onError: (err: any) => {
-          const msg =
-            err?.response?.data?.message || err?.message || "Invalid credentials";
+          const msg = apiErrorMessage(err, "Invalid credentials");
           setErrorMsg(msg);
           // Backend blocks unverified accounts with a "verify your email" message —
           // surface a shortcut to the verification page (carrying the email over).
@@ -74,9 +82,9 @@ export default function LoginPage() {
   }
 
   function goVerify() {
-    // Only pre-fill the verify page if the user entered an email.
-    if (!looksLikePhone) {
-      sessionStorage.setItem("pendingVerifyEmail", identifier.trim());
+    // Only pre-fill the verify page if the user signed in with an email.
+    if (mode === "email" && cleanId) {
+      sessionStorage.setItem("pendingVerifyEmail", cleanId);
     }
     router.push("/verify");
   }
@@ -123,23 +131,69 @@ export default function LoginPage() {
             )}
           </div>
         )}
-        <Input
-          name="identifier"
-          label="Email or Phone Number"
-          type="text"
-          autoComplete="username"
-          leftIcon={looksLikePhone ? <Phone className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
-          placeholder="you@email.com or +234..."
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
-        />
+        {/* Which credential the user is signing in with. An explicit choice rather than
+            sniffing what they typed: it lets the phone field pin "+234" from the first
+            keystroke, and the label above each field says what is expected. */}
+        <div role="tablist" aria-label="Sign in with" className="flex gap-1 rounded-xl bg-muted p-1">
+          {(["email", "phone"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              onClick={() => {
+                setMode(m);
+                setErrorMsg(null);
+                setNeedsVerify(false);
+              }}
+              className={cn(
+                "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors",
+                mode === m
+                  ? "bg-white text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {m === "email" ? "Email" : "Phone"}
+            </button>
+          ))}
+        </div>
+
+        {mode === "email" ? (
+          <Input
+            key="email"
+            name="email"
+            label="Email address"
+            type="email"
+            inputMode="email"
+            autoComplete="username"
+            leftIcon={<Mail className="h-4 w-4" />}
+            placeholder="Enter email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        ) : (
+          <Input
+            key="phone"
+            name="phone"
+            label="Phone number"
+            type="tel"
+            inputMode="tel"
+            autoComplete="username"
+            leftIcon={<Phone className="h-4 w-4" />}
+            prefix={DIAL_CODE}
+            placeholder="803 123 4567"
+            value={phone}
+            // Drop anything duplicating the pinned code so the field never reads "+234 0801…".
+            onChange={(e) => setPhone(stripDialCode(e.target.value))}
+          />
+        )}
         <Input
           name="password"
           label="Password"
           type="password"
           autoComplete="current-password"
           leftIcon={<Lock className="h-4 w-4" />}
-          placeholder="Your password"
+          placeholder="Enter your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />

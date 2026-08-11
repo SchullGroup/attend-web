@@ -17,7 +17,12 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn, formatDate, initialsFor, fileDisplayName, parseApiDate } from "@/lib/utils";
 import { useEffect } from "react";
-import { getRsvpWindow } from "@/lib/rsvp";
+import {
+  getRsvpEligibility,
+  rsvpBlockedMessage,
+  parseEventStart,
+  formatWindowTime,
+} from "@/lib/rsvp";
 import { useUserStore } from "@/lib/user-store";
 
 // Backend formats are upper-case (VIRTUAL/HYBRID/IN_PERSON).
@@ -71,15 +76,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     return () => clearInterval(interval);
   }, []);
 
-  const startDateTimeStr = event
-    ? (event.startTime?.includes("T")
-        ? event.startTime
-        : `${event.date}T${event.startTime || "00:00"}`)
-    : "";
+  const startsAt = event ? parseEventStart(event.date, event.startTime) : null;
 
-  const rsvpWindow = event
-    ? getRsvpWindow(startDateTimeStr, event.lateRsvpMinutes ?? 30)
-    : null;
+  // Late registration: a LIVE event keeps accepting RSVPs for LATE_RSVP_MINUTES past its
+  // start, per the PM decision. Everything else is decided by status and rsvpEnabled rather
+  // than by the clock, so an event still PUBLISHED after its nominal start keeps accepting
+  // registrations — which is what the backend does, and what the old clock-only gate wrongly
+  // blocked. See docs/RSVP_LATE_REGISTRATION.md.
+  const rsvpEligibility = getRsvpEligibility(event);
+  const rsvpBlocked = rsvpBlockedMessage(rsvpEligibility.reason);
+  const lateWindow = rsvpEligibility.lateWindowClosesAt;
 
   const [shared, setShared] = useState(false);
   const { mutate: rsvp, isPending: rsvping } = useRsvp(id);
@@ -630,29 +636,36 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             <Radio className="h-4 w-4" /> Join Live Session →
           </Button>
         ) : isLive && !event.registered ? (
-          <div className="space-y-2 w-full">
-            {rsvpWindow?.isOpen ? (
-              <div className="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 border border-amber-200">
+          rsvpEligibility.allowed ? (
+            <div className="space-y-2 w-full">
+              <div className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
                 <Clock className="h-4 w-4 animate-pulse shrink-0" />
-                Late Registration Open{rsvpWindow.cutoffTime && ` (closes ${formatDate(rsvpWindow.cutoffTime.toISOString())} ${rsvpWindow.cutoffTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`}
+                Late registration open
+                {lateWindow && ` — closes ${formatWindowTime(lateWindow)}`}
               </div>
-            ) : (
-              <div className="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 border border-amber-200">
-                <Clock className="h-4 w-4 animate-pulse shrink-0" />
-                Late Registration Re-opened (Live Room Access)
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={handleRsvp}
+                  disabled={rsvping}
+                  style={{ backgroundColor: color }}
+                >
+                  {rsvping ? "Confirming…" : "RSVP & Join"}
+                </Button>
               </div>
-            )}
-            <div className="flex gap-2">
-              <Button
-                className="flex-1"
-                onClick={handleRsvp}
-                disabled={rsvping}
-                style={{ backgroundColor: color }}
-              >
-                {rsvping ? "Confirming…" : "RSVP & Join"}
-              </Button>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-start gap-2 w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-800">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                {rsvpBlocked}
+                {startsAt && ` It started at ${formatWindowTime(startsAt)}.`}
+                <span className="mt-0.5 block font-medium">
+                  Contact the organiser if you were expecting access.
+                </span>
+              </span>
+            </div>
+          )
         ) : event.waitlisted && !event.registered ? (
           <Button className="w-full" variant="outline" disabled>On waitlist</Button>
         ) : event.registered ? (
@@ -686,17 +699,17 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           </Button>
         ) : (
           <div className="flex flex-col gap-2 w-full">
-            {rsvpWindow && !rsvpWindow.isOpen && (
+            {rsvpBlocked && (
               <div className="flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 border border-red-200">
                 <ShieldAlert className="h-4 w-4 shrink-0" />
-                Registration Closed{rsvpWindow.cutoffTime && ` (cutoff was at ${formatDate(rsvpWindow.cutoffTime.toISOString())} ${rsvpWindow.cutoffTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`}
+                {rsvpBlocked}
               </div>
             )}
             <div className="flex gap-2">
               <Button
                 className="flex-1"
                 onClick={handleRsvp}
-                disabled={rsvping || !!(rsvpWindow && !rsvpWindow.isOpen)}
+                disabled={rsvping || !rsvpEligibility.allowed}
                 style={{ backgroundColor: color }}
               >
                 {rsvping ? "Confirming…" : "Confirm Attendance (RSVP)"}

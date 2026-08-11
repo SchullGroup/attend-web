@@ -6,6 +6,7 @@ import { Mail, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useForgotPassword } from "@/api/auth/hooks";
+import { apiErrorMessage } from "@/lib/api-error";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -25,9 +26,7 @@ export default function ForgotPasswordPage() {
         },
         onError: (err: any) => {
           setErrorMsg(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Could not send reset code. Check your email and try again.",
+            apiErrorMessage(err, "Could not send reset code. Check your email and try again."),
           );
         },
       },
