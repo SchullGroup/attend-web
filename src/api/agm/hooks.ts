@@ -129,6 +129,7 @@ export const useAssignProxy = (eventId: string) => {
     mutationFn: (data: AssignProxyRequest) => agmClient.assignProxy(eventId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: agmKeys.proxy(eventId) });
+      queryClient.invalidateQueries({ queryKey: agmKeys.resolutions(eventId) });
     },
   });
 };

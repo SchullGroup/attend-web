@@ -2,7 +2,7 @@
 import Link from "next/link";
 import {
   Building2, CalendarDays, MapPin,
-  Users, XCircle, Vote, ChevronRight, UserCheck,
+  Users, Vote, ChevronRight, UserCheck,
 } from "lucide-react";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
@@ -173,23 +173,9 @@ function AgmCard({ event: e }: { event: EventListItem }) {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-2">
-                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
-                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                  <div>
-                    <p className="text-xs font-semibold text-red-700">
-                      Not yet registered for this AGM
-                    </p>
-                    <p className="text-xs text-red-600/80">
-                      View the event to register. Pre-voting unlocks once your
-                      registration is confirmed.
-                    </p>
-                  </div>
-                </div>
-                <Link href={`/events/${e.id}`}>
-                  <Button variant="outline" size="sm" className="bg-slate-900 text-white hover:bg-slate-800 border-0 w-full">View</Button>
-                </Link>
-              </div>
+              <Link href={`/events/${e.id}`}>
+                <Button size="sm" className="bg-slate-900 text-white hover:bg-slate-800 border-0 w-full">View</Button>
+              </Link>
             )}
           </div>
         </div>
