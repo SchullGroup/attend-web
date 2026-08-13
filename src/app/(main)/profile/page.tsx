@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useGetMe, useLogout } from "@/api/auth/hooks";
 import { useUserStore } from "@/lib/user-store";
+import { accountRoleLabel } from "@/lib/account-role";
 import { Badge } from "@/components/ui/Badge";
 import { initialsFor, formatMemberSince } from "@/lib/utils";
 
@@ -113,7 +114,7 @@ export default function ProfilePage() {
                 )}
               </div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {currentUser.role}
+                {accountRoleLabel(currentUser.role, kycStatus)}
               </p>
               <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
                 <p className="flex items-center gap-1.5">

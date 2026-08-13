@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { QRCodeSVG } from "qrcode.react";
 import { downloadVoteReceiptPdf, voteLabel } from "@/lib/vote-receipt-pdf";
 import { ProxyCastVotes } from "@/components/attend/ProxyCastVotes";
-import { useGetVoteReceipt, useGetProxy } from "@/api/agm/hooks";
+import { useGetVoteReceipt, useGetProxy, useRevokeProxy } from "@/api/agm/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { formatDate } from "@/lib/utils";
@@ -18,11 +18,32 @@ function ReceiptInner() {
   const searchParams = useSearchParams();
   const eventId = searchParams.get("eventId") ?? "";
   const [copied, setCopied] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [revokeSuccess, setRevokeSuccess] = useState(false);
 
   const { data, isLoading } = useGetVoteReceipt(eventId);
   const receipt = data?.data;
   const { data: proxyData } = useGetProxy(eventId);
   const proxy = proxyData?.data;
+  const { mutate: revokeProxy, isPending: revoking } = useRevokeProxy(eventId);
+
+  function handleRevoke() {
+    setRevokeError(null);
+    revokeProxy(undefined, {
+      onSuccess: () => {
+        setRevokeSuccess(true);
+        router.refresh();
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.message;
+        setRevokeError(
+          msg && !msg.includes("Something went wrong")
+            ? msg
+            : "Failed to revoke proxy. Please try again."
+        );
+      },
+    });
+  }
 
   // No event selected → let the user pick which AGM's receipt to view. There's no
   // "list all receipts" endpoint, so we list the AGMs they're registered for.
@@ -114,7 +135,13 @@ function ReceiptInner() {
                 <p className="text-xs uppercase tracking-wide text-white/80">
                   Vote receipt
                 </p>
-                <h1 className="text-lg font-bold">Your votes have been recorded</h1>
+                <h1 className="text-lg font-bold">
+                  {view.resolutions.length > 0
+                    ? "Your votes have been recorded"
+                    : proxy && proxy.proxyName && !revokeSuccess
+                    ? "Proxy Appointed"
+                    : "Vote receipt"}
+                </h1>
               </div>
             </div>
           </div>
@@ -175,11 +202,36 @@ function ReceiptInner() {
               )}
             </div>
 
-            {proxy && proxy.proxyName && (
+            {revokeSuccess && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs text-emerald-800">
+                Proxy has been successfully revoked. You can now vote directly on resolutions.
+              </div>
+            )}
+
+            {proxy && proxy.proxyName && !revokeSuccess && (
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Appointed Proxy
-                </p>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Appointed Proxy
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRevoke}
+                    loading={revoking}
+                    className="border-red-200 bg-white text-red-700 hover:bg-red-50 hover:text-red-800"
+                  >
+                    Revoke Proxy
+                  </Button>
+                </div>
+
+                {revokeError && (
+                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-600">
+                    {revokeError}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3.5 bg-slate-50/50">
                   <div className="flex items-start gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-700">

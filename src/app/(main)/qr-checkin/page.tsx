@@ -1,24 +1,23 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ScanLine, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { Button } from "@/components/ui/Button";
-import { useCheckIn, useGetMyTicket, useGetEvent } from "@/api/events/hooks";
+import { useGetMyTicket, useGetEvent } from "@/api/events/hooks";
+import { formatRelativeTime } from "@/lib/utils";
 
 function QrCheckinInner() {
   const router = useRouter();
   const eventId = useSearchParams().get("eventId") ?? "";
-  const { mutate: checkIn, isPending } = useCheckIn(eventId);
-  const { data: ticketResp, isLoading: ticketLoading, refetch } = useGetMyTicket(eventId);
+  const { data: ticketResp, isLoading: ticketLoading } = useGetMyTicket(eventId);
   const ticket = ticketResp?.data;
   const { data: eventResp } = useGetEvent(eventId);
   const isVirtual = eventResp?.data?.format === "VIRTUAL";
 
-  const [justCheckedIn, setJustCheckedIn] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const isCheckedIn = justCheckedIn || !!ticket?.checkedIn;
+  // Attendance is recorded by event staff scanning this code at the gate — there is no
+  // self check-in. The flag is read-only here; it flips when the scan reaches the backend
+  // and the poll in useGetMyTicket picks it up.
+  const isCheckedIn = !!ticket?.checkedIn;
   const code = ticket?.qrToken || "";
 
   // QR check-in only applies to events with a physical venue (in-person / hybrid).
@@ -39,21 +38,6 @@ function QrCheckinInner() {
     );
   }
 
-  function doCheckIn() {
-    if (!eventId) return;
-    setErrorMsg(null);
-    checkIn(undefined, {
-      onSuccess: () => {
-        setJustCheckedIn(true);
-        refetch();
-      },
-      onError: (err: any) =>
-        setErrorMsg(
-          err?.response?.data?.message || err?.message || "Check-in failed. Please try again.",
-        ),
-    });
-  }
-
   return (
     <div className="space-y-6">
       <button
@@ -64,20 +48,25 @@ function QrCheckinInner() {
       </button>
 
       <header>
-        <h1 className="text-2xl font-bold text-foreground">Quick check-in</h1>
+        <h1 className="text-2xl font-bold text-foreground">Your check-in code</h1>
         <p className="text-sm text-muted-foreground">
           {ticket?.eventTitle
-            ? `Show this code at the entrance for ${ticket.eventTitle}, or check yourself in below.`
-            : "Show this code at the entrance, or check yourself in below."}
+            ? `Show this code at the entrance for ${ticket.eventTitle}. A member of the event team will scan it to check you in.`
+            : "Show this code at the entrance. A member of the event team will scan it to check you in."}
         </p>
       </header>
 
       <div className="mx-auto max-w-sm">
         <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
           {isCheckedIn ? (
-            <div className="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 text-center">
+            <div className="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 text-center">
               <CheckCircle2 className="h-16 w-16 text-emerald-600" />
               <p className="text-base font-semibold text-emerald-700">You&apos;re checked in</p>
+              {ticket?.checkedInAt && (
+                <p className="text-xs text-emerald-700/80">
+                  Scanned {formatRelativeTime(ticket.checkedInAt)}
+                </p>
+              )}
             </div>
           ) : (
             <div className="aspect-square w-full overflow-hidden rounded-2xl border border-border bg-white p-3">
@@ -97,7 +86,7 @@ function QrCheckinInner() {
 
           <div className="mt-5 space-y-1 text-center">
             <p className="text-xs text-muted-foreground">Check-in code</p>
-            <p className="break-all text-lg font-semibold tracking-wider text-foreground">
+            <p className="break-all text-sm font-semibold tracking-wider text-foreground">
               {code || "—"}
             </p>
             {ticket?.participantName && (
@@ -105,27 +94,18 @@ function QrCheckinInner() {
             )}
           </div>
 
-          {errorMsg && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-center text-xs text-red-600">
-              {errorMsg}
+          {/* Status, not an action. Nothing on this page can change it. */}
+          {!isCheckedIn && code && (
+            <div className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground">
+              <Clock3 className="h-4 w-4 shrink-0" />
+              Waiting for the event team to scan
             </div>
           )}
-
-          <div className="mt-5">
-            <Button
-              fullWidth
-              onClick={doCheckIn}
-              loading={isPending}
-              disabled={!eventId || isCheckedIn}
-            >
-              <ScanLine className="h-4 w-4" /> {isCheckedIn ? "Checked in" : "Check in"}
-            </Button>
-          </div>
         </div>
         <p className="mt-3 text-center text-xs text-muted-foreground">
           {eventId
-            ? "Tap check in once you're at the venue."
-            : "Open this from an event to enable check-in."}
+            ? "Only event staff can check you in. Keep this screen open at the entrance."
+            : "Open this from an event to see your check-in code."}
         </p>
       </div>
     </div>

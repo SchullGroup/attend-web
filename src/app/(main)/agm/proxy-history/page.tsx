@@ -73,6 +73,7 @@ export default function ProxyHistoryPage() {
 }
 
 function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const { mutate: revoke, isPending: revoking } = useRevokeProxy(p.eventId);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -124,6 +125,9 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
   function handleRevoke() {
     setErrorMsg(null);
     revoke(undefined, {
+      onSuccess: () => {
+        router.refresh();
+      },
       onError: (err: any) => {
         const msg = err?.response?.data?.message;
         setErrorMsg(

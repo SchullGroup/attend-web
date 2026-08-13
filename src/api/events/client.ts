@@ -32,13 +32,6 @@ export const eventsClient = {
     return response.data;
   },
 
-  checkIn: async (id: string) => {
-    const response = await apiClient.post<ApiResponse>(
-      `/api/v1/participant/events/${id}/check-in`,
-    );
-    return response.data;
-  },
-
   getEvent: async (id: string) => {
     const response = await apiClient.get<EventDetailResponse>(
       `/api/v1/participant/events/${id}`,

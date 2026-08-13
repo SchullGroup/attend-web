@@ -69,6 +69,10 @@ export const useGetMyTicket = (id: string) => {
     queryKey: eventKeys.ticket(id),
     queryFn: () => eventsClient.getMyTicket(id),
     enabled: !!id,
+    // Check-in is done by event staff scanning this ticket, so it changes server-side with
+    // nothing for the participant's browser to react to. Poll while they wait at the gate,
+    // and stop the moment it lands — the flag never goes back to false.
+    refetchInterval: (query) => (query.state.data?.data?.checkedIn ? false : 10_000),
   });
 };
 
@@ -76,16 +80,6 @@ export const useGetMyEvents = () => {
   return useQuery({
     queryKey: [...eventKeys.all, "mine"] as const,
     queryFn: () => eventsClient.getMyEvents(),
-  });
-};
-
-export const useCheckIn = (id: string) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => eventsClient.checkIn(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: eventKeys.detail(id) });
-    },
   });
 };
 
