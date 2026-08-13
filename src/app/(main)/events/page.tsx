@@ -12,6 +12,7 @@ const FORMATS = ["All", "Virtual", "Hybrid", "In-Person"] as const;
 type Format = (typeof FORMATS)[number];
 
 const EVENT_COLOR: Record<string, string> = {
+  AGM_EGM: "#1a6b3c",
   AGM: "#1a6b3c",
   PRODUCT_LAUNCH: "#f97316",
   LAUNCH: "#f97316",
@@ -49,7 +50,7 @@ export default function EventsPage() {
   const [query, setQuery] = useState("");
   const [fmt, setFmt] = useState<Format>("All");
 
-  const { data, isLoading } = useGetEvents({ search: query || undefined });
+  const { data, isLoading } = useGetEvents({ size: 100, search: query || undefined });
   const apiEvents = data?.data?.events ?? [];
 
   const visible = useMemo((): EventCardData[] => {

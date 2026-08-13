@@ -3,11 +3,12 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Search, KeyRound, Calendar, Clock, AlertCircle, Radio, Tag } from "lucide-react";
+import { ArrowLeft, Search, KeyRound, Calendar, Clock, AlertCircle, Tag } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { useGuestBrowseEvents, useGuestJoin } from "@/api/events/hooks";
 import { storeGuestSession, resolveGuestLiveHref, readJoinResult } from "@/lib/guest-session";
+import { eventTypeLabel, guessEventTypeFromTitle } from "@/lib/event-type";
 import type { GuestEventListItem } from "@/types";
 
 type EventCategoryTab = "AGM" | "GENERAL" | "LAUNCH" | "ALL";
@@ -223,15 +224,18 @@ function EventCard({
   const brand = event.branding?.brandColor || "#0B5CFF";
   const logoUrl = event.branding?.logoUrl;
 
-  // Determine status (LIVE by default or heuristic)
-  const isLive = event.status === "LIVE" || event.status === "ACTIVE" || !event.status; // Default to LIVE badge for guest browse if active
-  const isEnded = event.status === "ENDED" || event.status === "COMPLETED";
+  // Determine status. `GET /guest/events` does not return `status` (verified against the live
+  // response, which carries only id, title, date, startTime and branding), so an absent status
+  // means unknown — not live. Treating it as live put a red LIVE badge on every card, including
+  // events dated weeks out.
+  const status = (event.status || "").toUpperCase();
+  const isLive = status === "LIVE" || status === "ACTIVE";
+  const isEnded = status === "ENDED" || status === "COMPLETED";
 
-  // Category label
-  const categoryLabel = (event.eventType || (
-    event.title.toUpperCase().includes("AGM") ? "AGM" :
-    event.title.toUpperCase().includes("LAUNCH") ? "LAUNCH" : "GENERAL"
-  )).toUpperCase();
+  // Category label. The same endpoint omits `eventType`, so fall back to a keyword read of the
+  // title and render no chip when neither yields anything — an AGM badged "GENERAL" is worse
+  // than an AGM with no badge.
+  const categoryLabel = eventTypeLabel(event.eventType) ?? guessEventTypeFromTitle(event.title);
 
   function join() {
     setError(null);
@@ -301,11 +305,13 @@ function EventCard({
 
         {/* Title & Category */}
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-muted/80 text-muted-foreground">
-              {categoryLabel}
-            </span>
-          </div>
+          {categoryLabel && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-muted/80 text-muted-foreground">
+                {categoryLabel}
+              </span>
+            </div>
+          )}
           <h3 className="text-base font-bold text-foreground line-clamp-2 leading-snug">
             {event.title.trim()}
           </h3>

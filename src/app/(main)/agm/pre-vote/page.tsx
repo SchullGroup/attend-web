@@ -42,6 +42,7 @@ function PreVotePageInner() {
     revokeProxy(undefined, {
       onSuccess: () => {
         setSuccessMsg("Proxy has been successfully revoked. You can now vote directly.");
+        router.refresh();
       },
       onError: (err: any) => {
         const msg = err?.response?.data?.message;
@@ -201,7 +202,23 @@ function PreVotePageInner() {
                 Already voted
               </h2>
               {voted.map((r) => (
-                <VotedCard key={r.id} resolution={r} />
+                <VotedCard
+                  key={r.id}
+                  resolution={r}
+                  hasProxy={hasProxy}
+                  onUpdateVote={async (resolutionId, choice) => {
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                    try {
+                      await castVote({ resolutionId, data: { choice } });
+                      setSuccessMsg("Your vote choice has been updated.");
+                    } catch (err: any) {
+                      const backendMsg = err?.response?.data?.message;
+                      setErrorMsg(backendMsg || err?.message || "Failed to update vote.");
+                      throw err;
+                    }
+                  }}
+                />
               ))}
             </section>
           )}
@@ -309,32 +326,130 @@ function ResolutionCard({
   );
 }
 
-function VotedCard({ resolution: r }: { resolution: Resolution }) {
+function VotedCard({
+  resolution: r,
+  hasProxy,
+  onUpdateVote,
+}: {
+  resolution: Resolution;
+  hasProxy: boolean;
+  onUpdateVote: (resolutionId: string, choice: VoteChoice) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [selectedChoice, setSelectedChoice] = useState<VoteChoice>(
+    (r.myVote?.toUpperCase() as VoteChoice) || "FOR"
+  );
+
   const totalCount = r.forCount + r.againstCount + r.abstainCount;
   const totalShares = r.forShares + r.againstShares + r.abstainShares;
-  // AGM votes are weighted by shareholding — use shares when available, else heads.
   const byShares = totalShares > 0;
   const denom = byShares ? totalShares : totalCount;
   const pct = (shares: number, count: number) =>
     denom ? Math.round(((byShares ? shares : count) / denom) * 100) : 0;
 
+  async function handleSave() {
+    setUpdating(true);
+    try {
+      await onUpdateVote(r.id, selectedChoice);
+      setEditing(false);
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   return (
-    <article className="rounded-2xl border border-border bg-white p-5">
-      <div className="mb-3 flex items-start justify-between gap-3">
+    <article className="rounded-2xl border border-border bg-white p-5 space-y-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Resolution {r.order + 1}
           </p>
           <h3 className="mt-0.5 text-base font-semibold text-foreground">{r.title}</h3>
         </div>
-        <Badge variant="success">Voted {r.myVote}</Badge>
-      </div>
-      {totalCount > 0 && (
-        <div className="space-y-2">
-          <Bar label="For" value={pct(r.forShares, r.forCount)} color="bg-emerald-500" count={r.forCount} shares={r.forShares} />
-          <Bar label="Against" value={pct(r.againstShares, r.againstCount)} color="bg-red-500" count={r.againstCount} shares={r.againstShares} />
-          <Bar label="Abstain" value={pct(r.abstainShares, r.abstainCount)} color="bg-slate-400" count={r.abstainCount} shares={r.abstainShares} />
+        <div className="flex items-center gap-2">
+          <Badge variant="success">Voted {r.myVote}</Badge>
+          {!hasProxy && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditing(!editing)}
+              className="text-xs border-border bg-white text-muted-foreground hover:bg-slate-50 hover:text-foreground"
+            >
+              {editing ? "Cancel" : "Change vote"}
+            </Button>
+          )}
         </div>
+      </div>
+
+      {editing ? (
+        <div className="pt-2 border-t border-border space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Select your updated vote for this resolution:
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {(["FOR", "AGAINST", "ABSTAIN"] as VoteChoice[]).map((opt) => {
+              const isSelected = selectedChoice === opt;
+              const Icon = opt === "FOR" ? Check : opt === "AGAINST" ? X : Minus;
+              const tone =
+                opt === "FOR"
+                  ? "border-emerald-200 hover:bg-emerald-50 text-emerald-700"
+                  : opt === "AGAINST"
+                  ? "border-red-200 hover:bg-red-50 text-red-700"
+                  : "border-border hover:bg-muted text-muted-foreground";
+              const selectedTone =
+                opt === "FOR"
+                  ? "border-emerald-600 bg-emerald-600 text-white"
+                  : opt === "AGAINST"
+                  ? "border-red-600 bg-red-600 text-white"
+                  : "border-slate-700 bg-slate-700 text-white";
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setSelectedChoice(opt)}
+                  disabled={updating}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize transition-colors disabled:opacity-50",
+                    isSelected ? selectedTone : tone,
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditing(false)}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              loading={updating}
+              onClick={handleSave}
+              disabled={selectedChoice === r.myVote}
+            >
+              Update vote
+            </Button>
+          </div>
+        </div>
+      ) : (
+        totalCount > 0 && (
+          <div className="space-y-2">
+            <Bar label="For" value={pct(r.forShares, r.forCount)} color="bg-emerald-500" count={r.forCount} shares={r.forShares} />
+            <Bar label="Against" value={pct(r.againstShares, r.againstCount)} color="bg-red-500" count={r.againstCount} shares={r.againstShares} />
+            <Bar label="Abstain" value={pct(r.abstainShares, r.abstainCount)} color="bg-slate-400" count={r.abstainCount} shares={r.abstainShares} />
+          </div>
+        )
       )}
     </article>
   );

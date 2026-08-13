@@ -15,6 +15,7 @@ import { useGetMe } from "@/api/auth/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { useUserStore } from "@/lib/user-store";
+import { accountRoleLabel } from "@/lib/account-role";
 import { cn, formatDate, greetingByHour, initialsFor, formatEventFormat } from "@/lib/utils";
 
 const TILES = [
@@ -117,7 +118,7 @@ export default function HomePage() {
   const { kycStatus } = useUserStore();
   const verified = kycStatus === "full";
 
-  const { data: evResp } = useGetEvents();
+  const { data: evResp } = useGetEvents({ size: 100 });
   const apiEvents = evResp?.data?.events ?? [];
 
   const liveEvent: HomeEvent | undefined = (() => {
@@ -167,7 +168,7 @@ export default function HomePage() {
                 {firstName}
               </h1>
               <p className="mt-0.5 text-xs text-white/70">
-                {me?.role || "Member"}
+                {accountRoleLabel(me?.role, kycStatus)}
               </p>
             </div>
           </div>

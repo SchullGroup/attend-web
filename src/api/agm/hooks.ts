@@ -148,14 +148,20 @@ export const useAssignProxyDirections = (eventId: string) => {
   });
 };
 
-export const useRevokeProxy = (eventId: string) => {
+export const useRevokeProxy = (eventId?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => agmClient.revokeProxy(eventId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: agmKeys.resolutions(eventId) });
-      queryClient.invalidateQueries({ queryKey: agmKeys.proxy(eventId) });
-      queryClient.invalidateQueries({ queryKey: ["agm", "proxy-history"] });
+    mutationFn: (overrideEventId?: string) => agmClient.revokeProxy(overrideEventId || eventId || ""),
+    onSuccess: (_, variables) => {
+      const targetId = variables || eventId;
+      if (targetId) {
+        queryClient.removeQueries({ queryKey: agmKeys.proxy(targetId) });
+        queryClient.invalidateQueries({ queryKey: agmKeys.proxy(targetId) });
+        queryClient.invalidateQueries({ queryKey: agmKeys.resolutions(targetId) });
+        queryClient.invalidateQueries({ queryKey: agmKeys.voteReceipt(targetId) });
+      }
+      queryClient.invalidateQueries({ queryKey: ["agm"] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
     },
   });
 };

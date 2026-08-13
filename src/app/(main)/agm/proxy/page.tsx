@@ -2,12 +2,18 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserCheck, UserPlus, Copy, Check, KeyRound, Lock } from "lucide-react";
+import { ArrowLeft, UserCheck, UserPlus, Copy, Check, KeyRound, Lock, Mail, Phone } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { cn } from "@/lib/utils";
-import { useAssignProxy, useGetProxy, useAssignProxyDirections, useGetResolutions } from "@/api/agm/hooks";
+import { cn, formatDate } from "@/lib/utils";
+import {
+  useAssignProxy,
+  useGetProxy,
+  useAssignProxyDirections,
+  useGetResolutions,
+  useRevokeProxy,
+} from "@/api/agm/hooks";
 import { useGetEvent } from "@/api/events/hooks";
 
 type ProxyType = "chairman" | "named";
@@ -34,15 +40,35 @@ function ProxyPageInner() {
   const [assignedCode, setAssignedCode] = useState<string | null>(null);
   const [assignedQr, setAssignedQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [justRevoked, setJustRevoked] = useState(false);
 
   const { data: existingProxy } = useGetProxy(eventId);
   const { mutate: assignProxy, isPending } = useAssignProxy(eventId);
+  const { mutate: revokeProxy, isPending: revoking } = useRevokeProxy(eventId);
   const { mutate: assignProxyDirections, isPending: savingDirections } = useAssignProxyDirections(eventId);
   const { data: resolutionsData } = useGetResolutions(eventId);
   const { data: eventData } = useGetEvent(eventId);
 
   const resolutions = resolutionsData?.data?.resolutions ?? [];
   const [directions, setDirections] = useState<Record<string, "FOR" | "AGAINST" | "ABSTAIN" | "LET_PROXY_DECIDE">>({});
+
+  /**
+   * One shareholder, one proxy — appointing a second one is a duplicate, not a replacement.
+   *
+   * Read from two independent signals because either can be missing: `proxyName` off
+   * GET /proxy (absent if that call 404s when nothing is appointed) and the `hasProxy`
+   * boolean the resolutions payload already carries. Whichever answers, answers.
+   *
+   * The backend accepts a second POST and mints a second code, so this is the only thing
+   * standing between a shareholder and two live proxy codes for the same meeting.
+   */
+  const existing = existingProxy?.data;
+  const isRevokedStatus = (existing as any)?.status?.toUpperCase() === "REVOKED";
+  const hasExistingProxy =
+    !justRevoked &&
+    !isRevokedStatus &&
+    (!!existing?.proxyName || resolutionsData?.data?.hasProxy === true);
 
   // A proxy stands in for a shareholder who won't attend — once the meeting is LIVE that's
   // moot (the shareholder is here, in the room, and can vote themselves), and appointing
@@ -70,8 +96,37 @@ function ProxyPageInner() {
   const valid =
     type === "chairman" || (name.trim().length > 0 && /.+@.+\..+/.test(email));
 
+  function copyCode(value: string) {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleRevoke() {
+    setErrorMsg(null);
+    revokeProxy(undefined, {
+      onSuccess: () => {
+        setConfirmRevoke(false);
+        setJustRevoked(true);
+        router.refresh();
+      },
+      onError: (err: any) => {
+        setConfirmRevoke(false);
+        const msg = err?.response?.data?.message;
+        setErrorMsg(
+          msg && !msg.includes("Something went wrong")
+            ? msg
+            : "Couldn't revoke the proxy right now. Please try again, or revoke it from Proxy history.",
+        );
+      },
+    });
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    // The form isn't rendered when a proxy already exists, but a submit could still land
+    // from a stale render or a double-click — a second POST mints a second code.
+    if (hasExistingProxy || isPending) return;
     setErrorMsg(null);
     const payload =
       type === "chairman"
@@ -126,20 +181,14 @@ function ProxyPageInner() {
       </button>
 
       <header>
-        <h1 className="mt-1 text-2xl font-bold text-foreground">Appoint a proxy</h1>
+        <h1 className="mt-1 text-2xl font-bold text-foreground">
+          {hasExistingProxy && !assignedCode ? "Your proxy" : "Appoint a proxy"}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          If you can&apos;t attend the meeting, appoint someone to vote on your behalf.
+          {hasExistingProxy && !assignedCode
+            ? "You've already appointed someone to vote on your behalf at this meeting."
+            : "If you can't attend the meeting, appoint someone to vote on your behalf."}
         </p>
-        {existingProxy?.data && (
-          <div className="mt-2 flex items-center gap-3 text-xs font-medium text-primary">
-            <span>Current proxy: {existingProxy.data.proxyName}</span>
-            {existingProxy.data.proxyCode && (
-              <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono">
-                Code: {existingProxy.data.proxyCode}
-              </span>
-            )}
-          </div>
-        )}
       </header>
 
       {assignmentClosed && !assignedCode ? (
@@ -155,7 +204,7 @@ function ProxyPageInner() {
               {eventStatus === "LIVE"
                 ? "This meeting is already live, so a new proxy can no longer be appointed — you can vote directly instead."
                 : "This meeting has ended, so a proxy can no longer be appointed for it."}
-              {existingProxy?.data && " Your existing proxy appointment still stands."}
+              {existing && " Your existing proxy appointment still stands."}
             </p>
           </div>
         </div>
@@ -179,11 +228,7 @@ function ProxyPageInner() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(assignedCode);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
+              onClick={() => copyCode(assignedCode)}
             >
               {copied ? (
                 <>
@@ -213,6 +258,123 @@ function ProxyPageInner() {
               View Vote Receipt
             </Button>
           </div>
+        </div>
+      ) : hasExistingProxy ? (
+        /* One proxy per shareholder per meeting. The form is deliberately not rendered here —
+           re-submitting it minted a second code and left two people able to vote. Revoking is
+           the way to change your mind, and it frees the slot for a new appointment. */
+        <div className="space-y-4 rounded-2xl border border-border bg-white p-6 shadow-sm">
+          {errorMsg && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UserCheck className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-foreground">
+                {existing?.proxyName || "Proxy appointed"}
+              </h2>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                {existing?.proxyEmail && (
+                  <span className="inline-flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> {existing.proxyEmail}
+                  </span>
+                )}
+                {existing?.proxyPhone && (
+                  <span className="inline-flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> {existing.proxyPhone}
+                  </span>
+                )}
+                {existing?.assignedAt && <span>Appointed {formatDate(existing.assignedAt)}</span>}
+              </div>
+            </div>
+          </div>
+
+          {existing?.proxyCode && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Proxy code
+                </p>
+                <p className="font-mono text-xl font-bold tracking-widest text-foreground">
+                  {existing.proxyCode}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => copyCode(existing.proxyCode!)}>
+                {copied ? (
+                  <>
+                    <Check className="mr-1.5 h-4 w-4 text-emerald-600" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1.5 h-4 w-4" /> Copy code
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {existing?.proxyQrCode && (
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-white p-4">
+              <div className="rounded-lg bg-white p-2 ring-1 ring-border">
+                <QRCodeSVG value={existing.proxyQrCode} size={148} level="M" />
+              </div>
+              <p className="max-w-xs text-center text-[11px] text-muted-foreground">
+                Or let your proxy scan this at sign-in — no code to type.
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            You can only have one proxy for this meeting. To appoint someone else, revoke this
+            appointment first — the code above stops working the moment you do.
+          </div>
+
+          {confirmRevoke ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3">
+              <p className="text-xs font-medium text-red-800">
+                Revoke {existing?.proxyName || "this proxy"}? Their code stops working immediately.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmRevoke(false)}
+                  className="bg-white"
+                >
+                  Keep proxy
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  loading={revoking}
+                  onClick={handleRevoke}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Yes, revoke
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => router.push("/agm/proxy-history")}>
+                Proxy history
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmRevoke(true)}
+                className="border-red-200 bg-white text-red-700 hover:bg-red-800/5 hover:text-red-800"
+              >
+                Revoke proxy
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
 
@@ -326,7 +488,11 @@ function ProxyPageInner() {
           <Button type="button" variant="outline" onClick={() => router.push("/agm")}>
             Cancel
           </Button>
-          <Button type="submit" loading={isPending || savingDirections} disabled={!valid || !eventId}>
+          <Button
+            type="submit"
+            loading={isPending || savingDirections}
+            disabled={!valid || !eventId || isPending || hasExistingProxy}
+          >
             Submit proxy
           </Button>
         </div>
