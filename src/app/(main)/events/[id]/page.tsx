@@ -321,7 +321,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       </section>
 
       {/* AGM module section */}
-      {mod === "AGM" && (
+      {mod === "AGM" && !isLive && !isEnded && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-foreground">AGM Actions</h2>
           {kycStatus !== "full" ? (
@@ -334,16 +334,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           ) : (
             <div className="space-y-2">
-              {event.agmProxyEnabled && !isLive && !isEnded && (
+              {event.agmProxyEnabled && (
                 <Link href={`/agm/proxy?eventId=${id}`}>
                   <ActionRow icon={<FileText className="h-5 w-5" style={{ color }} />} label="Appoint a Proxy" />
                 </Link>
               )}
-              {!isLive && !isEnded && (
-                <Link href={`/agm/pre-vote?eventId=${id}`}>
-                  <ActionRow icon={<Vote className="h-5 w-5" style={{ color }} />} label="Pre-AGM Voting" />
-                </Link>
-              )}
+              <Link href={`/agm/pre-vote?eventId=${id}`}>
+                <ActionRow icon={<Vote className="h-5 w-5" style={{ color }} />} label="Pre-AGM Voting" />
+              </Link>
             </div>
           )}
         </section>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft, Check, X, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useGetResolutions, useCastVote, useRevokeProxy } from "@/api/agm/hooks";
+import { useGetResolutions, useCastVote, useRevokeProxy, useGetProxy } from "@/api/agm/hooks";
 import { Resolution } from "@/types";
 import { NomineeBallot } from "@/components/attend/NomineeBallot";
 
@@ -24,11 +24,13 @@ function PreVotePageInner() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const { data, isLoading } = useGetResolutions(eventId);
+  const { data: proxyResp } = useGetProxy(eventId);
   const { mutateAsync: castVote } = useCastVote(eventId);
   const { mutate: revokeProxy, isPending: revoking } = useRevokeProxy(eventId);
 
   const resolutions = data?.data?.resolutions ?? [];
-  const hasProxy = !!data?.data?.hasProxy;
+  const activeProxy = !!proxyResp?.data?.proxyName && (proxyResp.data as any)?.status?.toUpperCase() !== "REVOKED";
+  const hasProxy = !!data?.data?.hasProxy || activeProxy;
   const open = resolutions.filter((r) => !r.myVote);
   const voted = resolutions.filter((r) => r.myVote);
 
