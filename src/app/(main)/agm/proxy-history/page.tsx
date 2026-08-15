@@ -77,6 +77,7 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
   const [expanded, setExpanded] = useState(false);
   const { mutate: revoke, isPending: revoking } = useRevokeProxy(p.eventId);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   // The proxy-history payload carries no vote outcomes — the only source of what a proxy
   // actually cast is the shareholder's vote receipt. Fetch it lazily, only once this row
@@ -98,28 +99,33 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
   const receipt = receiptResp?.data;
   const canDownload = !!receipt;
 
-  function downloadReceipt() {
+  async function downloadReceipt() {
     if (!receipt) return;
     const votes = receipt.votes ?? [];
-    downloadVoteReceiptPdf({
-      meeting: receipt.eventTitle || p.eventTitle,
-      date: votes[0]?.votedAt ? formatDate(votes[0].votedAt) : formatDate(p.eventDate),
-      reference: receiptResp?.referenceId ?? "—",
-      resolutions: votes.map((v, i) => ({
-        num: i + 1,
-        title: v.resolutionTitle,
-        vote: voteLabel(v.choice),
-        castByProxy: !!v.castByProxy,
-        proxyName: v.proxyName,
-      })),
-      proxy: {
-        proxyName: p.proxyName,
-        proxyEmail: p.proxyEmail,
-        proxyPhone: p.proxyPhone,
-        proxyCode: p.proxyCode,
-        assignedAt: p.assignedAt,
-      },
-    });
+    setDownloading(true);
+    try {
+      await downloadVoteReceiptPdf({
+        meeting: receipt.eventTitle || p.eventTitle,
+        date: votes[0]?.votedAt ? formatDate(votes[0].votedAt) : formatDate(p.eventDate),
+        reference: receiptResp?.referenceId ?? "—",
+        resolutions: votes.map((v, i) => ({
+          num: i + 1,
+          title: v.resolutionTitle,
+          vote: voteLabel(v.choice),
+          castByProxy: !!v.castByProxy,
+          proxyName: v.proxyName,
+        })),
+        proxy: {
+          proxyName: p.proxyName,
+          proxyEmail: p.proxyEmail,
+          proxyPhone: p.proxyPhone,
+          proxyCode: p.proxyCode,
+          assignedAt: p.assignedAt,
+        },
+      });
+    } finally {
+      setDownloading(false);
+    }
   }
 
   function handleRevoke() {
@@ -255,6 +261,8 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
                 variant="outline"
                 size="sm"
                 onClick={downloadReceipt}
+                loading={downloading}
+                disabled={downloading}
                 className="bg-white"
               >
                 <Download className="mr-1.5 h-4 w-4" /> Download vote receipt

@@ -1,7 +1,9 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, FileText, FileBarChart2, FileCheck2, FileSignature } from "lucide-react";
+import { ArrowLeft, Download, FileText, FileBarChart2, FileCheck2, FileSignature, Loader2 } from "lucide-react";
 import { useGetDocuments } from "@/api/documents/hooks";
+import { documentsClient } from "@/api/documents/client";
 import type { ParticipantDocument } from "@/types";
 
 const TYPE_META: Record<string, { Icon: typeof FileText; bg: string; color: string; label: string }> = {
@@ -40,12 +42,14 @@ interface DocRow {
   title: string;
   meta: string;
   eventTitle: string;
-  downloadUrl: string;
+  /** Whether the backend has a file stored for this row at all — not a link to it. */
+  hasFile: boolean;
 }
 
 export default function DocumentsPage() {
   const { data, isLoading } = useGetDocuments();
   const apiDocs = data?.data?.documents ?? [];
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const docs: DocRow[] = apiDocs.map((d) => {
     const size = sizeLabel(d);
@@ -56,9 +60,26 @@ export default function DocumentsPage() {
       meta: d.downloadCount ? `${size} · ${d.downloadCount} downloads` : size,
       // Field names differ between the spec and the deployed response; take whichever arrives.
       eventTitle: d.eventTitle || d.eventName || "",
-      downloadUrl: d.downloadUrl || d.fileUrl || "",
+      hasFile: !!(d.downloadUrl || d.fileUrl),
     };
   });
+
+  // Goes through /documents/{id}/download so the backend's counter actually increments —
+  // the row's own downloadUrl/fileUrl is a bare Cloudinary link the backend never sees hit.
+  async function handleDownload(id: string, title: string) {
+    if (downloadingId) return;
+    setDownloadingId(id);
+    try {
+      const blob = await documentsClient.downloadDocument(id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      window.alert(`Couldn't download "${title}". Please try again.`);
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -104,16 +125,20 @@ export default function DocumentsPage() {
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">{d.eventTitle}</p>
                   )}
                 </div>
-                {d.downloadUrl ? (
-                  <a
-                    href={d.downloadUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                {d.hasFile ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(d.id, d.title)}
+                    disabled={downloadingId === d.id}
                     aria-label={`Download ${d.title}`}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
                   >
-                    <Download className="h-4 w-4" />
-                  </a>
+                    {downloadingId === d.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                  </button>
                 ) : (
                   <button
                     disabled

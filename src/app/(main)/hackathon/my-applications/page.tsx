@@ -1,6 +1,7 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { useGetMyApplications } from "@/api/innovation/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
@@ -31,6 +32,15 @@ const toneFor = (k: string): Tone => STATUS_TONE[k] ?? "muted";
 
 export default function MyApplicationsPage() {
   const { data, isLoading } = useGetMyApplications();
+  const [justSubmitted, setJustSubmitted] = useState<string | null>(null);
+
+  // Set on the apply page right before it navigates here. Read once on mount and cleared
+  // immediately so the banner doesn't reappear on a later visit or refresh.
+  useEffect(() => {
+    const team = sessionStorage.getItem("justSubmittedApplication");
+    if (team) setJustSubmitted(team);
+    sessionStorage.removeItem("justSubmittedApplication");
+  }, []);
   const apps = (data?.data ?? []).map((a) => ({
     id: a.id,
     challengeId: a.challengeId,
@@ -56,6 +66,15 @@ export default function MyApplicationsPage() {
           Track the status of every challenge you&apos;ve applied to.
         </p>
       </header>
+
+      {justSubmitted && (
+        <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+          <span>
+            Application submitted{justSubmitted ? ` for ${justSubmitted}` : ""}. You can track its status here.
+          </span>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="h-40 animate-pulse rounded-2xl border border-border bg-muted" />

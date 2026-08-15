@@ -20,6 +20,7 @@ function ReceiptInner() {
   const [copied, setCopied] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const [revokeSuccess, setRevokeSuccess] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const { data, isLoading } = useGetVoteReceipt(eventId);
   const receipt = data?.data;
@@ -106,13 +107,18 @@ function ReceiptInner() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  function downloadPdf() {
-    downloadVoteReceiptPdf({
-      ...view,
-      proxy: proxy
-        ? { ...proxy, proxyCode: proxy.proxyCode || (receipt as any)?.proxyCode }
-        : null,
-    });
+  async function downloadPdf() {
+    setDownloading(true);
+    try {
+      await downloadVoteReceiptPdf({
+        ...view,
+        proxy: proxy
+          ? { ...proxy, proxyCode: proxy.proxyCode || (receipt as any)?.proxyCode }
+          : null,
+      });
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -288,7 +294,7 @@ function ReceiptInner() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button fullWidth onClick={downloadPdf}>
+              <Button fullWidth onClick={downloadPdf} loading={downloading} disabled={downloading}>
                 <Download className="h-4 w-4" /> Download receipt
               </Button>
               <button
