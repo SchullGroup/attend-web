@@ -160,7 +160,12 @@ function ApplyPageInner() {
       if (show.additionalDocs && additionalDocumentsUrl) payload.additionalDocumentsUrl = additionalDocumentsUrl;
 
       submitApplication(payload, {
-        onSuccess: () => router.push("/hackathon/my-applications"),
+        onSuccess: () => {
+          // Read on the next page and cleared immediately there — same one-time-banner
+          // pattern as justVerifiedEmail on /login.
+          sessionStorage.setItem("justSubmittedApplication", teamName.trim());
+          router.push("/hackathon/my-applications");
+        },
         onError: (err: any) => {
           setErrorMsg(
             err?.response?.data?.message || err?.message || "Failed to submit application. Please try again.",

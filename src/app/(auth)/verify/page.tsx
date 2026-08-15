@@ -17,7 +17,8 @@ function maskEmail(email: string): string {
  * How long "Resend code" stays locked, in seconds.
  *
  * Tied to the backend's OTP lifetime, which is 2 minutes (confirmed 2026-08-11): asking for a
- * new code while the old one is still valid is refused with "Please wait N second(s)...". At the
+ * new code while the old one is still valid is refused with "Please wait N minute(s)..." (the
+ * backend switched this message from seconds to minutes on 2026-08-14). At the
  * previous 60s the button went live a full minute before the server would honour it, so the one
  * person who most needs it — someone whose code never arrived — got an error for clicking a
  * button that looked ready.

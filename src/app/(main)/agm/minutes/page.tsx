@@ -1,14 +1,15 @@
 "use client";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, FileText, Download, Building2, ChevronRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { jsPDF } from "jspdf";
 import { useGetMinutes } from "@/api/agm/hooks";
-import { useGetEvents } from "@/api/events/hooks";
+import { useGetEvents, useGetEvent } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { formatDate, parseApiDate } from "@/lib/utils";
+import { registerNotoSans } from "@/lib/pdf-fonts";
 
 function MinutesInner() {
   const router = useRouter();
@@ -17,6 +18,12 @@ function MinutesInner() {
 
   const { data, isLoading, error } = useGetMinutes(eventId);
   const minutes = data?.data ?? null;
+  const [downloading, setDownloading] = useState(false);
+  // The minutes payload itself has no organiser field; the event detail already does
+  // (same registerName-over-organizerName precedence used on /agm and /events/[id]).
+  const { data: eventResp } = useGetEvent(eventId);
+  const event = eventResp?.data;
+  const organiser = event?.registerName || event?.organizerName || "";
 
   // No event selected → let the user pick which AGM's minutes to read.
   if (!eventId) return <MinutesPicker />;
@@ -63,37 +70,51 @@ function MinutesInner() {
     ? formatDate(parseApiDate(minutes.finalisedAt).toISOString())
     : "—";
 
-  function downloadPdf() {
+  async function downloadPdf() {
     if (!minutes) return;
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const margin = 48;
-    let y = 64;
+    setDownloading(true);
+    try {
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      await registerNotoSans(doc);
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 48;
+      let y = 64;
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("AGM Minutes", margin, y);
-    y += 20;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(120);
-    doc.text(`Finalised ${finalised}`, margin, y);
-    doc.setTextColor(20);
-    y += 28;
-
-    doc.setFontSize(11);
-    const lines = doc.splitTextToSize(minutes.content || "", pageW - margin * 2);
-    lines.forEach((line: string) => {
-      if (y > pageH - margin) {
-        doc.addPage();
-        y = margin;
+      doc.setFont("NotoSans", "bold");
+      doc.setFontSize(18);
+      doc.text("AGM Minutes", margin, y);
+      y += 20;
+      if (organiser) {
+        doc.setFont("NotoSans", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(60);
+        doc.text(organiser, margin, y);
+        doc.setTextColor(20);
+        y += 18;
       }
-      doc.text(line, margin, y);
-      y += 16;
-    });
+      doc.setFont("NotoSans", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(120);
+      doc.text(`Finalised ${finalised}`, margin, y);
+      doc.setTextColor(20);
+      y += 28;
 
-    doc.save(`agm-minutes-${minutes.eventId || eventId}.pdf`);
+      doc.setFontSize(11);
+      const lines = doc.splitTextToSize(minutes.content || "", pageW - margin * 2);
+      lines.forEach((line: string) => {
+        if (y > pageH - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += 16;
+      });
+
+      doc.save(`agm-minutes-${minutes.eventId || eventId}.pdf`);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -106,7 +127,8 @@ function MinutesInner() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-white/80">AGM minutes</p>
-              <h1 className="text-lg font-bold">Finalised {finalised}</h1>
+              <h1 className="text-lg font-bold">{organiser || "Finalised " + finalised}</h1>
+              {organiser && <p className="text-xs text-white/80">Finalised {finalised}</p>}
             </div>
           </div>
         </div>
@@ -117,7 +139,7 @@ function MinutesInner() {
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button fullWidth onClick={downloadPdf}>
+            <Button fullWidth onClick={downloadPdf} loading={downloading} disabled={downloading}>
               <Download className="h-4 w-4" /> Download minutes
             </Button>
             <Link href="/agm/minutes" className="sm:flex-1">
