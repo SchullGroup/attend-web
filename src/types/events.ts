@@ -22,7 +22,15 @@ export interface EventListItem {
   maximumCapacity: number;
   rsvpEnabled?: boolean;
   featured?: boolean;
+  /**
+   * Eligible via the shareholder register (AGMs) or invited — not necessarily an actual
+   * RSVP. Use `hasRsvped` to gate RSVP/Cancel-RSVP-style actions; this alone isn't enough
+   * for that (confirmed 2026-08-17, after it drove a "confirmed" badge + a Cancel RSVP
+   * button that failed with "not registered" for someone who was only on the register).
+   */
   registered: boolean;
+  /** True only once a real RSVP (`EventRegistration` row) exists. */
+  hasRsvped?: boolean;
   branding?: EventBranding;
   bannerUrl?: string | null;
   brandPrimary?: string | null;
@@ -65,7 +73,10 @@ export interface EventDetail {
   registeredCount: number;
   rsvpEnabled?: boolean;
   featured?: boolean;
+  /** See the note on `EventListItem.registered` — eligibility, not necessarily an RSVP. */
   registered: boolean;
+  /** True only once a real RSVP (`EventRegistration` row) exists. */
+  hasRsvped?: boolean;
   agmProxyEnabled: boolean;
   speakers?: SpeakerItem[];
   agenda?: AgendaItemDetail[];

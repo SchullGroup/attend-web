@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api-client";
+import { normalizeResolutions } from "@/lib/resolution-normalize";
 import {
   ResolutionsResponse,
   ProxyResponse,
@@ -57,7 +58,11 @@ export const agmClient = {
     const response = await apiClient.get<ResolutionsResponse>(
       `/api/v1/participant/events/${eventId}/resolutions`,
     );
-    return response.data;
+    const data = response.data;
+    if (data?.data) {
+      data.data = { ...data.data, resolutions: normalizeResolutions(data.data.resolutions) };
+    }
+    return data;
   },
 
   castVote: async (eventId: string, resolutionId: string, data: CastVoteRequest) => {

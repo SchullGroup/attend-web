@@ -212,12 +212,14 @@ export function LiveRoom({
     showBallot && !isGuest ? 5000 : undefined,
     showBallot && !isGuest,
   );
-  // Guests read the same resolutions from their own view-only endpoint, so the ballot
-  // panel shows the live tallies instead of claiming there are none.
+  // Proxy guests read the same resolutions from their own view-only endpoint, so the
+  // ballot panel shows live tallies. Gated on guestCanVote, not just isGuest — backend
+  // hard-blocks this endpoint (403) for a plain guest as of 2026-08-17, so firing it for
+  // one would just be a doomed request every 5s.
   const { data: guestResData } = useGuestResolutions(
     eventId,
     guestToken,
-    showBallot && isGuest,
+    showBallot && guestCanVote,
     5000,
   );
   const { mutate: castVote, isPending: voting } = useCastVote(eventId);
@@ -359,6 +361,22 @@ export function LiveRoom({
   const [vote, setVote] = useState<VoteChoice | null>(null);
   const [voteMsg, setVoteMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [isEditingVote, setIsEditingVote] = useState(false);
+  // A success message next to the permanent "Vote Recorded" card is redundant clutter —
+  // fade it on its own rather than needing the user to dismiss it or vote again to clear
+  // it. Errors stay put; those need to actually be read and acted on.
+  useEffect(() => {
+    if (voteMsg?.kind !== "ok") return;
+    const t = setTimeout(() => setVoteMsg(null), 4000);
+    return () => clearTimeout(t);
+  }, [voteMsg]);
+  // The "Voting as proxy" banner is one-time orientation, not a persistent status — once
+  // shown, it fades so it doesn't keep competing with the actual vote state below it.
+  const [showProxyIntro, setShowProxyIntro] = useState(true);
+  useEffect(() => {
+    if (!guestCanVote) return;
+    const t = setTimeout(() => setShowProxyIntro(false), 5000);
+    return () => clearTimeout(t);
+  }, [guestCanVote]);
 
   const [q, setQ] = useState("");
   const [qSent, setQSent] = useState(false);
@@ -864,62 +882,73 @@ export function LiveRoom({
               {showBallot &&
                 tab === "ballot" &&
                 (ballotReadOnly ? (
-                  /* Read-only guest ballot: the full resolution list with live tallies, plus the
-                     Waiting/Open/Closed badge so a guest can tell which resolutions are still
-                     being voted on. Nothing actionable — no countdown, no vote buttons, and the
-                     proxy-code path is folded away below. */
-                  sortedRes.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Resolutions
-                      </p>
-                      {sortedRes.map((r, idx) => {
-                        const showResult = r.forCount + r.againstCount + r.abstainCount > 0;
-                        const { label, tone } = statusBadge(r);
-                        return (
-                          <div key={r.id} className="rounded-xl border border-border p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-[11px] text-muted-foreground">Resolution {idx + 1}</p>
-                              <span
-                                className={cn(
-                                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                                  tone,
-                                )}
-                              >
-                                {label}
-                              </span>
+                  /* Read-only guest ballot. As of 2026-08-17 backend hard-blocks resolution
+                     data for non-proxy guests (403), so sortedRes is always empty for a plain
+                     guest now — this used to show live tallies too, but the proxy-code entry
+                     point below must stay reachable regardless, since it's the only route from
+                     guest to voter and used to live nested inside the now-unreachable
+                     sortedRes.length > 0 branch. */
+                  <div className="space-y-2">
+                    {sortedRes.length > 0 ? (
+                      <>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Resolutions
+                        </p>
+                        {sortedRes.map((r, idx) => {
+                          const showResult = r.forCount + r.againstCount + r.abstainCount > 0;
+                          const { label, tone } = statusBadge(r);
+                          return (
+                            <div key={r.id} className="rounded-xl border border-border p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-[11px] text-muted-foreground">Resolution {idx + 1}</p>
+                                <span
+                                  className={cn(
+                                    "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                    tone,
+                                  )}
+                                >
+                                  {label}
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium text-foreground">{r.title}</p>
+                              {r.description && (
+                                <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>
+                              )}
+                              {r.candidates && r.candidates.length > 0 ? (
+                                <div className="mt-3 space-y-2 border-t border-border pt-2">
+                                  {r.candidates.map((c) => (
+                                    <div key={c.id}>
+                                      <p className="text-xs font-medium text-foreground">{c.name}</p>
+                                      <CandidateTally candidate={c} />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : showResult ? (
+                                <div className="mt-3 space-y-3 border-t border-border pt-2">
+                                  <ResolutionBars r={r} />
+                                  {r.bySource && <SourceBreakdown bySource={r.bySource} />}
+                                </div>
+                              ) : null}
                             </div>
-                            <p className="text-sm font-medium text-foreground">{r.title}</p>
-                            {r.description && (
-                              <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>
-                            )}
-                            {r.candidates && r.candidates.length > 0 ? (
-                              <div className="mt-3 space-y-2 border-t border-border pt-2">
-                                {r.candidates.map((c) => (
-                                  <div key={c.id}>
-                                    <p className="text-xs font-medium text-foreground">{c.name}</p>
-                                    <CandidateTally candidate={c} />
-                                  </div>
-                                ))}
-                              </div>
-                            ) : showResult ? (
-                              <div className="mt-3 space-y-3 border-t border-border pt-2">
-                                <ResolutionBars r={r} />
-                                {r.bySource && <SourceBreakdown bySource={r.bySource} />}
-                              </div>
-                            ) : null}
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </>
+                    ) : (
+                      <div className="py-8 text-center text-sm text-muted-foreground">
+                        Resolution details are only visible to shareholders and their appointed
+                        proxies.
+                      </div>
+                    )}
 
-                      <p className="pt-1 text-[11px] text-muted-foreground">
-                        You&apos;re viewing this meeting as a guest. Results update live; voting is
-                        open to shareholders and their appointed proxies.
-                      </p>
+                    <p className="pt-1 text-[11px] text-muted-foreground">
+                      You&apos;re viewing this meeting as a guest.
+                      {sortedRes.length > 0 &&
+                        " Results update live; voting is open to shareholders and their appointed proxies."}
+                    </p>
 
-                      {/* The only route from guest to voter. Collapsed by default so it isn't
-                          an invitation, but reachable for someone actually holding a code. */}
-                      {!showProxyEntry ? (
+                    {/* The only route from guest to voter. Collapsed by default so it isn't
+                        an invitation, but reachable for someone actually holding a code. */}
+                    {!showProxyEntry ? (
                         <button
                           type="button"
                           onClick={() => setShowProxyEntry(true)}
@@ -1004,12 +1033,8 @@ export function LiveRoom({
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="py-8 text-center text-sm text-muted-foreground">
-                      No resolutions for this meeting yet.
-                    </div>
                   )
-                ) : openRes ? (
+                : openRes ? (
                   <div className="space-y-4">
                     {advanceNote && (
                       <div className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
@@ -1057,7 +1082,7 @@ export function LiveRoom({
                       </p>
                     </div>
 
-                    {guestCanVote ? (
+                    {guestCanVote && showProxyIntro ? (
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                         <p className="font-semibold">Voting as proxy</p>
                         <p className="mt-0.5 text-[11px] text-emerald-700/80">
@@ -1094,7 +1119,14 @@ export function LiveRoom({
                     )}
 
                     {(() => {
-                      const hasRecorded = !!openRes.myVote || (voteMsg?.kind === "ok");
+                      // myVote isn't reliably present on the guest resolutions response
+                      // (confirmed 2026-08-17), and voteMsg now clears itself after a few
+                      // seconds — locallyVoted is the one signal that's actually set on
+                      // every successful cast and never auto-clears, so it's what keeps
+                      // this card up rather than reverting to the vote UI once the other
+                      // two go away.
+                      const hasRecorded =
+                        !!openRes.myVote || locallyVoted.has(openRes.id) || voteMsg?.kind === "ok";
                       const recordedChoice = (openRes.myVote || "").toUpperCase();
                       const resolutionIsOpen = openRes.secondsRemaining > 0 || (openRes.status || "").toUpperCase() === "OPEN";
 
