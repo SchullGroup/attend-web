@@ -44,6 +44,15 @@ interface DocRow {
   eventTitle: string;
   /** Whether the backend has a file stored for this row at all — not a link to it. */
   hasFile: boolean;
+  /**
+   * The row's own (uncounted) file link — only used as a fallback if the counted download
+   * fails. The storage bucket the counted endpoint redirects to (Cloudinary/Huawei OBS)
+   * doesn't send CORS headers, so a `fetch()` reading that response gets blocked by the
+   * browser even though the request — and the backend's counter increment, which happens
+   * before the redirect — already went through. Falling back here means the user still
+   * gets their file either way; only the count is at risk of under-reporting on that path.
+   */
+  fallbackUrl: string;
 }
 
 export default function DocumentsPage() {
@@ -61,12 +70,15 @@ export default function DocumentsPage() {
       // Field names differ between the spec and the deployed response; take whichever arrives.
       eventTitle: d.eventTitle || d.eventName || "",
       hasFile: !!(d.downloadUrl || d.fileUrl),
+      fallbackUrl: d.downloadUrl || d.fileUrl || "",
     };
   });
 
   // Goes through /documents/{id}/download so the backend's counter actually increments —
-  // the row's own downloadUrl/fileUrl is a bare Cloudinary link the backend never sees hit.
-  async function handleDownload(id: string, title: string) {
+  // the row's own downloadUrl/fileUrl is a bare Cloudinary/OBS link the backend never sees
+  // hit. Falls back to that same link if the counted path fails (e.g. no CORS on the
+  // storage bucket) so a delivery problem never costs the user the file itself.
+  async function handleDownload(id: string, title: string, fallbackUrl: string) {
     if (downloadingId) return;
     setDownloadingId(id);
     try {
@@ -75,7 +87,11 @@ export default function DocumentsPage() {
       window.open(url, "_blank");
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
-      window.alert(`Couldn't download "${title}". Please try again.`);
+      if (fallbackUrl) {
+        window.open(fallbackUrl, "_blank");
+      } else {
+        window.alert(`Couldn't download "${title}". Please try again.`);
+      }
     } finally {
       setDownloadingId(null);
     }
@@ -128,7 +144,7 @@ export default function DocumentsPage() {
                 {d.hasFile ? (
                   <button
                     type="button"
-                    onClick={() => handleDownload(d.id, d.title)}
+                    onClick={() => handleDownload(d.id, d.title, d.fallbackUrl)}
                     disabled={downloadingId === d.id}
                     aria-label={`Download ${d.title}`}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"

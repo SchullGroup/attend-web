@@ -60,3 +60,14 @@ whenever `hasRsvped` is false, even if the user is already `registered`/eligible
 share register. Only clicking RSVP creates the real record — at which point Cancel RSVP and
 Appoint Proxy have something to act on, and the "You must be registered" errors go away
 naturally instead of needing a special case per action.
+
+## Also please confirm: AGM minutes access
+
+`GET /api/v1/participant/events/{id}/minutes` is documented as gating on registration
+(403 if not registered). Please confirm that check uses genuine RSVP/attendance, not the
+same register/shareholder-eligibility signal behind today's `registered: true` bug above.
+Minutes often contain confidential resolutions and discussion — if it's using the loose
+signal, anyone on a company's share register could read minutes for a meeting they never
+attended, which is a bigger deal than the RSVP-button issue. The frontend's minutes list
+(`/agm/minutes`) also currently filters on `registered`, so it has the same exposure and
+will be tightened to key off `hasRsvped` once that field exists.
