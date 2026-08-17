@@ -91,10 +91,10 @@ apiClient.interceptors.response.use(
   },
   async (error: any) => {
     const originalRequest = error.config;
+    const status = error.response?.status;
 
     if (
-      (error.response?.status === 401 || error.response?.status === 403) &&
-      !originalRequest._retry &&
+      (status === 401 || status === 403) &&
       !isPublicEndpoint(originalRequest?.url)
     ) {
       // A guest gets 401/403 from every participant endpoint by design — they have no
@@ -110,7 +110,6 @@ apiClient.interceptors.response.use(
       //   • 403 on the /view heartbeat → access revoked by the admin.
       const guestUrl: string = originalRequest?.url ?? "";
       const isGuestRoute = guestUrl.includes("/api/v1/guest/") && !guestUrl.includes("/join");
-      const status = error.response?.status;
       if (
         isGuestRoute &&
         (status === 401 || (status === 403 && guestUrl.includes("/view")))
@@ -123,6 +122,31 @@ apiClient.interceptors.response.use(
       }
 
       if (Cookies.get("isGuest") === "true") {
+        return Promise.reject(error);
+      }
+
+      // Check for a reason on THIS failure before touching refresh at all — whether it's
+      // the very first 401/403, or a request retried after a refresh that "succeeded"
+      // (backend handed back a technically-valid token) while the session stayed dead.
+      // The old code only ever checked the refresh call's own error, which missed that
+      // second case entirely: originalRequest._retry was already true by then, so it fell
+      // through every check below and rejected silently — a real logout with no banner.
+      const immediateReason = logoutReason(error);
+      if (immediateReason) {
+        Cookies.remove("accessToken");
+        if (typeof window !== "undefined") {
+          window.location.href = `/login?reason=${immediateReason}`;
+        }
+        return Promise.reject(error);
+      }
+
+      if (originalRequest._retry) {
+        // Already retried once after a refresh and it's still failing, with nothing telling
+        // us why — bounce to a plain login rather than attempting refresh in a loop.
+        Cookies.remove("accessToken");
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
         return Promise.reject(error);
       }
 
