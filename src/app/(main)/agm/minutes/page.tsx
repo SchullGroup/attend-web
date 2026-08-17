@@ -171,8 +171,11 @@ function Shell({ children }: { children: React.ReactNode }) {
 function MinutesPicker() {
   const router = useRouter();
   const { data, isLoading } = useGetEvents({ eventType: "AGM_EGM", size: 50 });
+  // Minutes access itself gates on a real RSVP (backend confirmed, 2026-08-17), so the
+  // picker should match — `registered` alone includes shareholders who never actually
+  // RSVP'd. Falls back to `registered` only until backend's `hasRsvped` field is live.
   const agms = (data?.data?.events ?? []).filter(
-    (e: EventListItem) => e.eventType === "AGM_EGM" && e.registered,
+    (e: EventListItem) => e.eventType === "AGM_EGM" && (e.hasRsvped ?? e.registered),
   );
 
   return (

@@ -167,6 +167,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const color = event.brandPrimary || event.branding?.brandColor || event.organizerPrimaryColor || MODULE_COLOR[mod] || "#0B5CFF";
   const organiser = event.registerName || event.organizerName;
+  // `registered` means "eligible" for an AGM shareholder (register membership), not
+  // necessarily an actual RSVP — that's what broke Cancel RSVP/Appoint Proxy for someone
+  // who was only added to the register. `hasRsvped` is the real signal; fall back to
+  // `registered` only while backend hasn't deployed that field yet, so this doesn't regress
+  // already-registered users into seeing the RSVP button again in the meantime.
+  const hasRsvped = event.hasRsvped ?? event.registered;
   const isLive = event.status === "LIVE";
   const isEnded = event.status === "ENDED";
   const isUpcoming = !isLive && !isEnded;
@@ -240,7 +246,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             {event.venue && <Chip icon={MapPin}>{event.venue}</Chip>}
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2">
-            {event.registered && (
+            {hasRsvped && (
               <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-4 py-2.5 text-sm font-semibold backdrop-blur">
                 <CheckCircle2 className="h-4 w-4" /> You&apos;re confirmed
               </span>
@@ -622,7 +628,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Sticky bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur px-4 py-3 md:left-64">
-        {isLive && event.registered ? (
+        {isLive && hasRsvped ? (
           <Button
             className="w-full gap-2"
             style={{ backgroundColor: color }}
@@ -633,7 +639,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           >
             <Radio className="h-4 w-4" /> Join Live Session →
           </Button>
-        ) : isLive && !event.registered ? (
+        ) : isLive && !hasRsvped ? (
           rsvpEligibility.allowed ? (
             <div className="space-y-2 w-full">
               <div className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
@@ -664,9 +670,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               </span>
             </div>
           )
-        ) : event.waitlisted && !event.registered ? (
+        ) : event.waitlisted && !hasRsvped ? (
           <Button className="w-full" variant="outline" disabled>On waitlist</Button>
-        ) : event.registered ? (
+        ) : hasRsvped ? (
           <div className="flex gap-3">
             {/* AGM RSVP cannot be cancelled once LIVE or ENDED — doing so wipes
                 the shareholder from the admin register and corrupts quorum data. */}

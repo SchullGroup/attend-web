@@ -69,15 +69,18 @@ const processQueue = (error: any, token: string | null = null) => {
  * Classify a failed refresh so the login page can explain itself.
  *
  * `code` is the contract and is checked first — backend added stable codes on 2026-08-11
- * (SESSION_REVOKED for a login from another device). The prose match is a fallback for
- * responses predating those codes; it deliberately covers both the old wording
- * ("Session invalidated") and the new ("Session revoked"). An unrecognised failure
- * degrades to the generic redirect rather than to a wrong explanation.
+ * (SESSION_REVOKED for a login from another device) and 2026-08-17 (IDLE_TIMEOUT, once the
+ * 120-minute idle check was actually wired into every authenticated request, not just the
+ * refresh endpoint). The prose match is a fallback for responses predating those codes; it
+ * deliberately covers both the old wording ("Session invalidated") and the new ("Session
+ * revoked"). An unrecognised failure degrades to the generic redirect rather than to a
+ * wrong explanation.
  */
 function logoutReason(err: any): "other-device" | "idle" | null {
   const body = err?.response?.data ?? {};
   const code = String(body.code ?? "").toUpperCase();
   if (code === "SESSION_REVOKED") return "other-device";
+  if (code === "IDLE_TIMEOUT") return "idle";
 
   const text = `${body.error ?? ""} ${body.message ?? ""}`.toLowerCase();
   if (/another device|invalidated|revoked/.test(text)) return "other-device";

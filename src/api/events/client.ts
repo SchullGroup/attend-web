@@ -1,5 +1,6 @@
 import axios from "axios";
 import { apiClient } from "@/lib/api-client";
+import { normalizeResolutions } from "@/lib/resolution-normalize";
 import {
   EventsListResponse,
   EventDetailResponse,
@@ -165,7 +166,11 @@ export const eventsClient = {
       `/api/v1/guest/events/${eventId}/resolutions`,
       { headers: { "X-Guest-Token": guestToken, "Content-Type": "application/json" } },
     );
-    return response.data;
+    const data = response.data;
+    if (data?.data) {
+      data.data = normalizeResolutions(data.data);
+    }
+    return data;
   },
 
   guestGetView: async (eventId: string, guestToken: string) => {

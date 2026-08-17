@@ -22,6 +22,8 @@ export interface RegisterRequest {
   email: string;
   phone: string;
   password: string;
+  /** Backend now requires this and 400s ("Password mismatch") if it differs from password. */
+  confirmPassword: string;
 }
 
 export interface VerifyEmailRequest {

@@ -73,6 +73,7 @@ export default function RegisterPage() {
         email: form.email,
         phone: phoneE164,
         password: form.password,
+        confirmPassword: form.confirmPassword,
       },
       {
         onSuccess: () => {
