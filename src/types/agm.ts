@@ -93,6 +93,11 @@ export interface ProxyData {
    * a harder-to-fake physical artifact than typing the 10-digit code.
    */
   proxyQrCode?: string;
+  /** Legal disclaimer text (added 2026-08-18) — backend-supplied, show verbatim. */
+  disclaimer?: string;
+  /** Set when a POST overwrote an existing appointment instead of creating a new one. */
+  replaced?: boolean;
+  previousProxyName?: string;
 }
 
 export interface AssignProxyRequest {
@@ -126,6 +131,8 @@ export interface ProxyHistoryItem {
   sharesRepresented?: number;
   proxyCode?: string;
   proxyQrCode?: string;
+  /** Legal disclaimer text (added 2026-08-18) — backend-supplied, show verbatim. */
+  disclaimer?: string;
   directions?: {
     resolutionId: string;
     resolutionTitle?: string;

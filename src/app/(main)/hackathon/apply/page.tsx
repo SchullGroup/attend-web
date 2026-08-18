@@ -197,9 +197,9 @@ function ApplyPageInner() {
 
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Cancel application
-      </Link>
+      </button>
 
       <header>
         <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
@@ -469,11 +469,12 @@ function Gate({
   body: string;
   action?: { label: string; href: string };
 }) {
+  const router = useRouter();
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to Innovation
-      </Link>
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
       <div className="mx-auto max-w-md rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
         <h1 className="text-xl font-bold text-foreground">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{body}</p>

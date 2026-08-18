@@ -39,6 +39,7 @@ function ProxyPageInner() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [assignedCode, setAssignedCode] = useState<string | null>(null);
   const [assignedQr, setAssignedQr] = useState<string | null>(null);
+  const [assignedDisclaimer, setAssignedDisclaimer] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [justRevoked, setJustRevoked] = useState(false);
@@ -64,6 +65,10 @@ function ProxyPageInner() {
    * standing between a shareholder and two live proxy codes for the same meeting.
    */
   const existing = existingProxy?.data;
+  // Backend-supplied legal copy (added 2026-08-18) — read from whichever response has it:
+  // freshly assigned (POST) takes priority, falling back to the existing appointment (GET).
+  // Not hardcoded here on purpose — this is legal text and the backend owns the wording.
+  const disclaimer = assignedDisclaimer || existing?.disclaimer;
   const isRevokedStatus = (existing as any)?.status?.toUpperCase() === "REVOKED";
   const hasExistingProxy =
     !justRevoked &&
@@ -137,6 +142,7 @@ function ProxyPageInner() {
       onSuccess: (res: any) => {
         const code = res?.data?.proxyCode || res?.proxyCode;
         setAssignedQr(res?.data?.proxyQrCode || res?.proxyQrCode || null);
+        setAssignedDisclaimer(res?.data?.disclaimer || res?.disclaimer || null);
         const directionsList = Object.entries(directions).map(([resolutionId, direction]) => ({
           resolutionId,
           direction,
@@ -253,6 +259,12 @@ function ProxyPageInner() {
             </div>
           )}
 
+          {disclaimer && (
+            <div className="rounded-xl border border-emerald-200 bg-white p-3 text-xs text-emerald-900/80">
+              {disclaimer}
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Button onClick={() => router.push(`/agm/receipt?eventId=${eventId}`)}>
               View Vote Receipt
@@ -333,6 +345,12 @@ function ProxyPageInner() {
             You can only have one proxy for this meeting. To appoint someone else, revoke this
             appointment first — the code above stops working the moment you do.
           </div>
+
+          {disclaimer && (
+            <div className="rounded-xl border border-border bg-slate-50 p-3 text-xs text-muted-foreground">
+              {disclaimer}
+            </div>
+          )}
 
           {confirmRevoke ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3">
@@ -483,6 +501,12 @@ function ProxyPageInner() {
           Proxy appointments must be submitted at least 48 hours before the meeting.
           You can revoke this anytime before voting opens.
         </div>
+
+        {disclaimer && (
+          <div className="rounded-xl border border-border bg-slate-50 p-3 text-xs text-muted-foreground">
+            {disclaimer}
+          </div>
+        )}
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => router.push("/agm")}>

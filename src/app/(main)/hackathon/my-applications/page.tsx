@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { useGetMyApplications } from "@/api/innovation/hooks";
 import { Badge } from "@/components/ui/Badge";
@@ -31,6 +32,7 @@ const labelFor = (k: string) => STATUS_LABEL[k] ?? (k ? k.replace(/_/g, " ") : "
 const toneFor = (k: string): Tone => STATUS_TONE[k] ?? "muted";
 
 export default function MyApplicationsPage() {
+  const router = useRouter();
   const { data, isLoading } = useGetMyApplications();
   const [justSubmitted, setJustSubmitted] = useState<string | null>(null);
 
@@ -56,9 +58,9 @@ export default function MyApplicationsPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to Innovation
-      </Link>
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
       <header>
         <h1 className="text-2xl font-bold text-foreground">My applications</h1>

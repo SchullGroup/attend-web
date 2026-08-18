@@ -359,7 +359,7 @@ export function LiveRoom({
   const [pollChoice, setPollChoice] = useState<string | null>(null);
   const [pollMsg, setPollMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [vote, setVote] = useState<VoteChoice | null>(null);
-  const [voteMsg, setVoteMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [voteMsg, setVoteMsg] = useState<{ kind: "ok" | "err"; text: string; disclaimer?: string } | null>(null);
   const [isEditingVote, setIsEditingVote] = useState(false);
   // A success message next to the permanent "Vote Recorded" card is redundant clutter —
   // fade it on its own rather than needing the user to dismiss it or vote again to clear
@@ -479,8 +479,11 @@ export function LiveRoom({
   // Shared success/error for the standard ballot, whether the caller is a voting
   // participant or a proxy guest.
   const voteHandlers = (okText: string, resId: string) => ({
-    onSuccess: () => {
-      setVoteMsg({ kind: "ok" as const, text: okText });
+    onSuccess: (res: any) => {
+      // Only the guest/proxy vote endpoints carry this (added 2026-08-18) — undefined
+      // for a regular participant vote, which is correct: the disclaimer is proxy-specific.
+      const disclaimer = res?.data?.disclaimer || res?.disclaimer;
+      setVoteMsg({ kind: "ok" as const, text: okText, disclaimer });
       setIsEditingVote(false);
       markVoted(resId);
     },
@@ -522,8 +525,9 @@ export function LiveRoom({
     guestProxyVote(
       { resolutionId: openRes.id, proxyCode: proxyCode.trim(), data: { choice } },
       {
-        onSuccess: () => {
-          setVoteMsg({ kind: "ok", text: "Your proxy vote has been recorded." });
+        onSuccess: (res: any) => {
+          const disclaimer = res?.data?.disclaimer || res?.disclaimer;
+          setVoteMsg({ kind: "ok", text: "Your proxy vote has been recorded.", disclaimer });
           setIsEditingVote(false);
           markVoted(openRes.id);
         },
@@ -543,8 +547,9 @@ export function LiveRoom({
     guestProxyVote(
       { resolutionId: openRes.id, proxyCode: proxyCode.trim(), data: { votes } },
       {
-        onSuccess: () => {
-          setVoteMsg({ kind: "ok", text: "Your proxy candidate ballot has been recorded." });
+        onSuccess: (res: any) => {
+          const disclaimer = res?.data?.disclaimer || res?.disclaimer;
+          setVoteMsg({ kind: "ok", text: "Your proxy candidate ballot has been recorded.", disclaimer });
           setIsEditingVote(false);
           markVoted(openRes.id);
         },
@@ -982,6 +987,9 @@ export function LiveRoom({
                               )}
                             >
                               {voteMsg.text}
+                              {voteMsg.disclaimer && (
+                                <p className="mt-1 font-normal text-emerald-700/80">{voteMsg.disclaimer}</p>
+                              )}
                             </div>
                           )}
                           {/* Only an open resolution can take a proxy vote. */}

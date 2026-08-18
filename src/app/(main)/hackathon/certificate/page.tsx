@@ -1,13 +1,13 @@
 "use client";
 import { Suspense, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, Award, Star, Check, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useGetCertificate } from "@/api/hackathon/hooks";
 import { formatDate } from "@/lib/utils";
 
 function CertificateInner() {
+  const router = useRouter();
   const challengeId = useSearchParams().get("challengeId") ?? "";
   const [shared, setShared] = useState(false);
 
@@ -36,9 +36,9 @@ function CertificateInner() {
   if (!challengeId || !cert) {
     return (
       <div className="space-y-6">
-        <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+        </button>
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           No certificate found. Open this from a challenge you participated in.
         </div>
@@ -50,9 +50,9 @@ function CertificateInner() {
   if (!cert.eligible) {
     return (
       <div className="space-y-6">
-        <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+        </button>
         <div className="mx-auto max-w-md rounded-3xl border border-border bg-white p-8 text-center shadow-sm">
           <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
             <Clock className="h-8 w-8 text-amber-600" />
@@ -75,9 +75,9 @@ function CertificateInner() {
 
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
-      </Link>
+      </button>
 
       <header className="flex flex-wrap items-center gap-2">
         <div>
