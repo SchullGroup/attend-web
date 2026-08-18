@@ -1,7 +1,6 @@
 "use client";
 import { Suspense } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, FileText, PlayCircle, ExternalLink } from "lucide-react";
 import { useGetResources } from "@/api/hackathon/hooks";
 
@@ -14,6 +13,7 @@ interface ResourceRow {
 }
 
 function ResourcesInner() {
+  const router = useRouter();
   const challengeId = useSearchParams().get("challengeId") ?? "";
   const { data, isLoading } = useGetResources(challengeId);
   const apiResources = data?.data ?? [];
@@ -28,9 +28,9 @@ function ResourcesInner() {
 
   return (
     <div className="space-y-6">
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to Innovation
-      </Link>
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
       <header>
         <h1 className="text-2xl font-bold text-foreground">Hackathon resources</h1>

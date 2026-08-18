@@ -10,6 +10,7 @@ import { useGetEvents, useGetEvent } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { formatDate, parseApiDate } from "@/lib/utils";
 import { registerNotoSans } from "@/lib/pdf-fonts";
+import { sanitizeMinutesHtml, htmlToPlainText } from "@/lib/rich-content";
 
 function MinutesInner() {
   const router = useRouter();
@@ -101,7 +102,10 @@ function MinutesInner() {
       y += 28;
 
       doc.setFontSize(11);
-      const lines = doc.splitTextToSize(minutes.content || "", pageW - margin * 2);
+      // As of 2026-08-18, finalised minutes have a "Resolutions" section appended as HTML
+      // markup — the PDF only ever draws plain lines, so strip it to readable text rather
+      // than printing literal tags.
+      const lines = doc.splitTextToSize(htmlToPlainText(minutes.content || ""), pageW - margin * 2);
       lines.forEach((line: string) => {
         if (y > pageH - margin) {
           doc.addPage();
@@ -134,9 +138,15 @@ function MinutesInner() {
         </div>
 
         <div className="space-y-5 p-6">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-            {minutes.content}
-          </p>
+          {/* Finalised minutes now carry a "Resolutions" section as HTML (2026-08-18) —
+              sanitized before render since this is backend-supplied markup, not a plain
+              string, going into dangerouslySetInnerHTML. The [&_x] rules give the common
+              report elements (headings/lists/tables) real spacing without pulling in the
+              Tailwind typography plugin for one page. */}
+          <div
+            className="space-y-2 text-sm leading-relaxed text-foreground/90 [&_h1]:mt-4 [&_h1]:text-base [&_h1]:font-bold [&_h1]:text-foreground [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-foreground [&_h3]:mt-4 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:uppercase [&_h3]:tracking-wide [&_h3]:text-muted-foreground [&_p]:mb-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5 [&_strong]:font-semibold [&_table]:mt-2 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-1.5 [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-1.5 [&_hr]:my-3 [&_hr]:border-border"
+            dangerouslySetInnerHTML={{ __html: sanitizeMinutesHtml(minutes.content || "") }}
+          />
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button fullWidth onClick={downloadPdf} loading={downloading} disabled={downloading}>

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, PlayCircle } from "lucide-react";
 import { useGetEvents } from "@/api/events/hooks";
 import { Badge } from "@/components/ui/Badge";
@@ -21,14 +22,15 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function ArchivePage() {
+  const router = useRouter();
   const { data, isLoading } = useGetEvents({ status: "ENDED", size: 50 });
   const events = (data?.data?.events ?? []).filter((e) => e.status === "ENDED");
 
   return (
     <div className="space-y-6">
-      <Link href="/events" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to events
-      </Link>
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
       <header>
         <h1 className="text-2xl font-bold text-foreground">Event archive</h1>

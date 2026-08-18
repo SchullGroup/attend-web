@@ -1,6 +1,7 @@
 "use client";
 import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Users, MapPin, CalendarDays, Trophy, Target,
   BookOpen, CalendarClock, Cpu, Radio, ChevronDown,
@@ -18,6 +19,7 @@ export default function HackathonDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const [showHowTo, setShowHowTo] = useState(false);
   const { data: chData, isLoading: chLoading, error: chError } = useGetChallenge(id);
   const liveChallenge = chData?.data;
@@ -80,9 +82,9 @@ export default function HackathonDetailPage({
   if (!challenge) {
     return (
       <div className="space-y-6">
-        <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back to Innovation
-        </Link>
+        <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           This challenge could not be loaded right now. Please try again shortly.
         </div>
@@ -120,9 +122,9 @@ export default function HackathonDetailPage({
         "--brand-accent":  brandAccent,
       } as React.CSSProperties}
     >
-      <Link href="/hackathon" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to Innovation
-      </Link>
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
       {/* LIVE banner — only shown when the session is live */}
       {isLive && (
