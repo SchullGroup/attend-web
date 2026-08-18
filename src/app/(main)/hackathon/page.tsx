@@ -133,7 +133,15 @@ export default function HackathonPage() {
                   <Link href={`/hackathon/${c.id}`}>
                     <Button variant="outline" size="sm">View</Button>
                   </Link>
-                  <Link href={`/hackathon/apply?challengeId=${c.id}`}>
+                  {/* Applications close once the challenge goes live — same swap the
+                      detail page already makes (Apply now → Join Live session). */}
+                  <Link
+                    href={
+                      (c.status || "").toUpperCase() === "LIVE"
+                        ? `/events/live?eventId=${c.id}`
+                        : `/hackathon/apply?challengeId=${c.id}`
+                    }
+                  >
                     <Button
                       size="sm"
                       style={{
@@ -142,7 +150,13 @@ export default function HackathonPage() {
                       }}
                       className={cn((c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor) && "hover:opacity-90 text-white")}
                     >
-                      Apply <ArrowRight className="h-3.5 w-3.5" />
+                      {(c.status || "").toUpperCase() === "LIVE" ? (
+                        "Join Live"
+                      ) : (
+                        <>
+                          Apply <ArrowRight className="h-3.5 w-3.5" />
+                        </>
+                      )}
                     </Button>
                   </Link>
                 </div>

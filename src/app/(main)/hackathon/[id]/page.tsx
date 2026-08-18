@@ -1,9 +1,9 @@
 "use client";
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Users, MapPin, CalendarDays, Trophy, Target,
-  BookOpen, CalendarClock, Cpu, Radio,
+  BookOpen, CalendarClock, Cpu, Radio, ChevronDown,
 } from "lucide-react";
 import { useGetChallenge, useGetMyTeam, useGetResources } from "@/api/hackathon/hooks";
 import { useGetEvent } from "@/api/events/hooks";
@@ -18,6 +18,7 @@ export default function HackathonDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const [showHowTo, setShowHowTo] = useState(false);
   const { data: chData, isLoading: chLoading, error: chError } = useGetChallenge(id);
   const liveChallenge = chData?.data;
 
@@ -408,6 +409,71 @@ export default function HackathonDetailPage({
             <p className="mt-1 text-xs text-emerald-700">You&apos;re registered for this challenge.</p>
           )}
         </div>
+      </section>
+
+      {/* How to apply — mirrors the mobile app's "How to Apply" tab, collapsed by
+          default here since it's positioned right above the CTA it explains. Steps
+          read real challenge data (pathway count, organiser name) instead of the
+          mobile copy's hardcoded "three pathways"/"MeriHack", so this stays correct
+          across every challenge. Step 5 ("Build & Submit") dropped per instruction. */}
+      <section className="rounded-2xl border border-border bg-white">
+        <button
+          type="button"
+          onClick={() => setShowHowTo((v) => !v)}
+          className="flex w-full items-center justify-between p-5 text-left"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            How to apply
+          </p>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform",
+              showHowTo && "rotate-180",
+            )}
+          />
+        </button>
+        {showHowTo && (
+          <div className="space-y-5 px-5 pb-5">
+            {[
+              {
+                title: "Register & Form Team",
+                body: "Create your account on Attend, then apply individually or invite teammates by email or username.",
+              },
+              ...(challenge.tracks && challenge.tracks.length > 0
+                ? [
+                    {
+                      title: "Select a Pathway",
+                      body: `Choose one of the ${challenge.tracks.length} challenge pathway${challenge.tracks.length !== 1 ? "s" : ""} that best fits your solution idea.`,
+                    },
+                  ]
+                : []),
+              {
+                title: "Submit Your Application",
+                body:
+                  challenge.tracks && challenge.tracks.length > 0
+                    ? "Complete the application form with your team details, idea title, description, and pathway selection."
+                    : "Complete the application form with your team details, idea title, and description.",
+              },
+              {
+                title: "Await Review",
+                body: `Applications are reviewed by the ${challenge.organizerName} committee. Shortlisted teams are notified by email and in-app.`,
+              },
+            ].map((step, i) => (
+              <div key={step.title} className="flex gap-3">
+                <div
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor: "var(--brand-primary)" }}
+                >
+                  {i + 1}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{step.title}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{step.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Bottom CTA — mirrors the demo's "Ready to build?" footer */}
