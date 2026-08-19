@@ -457,10 +457,11 @@ function ProxyPageInner() {
               </p>
             </div>
             <div className="space-y-3">
-              {resolutions.map((r, i) => (
+              {[...resolutions].sort((a, b) => a.order - b.order).map((r, i) => (
                 <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-slate-50/50 p-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">Resolution {r.order + 1}</p>
+                    {/* 1-based by position, not r.order — see events/[id]/page.tsx for why. */}
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">Resolution {i + 1}</p>
                     <p className="text-sm font-medium text-foreground truncate">{r.title}</p>
                   </div>
                   <div className="flex flex-wrap gap-1">

@@ -469,7 +469,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             {mod === "AGM" &&
               [...resolutions]
                 .sort((a, b) => a.order - b.order)
-                .map((r) => {
+                .map((r, i) => {
                   const v = (r.myVote || "").toUpperCase();
                   const s = (r.status || "").toUpperCase();
                   const badge = v ? (
@@ -489,7 +489,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm text-foreground/90">
-                            Resolution {r.order + 1}{r.specialResolution ? " · Special" : ""}: {r.title}
+                            {/* 1-based by position, not by r.order — order isn't reliably
+                                0-based on the backend (same fix already applied in
+                                LiveRoom.tsx), so trusting it here skipped "Resolution 1"
+                                whenever the first resolution's order was already 1. */}
+                            Resolution {i + 1}{r.specialResolution ? " · Special" : ""}: {r.title}
                           </p>
                           <div className="shrink-0">{badge}</div>
                         </div>
