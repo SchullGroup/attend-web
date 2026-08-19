@@ -126,9 +126,26 @@ function MinutesInner() {
       <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
         <div className="border-b border-border bg-linear-to-br from-emerald-500 to-emerald-700 p-6 text-white">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
-              <FileText className="h-6 w-6" />
-            </div>
+            {/* Company's own logo (branding.logoUrl) when set — falls back to the generic
+                document icon rather than showing a broken image. Distinct from the
+                registrar's logo credited below the content (see organizerLogo there). */}
+            {event?.branding?.logoUrl ? (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={event.branding.logoUrl}
+                  alt=""
+                  className="h-full w-full object-contain"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
+                <FileText className="h-6 w-6" />
+              </div>
+            )}
             <div>
               <p className="text-xs uppercase tracking-wide text-white/80">AGM minutes</p>
               <h1 className="text-lg font-bold">{organiser || "Finalised " + finalised}</h1>
@@ -147,6 +164,25 @@ function MinutesInner() {
             className="space-y-2 text-sm leading-relaxed text-foreground/90 [&_h1]:mt-4 [&_h1]:text-base [&_h1]:font-bold [&_h1]:text-foreground [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-foreground [&_h3]:mt-4 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:uppercase [&_h3]:tracking-wide [&_h3]:text-muted-foreground [&_p]:mb-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5 [&_strong]:font-semibold [&_table]:mt-2 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-1.5 [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-1.5 [&_hr]:my-3 [&_hr]:border-border"
             dangerouslySetInnerHTML={{ __html: sanitizeMinutesHtml(minutes.content || "") }}
           />
+
+          {/* Registrar credit — small and quiet on purpose, so it reads as an attribution
+              line rather than competing with the company's own branding in the header. */}
+          {event?.organizerName && (
+            <div className="flex items-center gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
+              {event.organizerLogo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={event.organizerLogo}
+                  alt=""
+                  className="h-4 w-4 shrink-0 rounded object-contain"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              )}
+              <span>Registered by {event.organizerName}</span>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button fullWidth onClick={downloadPdf} loading={downloading} disabled={downloading}>
