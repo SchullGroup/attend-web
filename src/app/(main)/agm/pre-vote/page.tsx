@@ -33,6 +33,13 @@ function PreVotePageInner() {
   const hasProxy = !!data?.data?.hasProxy || activeProxy;
   const open = resolutions.filter((r) => !r.myVote);
   const voted = resolutions.filter((r) => r.myVote);
+  // 1-based by position, not r.order — order isn't reliably 0-based on the backend, and
+  // splitting into open/voted below means each subgroup's own index can't be used either
+  // (it would restart numbering within each group). Computed once from the full sorted
+  // list so "Resolution N" stays consistent regardless of which group a card lands in.
+  const resNumber = new Map(
+    [...resolutions].sort((a, b) => a.order - b.order).map((r, i) => [r.id, i + 1]),
+  );
 
   useEffect(() => {
     if (!eventId) router.replace("/agm");
@@ -181,6 +188,7 @@ function PreVotePageInner() {
                 <ResolutionCard
                   key={r.id}
                   resolution={r}
+                  number={resNumber.get(r.id) ?? 1}
                   selected={pendingVotes[r.id] ?? null}
                   onSelect={(choice) => {
                     if (hasProxy) return;
@@ -207,6 +215,7 @@ function PreVotePageInner() {
                 <VotedCard
                   key={r.id}
                   resolution={r}
+                  number={resNumber.get(r.id) ?? 1}
                   hasProxy={hasProxy}
                   onUpdateVote={async (resolutionId, choice) => {
                     setErrorMsg(null);
@@ -256,12 +265,14 @@ function PreVotePageInner() {
 
 function ResolutionCard({
   resolution: r,
+  number,
   selected,
   onSelect,
   disabled,
   onCandidateSelect,
 }: {
   resolution: Resolution;
+  number: number;
   selected: VoteChoice | null;
   onSelect: (c: VoteChoice) => void;
   disabled?: boolean;
@@ -272,7 +283,7 @@ function ResolutionCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-            Resolution {r.order + 1}{r.specialResolution ? " (Special)" : ""}
+            Resolution {number}{r.specialResolution ? " (Special)" : ""}
           </p>
           <h3 className="mt-0.5 text-lg font-semibold text-foreground">{r.title}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{r.description}</p>
@@ -330,10 +341,12 @@ function ResolutionCard({
 
 function VotedCard({
   resolution: r,
+  number,
   hasProxy,
   onUpdateVote,
 }: {
   resolution: Resolution;
+  number: number;
   hasProxy: boolean;
   onUpdateVote: (resolutionId: string, choice: VoteChoice) => Promise<void>;
 }) {
@@ -365,7 +378,7 @@ function VotedCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Resolution {r.order + 1}
+            Resolution {number}
           </p>
           <h3 className="mt-0.5 text-base font-semibold text-foreground">{r.title}</h3>
         </div>

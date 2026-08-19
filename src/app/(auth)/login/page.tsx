@@ -13,6 +13,17 @@ import { cn } from "@/lib/utils";
 
 type LoginMode = "email" | "phone";
 
+/**
+ * proxy.ts attaches `?callbackUrl=<original path>` when it bounces an unauthenticated
+ * visit to a protected page (e.g. an event link from an email reminder) here. Only ever
+ * follow it if it's a same-origin relative path — a raw redirect to whatever's in the
+ * query string would be an open-redirect vector (`?callbackUrl=https://evil.example`).
+ */
+function safeCallbackUrl(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
+  return raw;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { mutate: loginMutation, isPending } = useLogin();
@@ -69,7 +80,10 @@ export default function LoginPage() {
         deviceId: getDeviceId(),
       },
       {
-        onSuccess: () => router.push("/"),
+        onSuccess: () => {
+          const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
+          router.push(safeCallbackUrl(callbackUrl));
+        },
         onError: (err: any) => {
           const msg = apiErrorMessage(err, "Invalid credentials");
           setErrorMsg(msg);
