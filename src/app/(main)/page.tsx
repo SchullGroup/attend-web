@@ -49,11 +49,27 @@ const TILES = [
   },
 ];
 
-const CAROUSEL_IMAGES: Record<string, string> = {
-  LAUNCH:   "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&q=80",
-  HACKATHON:"https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=900&q=80",
-  GENERAL:  "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=900&q=80",
+const CAROUSEL_IMAGES: Record<string, string[]> = {
+  LAUNCH:    ["https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&q=80"],
+  HACKATHON: ["https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=900&q=80"],
+  // Real photo first, the original stock photo kept as a second option so cards without
+  // their own banner aren't all visually identical. Same array-plus-hash pattern to add
+  // more later — just append another URL, nothing else to change.
+  GENERAL: [
+    "/posters/people-taking-part-high-protocol-event.jpg",
+    "/posters/boardroom-conference-setup.jpg",
+    "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=900&q=80",
+  ],
 };
+
+/** Deterministic (not random) pick so a given event always shows the same fallback photo
+ *  across renders/refreshes, while different events in the same category vary. */
+function pickFallbackImage(id: string, module: string): string {
+  const pool = CAROUSEL_IMAGES[module] ?? CAROUSEL_IMAGES.GENERAL;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return pool[hash % pool.length];
+}
 
 const MODULE_BADGE: Record<string, { label: string; bg: string }> = {
   LAUNCH:   { label: "Product Launch",      bg: "#ea6c00" },
@@ -282,14 +298,14 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl" style={{ height: 240 }}>
+        <div className="relative overflow-hidden rounded-3xl" style={{ height: 320 }}>
           <div
             className="flex h-full transition-transform duration-500 ease-in-out"
             style={{ transform: `translateX(-${activeSlide * 100}%)` }}
           >
             {carouselEvents.map((event) => {
               const badge = MODULE_BADGE[event.module] ?? MODULE_BADGE.GENERAL;
-              const imageUri = CAROUSEL_IMAGES[event.module] ?? CAROUSEL_IMAGES.GENERAL;
+              const imageUri = pickFallbackImage(event.id, event.module);
               const href = event.module === "HACKATHON" ? "/hackathon" : `/events/${event.id}`;
               return (
                 <Link

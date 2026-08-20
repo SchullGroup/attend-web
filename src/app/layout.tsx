@@ -31,6 +31,7 @@ export const metadata: Metadata = {
     title: "Attend — Enterprise Events Platform",
     description: "AGMs, product launches, innovation challenges and more.",
     images: ["https://attend-web-eight.vercel.app/attend-logo.png"],
+    site: "@Attend_NG",
   },
 };
 

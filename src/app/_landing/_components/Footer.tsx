@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { Twitter, Linkedin, Instagram } from "lucide-react";
+import { XIcon, Youtube, Instagram, Linkedin } from "lucide-react";
+
+const SOCIAL_LINKS = [
+  { label: "X", Icon: XIcon, href: "https://x.com/Attend_NG" },
+  { label: "YouTube", Icon: Youtube, href: "https://www.youtube.com/@experienceattendng" },
+  { label: "Instagram", Icon: Instagram, href: "https://www.instagram.com/experienceattend/" },
+  { label: "LinkedIn", Icon: Linkedin, href: "https://www.linkedin.com/company/141723934/" },
+];
 
 const PLATFORM_LINKS = [
   { label: "Features", href: "/landing/features" },
@@ -28,13 +35,15 @@ export function LandingFooter() {
               Enterprise events infrastructure for Nigeria&apos;s capital markets — built for the institutions that move markets.
             </p>
             <div className="mt-6 flex items-center gap-3">
-              {[Twitter, Linkedin, Instagram].map((Icon, i) => (
+              {SOCIAL_LINKS.map(({ label, Icon, href }) => (
                 <a
-                  key={i}
-                  href="#"
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-gray-200"
                   style={{ background: "#f3f4f6", color: "#374151" }}
-                  aria-label="Social link"
+                  aria-label={`Attend on ${label}`}
                 >
                   <Icon className="h-3.5 w-3.5" />
                 </a>
