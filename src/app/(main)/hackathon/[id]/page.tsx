@@ -50,6 +50,7 @@ export default function HackathonDetailPage({
         venue: ev.venue,
         organizerName: ev.registerName || ev.organizerName,
         registered: ev.registered,
+        hasRsvped: ev.hasRsvped,
         resourceCount: 0,
         branding: ev.branding,
         bannerUrl: ev.bannerUrl,
@@ -97,6 +98,16 @@ export default function HackathonDetailPage({
   const hasTeamSize = !!challenge.minTeamSize && !!challenge.maxTeamSize;
 
   const isLive = (challenge.status || "").toUpperCase() === "LIVE";
+  // Applying requires RSVP'ing to the event first — falls back to `registered` only until
+  // backend's hasRsvped field is live everywhere (same pattern as events/[id]/page.tsx).
+  const hasRsvped = challenge.hasRsvped ?? challenge.registered;
+  // One progression, used by all three CTA slots on this page (hero x2, footer):
+  // RSVP to Apply → Apply now → View Application, with Join Live taking priority.
+  const cta = submitted
+    ? { label: "View Application", href: "/hackathon/my-applications" }
+    : hasRsvped
+    ? { label: "Apply now", href: `/hackathon/apply?challengeId=${id}` }
+    : { label: "RSVP to Apply", href: `/events/${id}` };
 
   const brandPrimary =
     challenge.brandPrimary ||
@@ -190,12 +201,12 @@ export default function HackathonDetailPage({
                   </button>
                 </Link>
               ) : (
-                <Link href={`/hackathon/apply?challengeId=${id}`}>
+                <Link href={cta.href}>
                   <button
                     className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
                     style={{ color: "var(--brand-primary)" }}
                   >
-                    Apply now
+                    {cta.label}
                   </button>
                 </Link>
               )}
@@ -244,12 +255,12 @@ export default function HackathonDetailPage({
                   </button>
                 </Link>
               ) : (
-                <Link href={`/hackathon/apply?challengeId=${id}`}>
+                <Link href={cta.href}>
                   <button
                     className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold hover:bg-white/90"
                     style={{ color: "var(--brand-primary)" }}
                   >
-                    Apply now
+                    {cta.label}
                   </button>
                 </Link>
               )}
@@ -499,12 +510,14 @@ export default function HackathonDetailPage({
               </button>
             </Link>
           ) : (
-            <Link href={`/hackathon/apply?challengeId=${id}`}>
+            // Only reached when !submitted (section is gated on that above), so cta here
+            // only ever resolves to "RSVP to Apply" or "Apply now".
+            <Link href={cta.href}>
               <button
                 className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: 'var(--brand-primary)' }}
               >
-                Apply now
+                {cta.label}
               </button>
             </Link>
           )}

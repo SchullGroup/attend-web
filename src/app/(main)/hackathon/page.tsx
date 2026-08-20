@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Search, CalendarDays, ArrowRight, FolderOpen } from "lucide-react";
-import { useGetChallenges } from "@/api/hackathon/hooks";
+import { useGetChallenges, useGetMyTeams } from "@/api/hackathon/hooks";
 import { useGetEvents } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +19,14 @@ export default function HackathonPage() {
   const [q, setQ] = useState("");
   const { data, isLoading: chLoading } = useGetChallenges({ search: q || undefined });
   const { data: evData, isLoading: evLoading } = useGetEvents({ search: q || undefined });
+  const { data: myTeamsResp } = useGetMyTeams();
+  // Same progression as the challenge detail page (RSVP to Apply → Apply now →
+  // View Application) — looked up per card by eventId rather than fetched per card.
+  const submittedEventIds = new Set(
+    (myTeamsResp?.data?.teams ?? [])
+      .filter((t) => t.submissionStatus && t.submissionStatus !== "NOT_SUBMITTED")
+      .map((t) => t.eventId),
+  );
 
   // Innovation events live in two places: the /challenges collection and the
   // shared /events collection (typed HACKATHON / INNOVATION_CHALLENGE). Merge both,
@@ -129,37 +137,45 @@ export default function HackathonPage() {
                     <span>{fmtFormat(c.format)}</span>
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-2">
-                  <Link href={`/hackathon/${c.id}`}>
-                    <Button variant="outline" size="sm">View</Button>
-                  </Link>
-                  {/* Applications close once the challenge goes live — same swap the
-                      detail page already makes (Apply now → Join Live session). */}
-                  <Link
-                    href={
-                      (c.status || "").toUpperCase() === "LIVE"
-                        ? `/events/live?eventId=${c.id}`
-                        : `/hackathon/apply?challengeId=${c.id}`
-                    }
-                  >
-                    <Button
-                      size="sm"
-                      style={{
-                        backgroundColor: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || undefined,
-                        borderColor: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || undefined,
-                      }}
-                      className={cn((c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor) && "hover:opacity-90 text-white")}
-                    >
-                      {(c.status || "").toUpperCase() === "LIVE" ? (
-                        "Join Live"
-                      ) : (
-                        <>
-                          Apply <ArrowRight className="h-3.5 w-3.5" />
-                        </>
-                      )}
-                    </Button>
-                  </Link>
-                </div>
+                {(() => {
+                  // Same progression as the challenge detail page: Join Live overrides
+                  // everything; otherwise RSVP to Apply → Apply now → View Application,
+                  // since applying to a challenge requires RSVP'ing to it first.
+                  const isLive = (c.status || "").toUpperCase() === "LIVE";
+                  const submitted = submittedEventIds.has(c.id);
+                  const primaryCta = isLive
+                    ? { label: "Join Live", href: `/events/live?eventId=${c.id}` }
+                    : submitted
+                    ? { label: "View Application", href: "/hackathon/my-applications" }
+                    : c.hasRsvped
+                    ? { label: "Apply", href: `/hackathon/apply?challengeId=${c.id}` }
+                    : { label: "RSVP to Apply", href: `/events/${c.id}` };
+                  return (
+                    <div className="flex shrink-0 gap-2">
+                      <Link href={`/hackathon/${c.id}`}>
+                        <Button variant="outline" size="sm">View</Button>
+                      </Link>
+                      <Link href={primaryCta.href}>
+                        <Button
+                          size="sm"
+                          style={{
+                            backgroundColor: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || undefined,
+                            borderColor: c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor || undefined,
+                          }}
+                          className={cn((c.brandPrimary || c.branding?.brandColor || (c as any).organizerPrimaryColor) && "hover:opacity-90 text-white")}
+                        >
+                          {primaryCta.label === "Apply" ? (
+                            <>
+                              Apply <ArrowRight className="h-3.5 w-3.5" />
+                            </>
+                          ) : (
+                            primaryCta.label
+                          )}
+                        </Button>
+                      </Link>
+                    </div>
+                  );
+                })()}
               </div>
             </li>
           ))}
