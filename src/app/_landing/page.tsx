@@ -596,7 +596,7 @@ export default function LandingHome() {
             {/* Featured — Ngozi / Retail Shareholder (orange, spans 2 rows) */}
             <Reveal delay={80} className="lg:row-span-2">
               <div
-                className="group relative flex h-full min-h-[280px] flex-col overflow-hidden rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+                className="group relative flex h-full min-h-70 flex-col overflow-hidden rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
                 style={{ background: "linear-gradient(160deg, #ea6c00 0%, #c2410c 100%)" }}
               >
                 <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
@@ -632,7 +632,7 @@ export default function LandingHome() {
             {/* Emeka — Company Secretary (dark) */}
             <Reveal delay={120}>
               <div
-                className="group relative flex h-full min-h-[200px] flex-col overflow-hidden rounded-3xl p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                className="group relative flex h-full min-h-50 flex-col overflow-hidden rounded-3xl p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                 style={{ background: "#0f172a" }}
               >
                 <div
@@ -653,7 +653,7 @@ export default function LandingHome() {
             {/* Chidera — Product Marketer (white) */}
             <Reveal delay={160}>
               <div
-                className="group relative flex h-full min-h-[200px] flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                className="group relative flex h-full min-h-50 flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
               >
                 <div
                   className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl"
@@ -673,7 +673,7 @@ export default function LandingHome() {
             {/* Tolu — Student Innovator (dark) */}
             <Reveal delay={200}>
               <div
-                className="group relative flex h-full min-h-[200px] flex-col overflow-hidden rounded-3xl p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                className="group relative flex h-full min-h-50 flex-col overflow-hidden rounded-3xl p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                 style={{ background: "#0f172a" }}
               >
                 <div
@@ -694,7 +694,7 @@ export default function LandingHome() {
             {/* Biodun — Event Delegate (white) */}
             <Reveal delay={240}>
               <div
-                className="group relative flex h-full min-h-[200px] flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                className="group relative flex h-full min-h-50 flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
               >
                 <div
                   className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl"
@@ -744,7 +744,7 @@ export default function LandingHome() {
               return (
                 <Reveal key={mod.num} delay={i * 80}>
                   <div
-                    className="group relative min-h-[340px] overflow-hidden rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+                    className="group relative min-h-85 overflow-hidden rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
                     style={{
                       background: mod.dark ? "#111827" : "#ffffff",
                       border: mod.dark ? "none" : "1px solid #e5e7eb",
