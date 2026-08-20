@@ -93,7 +93,10 @@ export interface ChallengeDetailData {
   startTime: string;
   venue: string;
   organizerName: string;
+  /** See the note on EventListItem.registered — eligibility, not necessarily an RSVP. */
   registered: boolean;
+  /** True only once a real RSVP (`EventRegistration` row) exists. */
+  hasRsvped?: boolean;
   applicationsOpen?: boolean;
   resourceCount: number;
   tracks?: string[];

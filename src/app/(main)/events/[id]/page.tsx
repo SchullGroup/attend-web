@@ -12,6 +12,7 @@ import {
   useGetSavedEvents, useSaveEvent, useUnsaveEvent, useGetPressKit,
 } from "@/api/events/hooks";
 import { useGetResolutions } from "@/api/agm/hooks";
+import { useGetMyTeam } from "@/api/hackathon/hooks";
 import { ModuleBadge } from "@/components/attend/ModuleBadge";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -104,6 +105,15 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   // Resolutions are a separate array from the agenda — only AGMs have them.
   const { data: resData } = useGetResolutions(id, undefined, event?.eventType === "AGM_EGM");
   const resolutions = resData?.data?.resolutions ?? [];
+  // Same signal agm/proxy/page.tsx uses to decide whether a proxy already exists — so the
+  // entry point into that page can say "Change proxy" instead of promising a fresh
+  // appointment it won't actually offer once you get there.
+  const hasProxy = resData?.data?.hasProxy === true;
+
+  // Only meaningful for HACKATHON — useGetMyTeam no-ops (enabled: !!challengeId) otherwise.
+  const { data: myTeamResp } = useGetMyTeam(mod === "HACKATHON" ? id : "");
+  const teamSubmissionStatus = myTeamResp?.data?.submission?.status;
+  const submitted = !!teamSubmissionStatus && teamSubmissionStatus !== "NOT_SUBMITTED";
 
   function toggleSave() {
     if (saved) unsaveEvent();
@@ -342,7 +352,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             <div className="space-y-2">
               {event.agmProxyEnabled && (
                 <Link href={`/agm/proxy?eventId=${id}`}>
-                  <ActionRow icon={<FileText className="h-5 w-5" style={{ color }} />} label="Appoint a Proxy" />
+                  <ActionRow
+                    icon={<FileText className="h-5 w-5" style={{ color }} />}
+                    label={hasProxy ? "Change Proxy" : "Appoint a Proxy"}
+                  />
                 </Link>
               )}
               <Link href={`/agm/pre-vote?eventId=${id}`}>
@@ -691,8 +704,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               </Link>
             )}
             {mod === "HACKATHON" && (
-              <Link href={`/hackathon/apply?challengeId=${id}`} className="flex-1">
-                <Button className="w-full" style={{ backgroundColor: color }}>Apply Now</Button>
+              <Link
+                href={submitted ? "/hackathon/my-applications" : `/hackathon/apply?challengeId=${id}`}
+                className="flex-1"
+              >
+                <Button className="w-full" style={{ backgroundColor: color }}>
+                  {submitted ? "View Application" : "Apply Now"}
+                </Button>
               </Link>
             )}
           </div>
