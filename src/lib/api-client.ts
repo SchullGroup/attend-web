@@ -65,6 +65,35 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+// One in-flight refresh at a time, shared across every caller in this tab. The response
+// interceptor (on a 401) and SessionBootstrap (on cold load with no access token) can both
+// want a refresh at the same moment; the refresh route ROTATES the refresh token, so two
+// concurrent calls would race — the second arrives with a token the first already spent and
+// fails, logging the user out. Collapsing them onto a single promise means one network call,
+// one cookie write, and every caller resolves off the same result.
+let refreshPromise: Promise<string> | null = null;
+
+export function refreshAccessToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post("/api/auth/refresh") // raw axios, not apiClient — must not re-enter this interceptor
+      .then(({ data }) => {
+        const token = data?.data?.token;
+        if (!token) throw new Error("No token in refresh response");
+        Cookies.set("accessToken", token, {
+          expires: 7,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+        });
+        return token as string;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 /**
  * Classify a failed refresh so the login page can explain itself.
  *
@@ -143,6 +172,19 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // A 403 with no session-death code is an AUTHORIZATION decision, not an expired
+      // session: the token is valid, the backend just won't allow THIS action for THIS
+      // user right now. Common on an event detail page — press kit embargoed/not released,
+      // or the live stream is gated to registered attendees ("403 if not registered"). The
+      // old code refreshed on it anyway, retried, got the same 403, saw _retry set and
+      // redirected to /login — so opening a launch logged the user out. Refreshing can't
+      // change an authorization answer, so surface it to the caller (useGetPressKit already
+      // renders a "not available" state off pressKitError.response.status === 403). Only 401
+      // (a genuine authentication failure) proceeds to the refresh flow below.
+      if (status === 403) {
+        return Promise.reject(error);
+      }
+
       if (originalRequest._retry) {
         // Already retried once after a refresh and it's still failing, with nothing telling
         // us why — bounce to a plain login rather than attempting refresh in a loop.
@@ -170,15 +212,9 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Call the local Next.js proxy route which automatically sends the HttpOnly refresh token cookie
-        const { data } = await axios.post("/api/auth/refresh");
-
-        const newAccessToken = data?.data?.token;
-        if (!newAccessToken) throw new Error("No token in refresh response");
-        Cookies.set("accessToken", newAccessToken, {
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-        });
+        // Shared, de-duplicated refresh (also used by SessionBootstrap on cold load).
+        // Sets the accessToken cookie internally and returns the new token.
+        const newAccessToken = await refreshAccessToken();
 
         apiClient.defaults.headers.common["Authorization"] =
           "Bearer " + newAccessToken;

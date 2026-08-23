@@ -36,6 +36,7 @@ export const metadata: Metadata = {
 };
 
 import { QueryProvider } from "@/components/providers/query-provider";
+import { SessionBootstrap } from "@/components/providers/session-bootstrap";
 
 export default function RootLayout({
   children,
@@ -46,6 +47,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={outfit.className}>
         <QueryProvider>
+          <SessionBootstrap />
           <UserProvider>{children}</UserProvider>
         </QueryProvider>
       </body>

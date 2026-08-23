@@ -18,8 +18,15 @@ export const useLogin = () => {
       const token = response.data.token;
       if (token) {
         Cookies.set("accessToken", token, {
+          // Match the 7-day refresh-token window so the cookie survives a browser
+          // restart. Without an `expires` this was a session cookie: closing the
+          // browser dropped it, middleware then saw no token and bounced the user to
+          // /login — a silent "random" logout even though the refresh token was valid.
+          expires: 7,
           secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
+          // `lax`, not `strict`: strict drops the cookie on top-level navigations INTO
+          // the app (e.g. following an email link), so the entry landed on /login.
+          sameSite: "lax",
         });
       }
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
