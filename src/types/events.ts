@@ -32,6 +32,7 @@ export interface EventListItem {
   /** True only once a real RSVP (`EventRegistration` row) exists. */
   hasRsvped?: boolean;
   branding?: EventBranding;
+  flyerUrl?: string | null;
   bannerUrl?: string | null;
   brandPrimary?: string | null;
   brandAccent?: string | null;
@@ -85,6 +86,7 @@ export interface EventDetail {
   waitlisted?: boolean;
   pressKitReleased?: boolean;
   branding?: EventBranding;
+  flyerUrl?: string | null;
   bannerUrl?: string | null;
   brandPrimary?: string | null;
   brandAccent?: string | null;
@@ -100,6 +102,7 @@ export interface GuestEventListItem {
   branding?: EventBranding;
   eventType?: string;
   status?: string;
+  flyerUrl?: string | null;
   bannerUrl?: string | null;
 }
 
