@@ -154,7 +154,7 @@ export default function AgmPage() {
                   <img
                     src={s.image}
                     alt={s.headline}
-                    className="h-[260px] w-full object-cover md:h-[480px]"
+                    className="h-65 w-full object-cover md:h-120"
                     style={{ opacity: 0.88 }}
                   />
                 </div>

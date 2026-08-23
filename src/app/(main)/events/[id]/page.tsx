@@ -216,9 +216,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       <header
         className="relative overflow-hidden rounded-3xl p-6 text-white md:p-8 flex flex-col justify-end"
         style={
-          event.bannerUrl
+          event.flyerUrl || event.bannerUrl
             ? {
-                backgroundImage: `url(${event.bannerUrl})`,
+                backgroundImage: `url(${event.flyerUrl || event.bannerUrl})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 minHeight: "240px",
@@ -226,10 +226,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             : { background: color }
         }
       >
-        {event.bannerUrl && (
+        {(event.flyerUrl || event.bannerUrl) && (
           <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/35 to-transparent" />
         )}
-        {!event.bannerUrl && (
+        {!(event.flyerUrl || event.bannerUrl) && (
           <div className="absolute -right-10 -bottom-12 select-none text-[180px] font-black leading-none text-white/10">
             {initialsFor(organiser)}
           </div>

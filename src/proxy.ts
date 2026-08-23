@@ -32,8 +32,15 @@ export function proxy(request: NextRequest) {
     pathname.startsWith(route),
   );
 
-  // Check for the refreshToken or accessToken to determine auth status
-  const hasToken = !!request.cookies.get("accessToken");
+  // A usable session needs an access token — but a user whose short-lived access token
+  // has been dropped (it expired, or the cookie got cleared) may still hold a valid
+  // HttpOnly refresh token. Let those requests through so the client can silently mint a
+  // fresh access token (see SessionBootstrap) instead of bouncing them to /login for no
+  // reason. Middleware only checks *presence*, not validity; if the refresh token turns
+  // out to be dead, the client's refresh fails and it redirects to /login then.
+  const hasAccess = !!request.cookies.get("accessToken");
+  const hasRefresh = !!request.cookies.get("refreshToken");
+  const hasToken = hasAccess || hasRefresh;
 
   const isGuestAllowed =
     !!request.cookies.get("isGuest") &&
@@ -52,8 +59,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If trying to access login page WITH a token, redirect to dashboard/home
-  if (isPublicRoute && hasToken && pathname === "/login") {
+  // Already signed in (a usable access token) and hitting /login → send home. Uses
+  // hasAccess, not hasToken: a stale refresh-only cookie shouldn't yank them off /login
+  // and back while the client is still deciding whether that refresh token is alive.
+  if (isPublicRoute && hasAccess && pathname === "/login") {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

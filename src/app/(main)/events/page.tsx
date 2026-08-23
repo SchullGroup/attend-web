@@ -34,7 +34,7 @@ function apiToCard(item: EventListItem): EventCardData {
       (item as any).organizerPrimaryColor ||
       (EVENT_COLOR[item.eventType?.toUpperCase()] ?? "#2563eb"),
     logoUrl: item.branding?.logoUrl || item.organizerLogo || null,
-    image: item.bannerUrl || undefined,
+    image: item.flyerUrl || item.bannerUrl || undefined,
     status: item.status,
     date: item.date,
     startTime: item.startTime,

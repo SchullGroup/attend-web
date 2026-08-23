@@ -19,7 +19,7 @@ export default function SavedEventsPage() {
       (e as any).organizerPrimaryColor ||
       undefined,
     logoUrl: e.branding?.logoUrl || e.organizerLogo || null,
-    image: e.bannerUrl || undefined,
+    image: e.flyerUrl || e.bannerUrl || undefined,
     status: e.status,
     date: e.date,
     startTime: e.startTime,
