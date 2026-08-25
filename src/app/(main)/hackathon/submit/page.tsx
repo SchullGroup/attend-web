@@ -151,10 +151,12 @@ function SubmitPageInner() {
             <textarea
               value={form.description}
               onChange={(e) => update("description", e.target.value)}
+              maxLength={3000}
               rows={6}
               placeholder="What you built, who it's for, and what makes it stand out."
               className="w-full rounded-xl border border-input bg-white p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
             />
+            <p className={`text-xs text-right ${form.description.length >= 2900 ? 'text-red-500' : 'text-muted-foreground'}`}>{form.description.length}/3,000</p>
           </div>
         )}
 
