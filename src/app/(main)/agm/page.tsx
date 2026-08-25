@@ -119,7 +119,7 @@ function AgmCard({ event: e }: { event: EventListItem }) {
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-600" />
                 Live
               </span>
-            ) : registered ? (
+            ) : e.hasRsvped ? (
               <Badge variant="success">Confirmed</Badge>
             ) : (
               <Badge variant="muted">{fmtFormat(e.format)}</Badge>
