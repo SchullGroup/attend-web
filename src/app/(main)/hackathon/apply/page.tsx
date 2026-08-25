@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FilePickField } from "@/components/attend/FilePickField";
 import { uploadClient } from "@/api/upload/client";
-import { useApplicationConfig, useSubmitApplication } from "@/api/innovation/hooks";
+import { useApplicationConfig, useSubmitApplication, useGetMyApplications } from "@/api/innovation/hooks";
 import { useGetChallenge } from "@/api/hackathon/hooks";
 import { useGetMe } from "@/api/auth/hooks";
 import { InnovationApplicationRequest } from "@/types/innovation";
@@ -25,6 +25,7 @@ function ApplyPageInner() {
   const { data: cfgResp, isLoading: cfgLoading } = useApplicationConfig(challengeId);
   const config = cfgResp?.data;
   const { mutate: submitApplication, isPending } = useSubmitApplication(challengeId);
+  const { data: myAppsResp } = useGetMyApplications();
 
   // The challenge detail carries submissionRequirements (which project fields the
   // admin asked for); the current user becomes the team leader.
@@ -179,7 +180,7 @@ function ApplyPageInner() {
     }
   }
 
-  // Gating: applications closed, or already applied.
+  // Gating: applications closed, already applied, or already a member of another team.
   if (!cfgLoading && config && !config.applicationOpen) {
     return (
       <Gate title="Applications are closed" body="This challenge is not accepting applications right now." />
@@ -190,6 +191,22 @@ function ApplyPageInner() {
       <Gate
         title="You've already applied"
         body="You can only submit one application per challenge. To change it, withdraw it first from My Applications."
+        action={{ label: "View my applications", href: "/hackathon/my-applications" }}
+      />
+    );
+  }
+  // Check if the logged-in user is already listed as a member on another team's
+  // application for this same challenge (active = not withdrawn).
+  const existingMembership = (myAppsResp?.data ?? []).find(
+    (a) =>
+      a.challengeId === challengeId &&
+      (a.status || "").toLowerCase().replace(/[\s-]+/g, "_") !== "withdrawn",
+  );
+  if (!cfgLoading && existingMembership) {
+    return (
+      <Gate
+        title="You're already on a team"
+        body={`You are part of "${existingMembership.teamName}" for this challenge. A participant can only be on one team per challenge. To apply separately, ask your team lead to remove you or withdraw the existing application first.`}
         action={{ label: "View my applications", href: "/hackathon/my-applications" }}
       />
     );
@@ -286,11 +303,15 @@ function ApplyPageInner() {
               <textarea
                 value={ideaDescription}
                 onChange={(e) => setIdeaDescription(e.target.value)}
+                maxLength={3000}
                 rows={6}
                 placeholder="Describe the problem, your solution, target users, and what you'll have built by demo day."
                 className="w-full rounded-xl border border-input bg-white p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
               />
-              <p className="text-xs text-muted-foreground">Minimum 10 characters.</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Minimum 10 characters.</p>
+                <p className={`text-xs ${ideaDescription.length >= 2900 ? 'text-red-500' : 'text-muted-foreground'}`}>{ideaDescription.length}/3,000</p>
+              </div>
             </div>
           </div>
         )}
@@ -367,10 +388,12 @@ function ApplyPageInner() {
                 <textarea
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
+                  maxLength={3000}
                   rows={5}
                   placeholder="What you built, how it works, and what's done so far."
                   className="w-full rounded-xl border border-input bg-white p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
                 />
+                <p className={`text-xs text-right ${projectDescription.length >= 2900 ? 'text-red-500' : 'text-muted-foreground'}`}>{projectDescription.length}/3,000</p>
               </div>
             )}
             {(show.sourceCode || show.liveDemo || show.pitchVideo || show.demoVideo) && (

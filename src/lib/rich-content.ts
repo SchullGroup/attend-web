@@ -32,6 +32,9 @@ export function sanitizeMinutesHtml(html: string): string {
  */
 export function htmlToPlainText(html: string): string {
   const withBreaks = html
+    // Newline before opening block tags so headings/paragraphs don't merge with preceding text
+    .replace(/<(h[1-6])[\s>]/gi, "\n\n<$1 ")   // double break before headings
+    .replace(/<(p|div|tr|hr)[\s>\/]/gi, "\n<$1 ") // single break before other blocks
     .replace(/<\/(p|div|h[1-6]|tr)>/gi, "\n")
     .replace(/<li[^>]*>/gi, "\n• ")
     .replace(/<\/li>/gi, "")
