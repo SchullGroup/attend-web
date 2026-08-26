@@ -179,7 +179,7 @@ export default function HackathonDetailPage({
                 <img
                   src={logoUrl}
                   alt=""
-                  className="h-6 w-6 rounded bg-white/95 object-contain p-0.5 shadow-sm"
+                  className="h-6 w-6 rounded bg-white/95 object-cover shadow-sm"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.display = "none";
                   }}
@@ -233,7 +233,7 @@ export default function HackathonDetailPage({
                 <img
                   src={logoUrl}
                   alt=""
-                  className="h-6 w-6 rounded bg-white/95 object-contain p-0.5 shadow-sm"
+                  className="h-6 w-6 rounded bg-white/95 object-cover shadow-sm"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.display = "none";
                   }}

@@ -109,7 +109,7 @@ export default function HackathonPage() {
                       <img
                         src={c.branding?.logoUrl || c.organizerLogo}
                         alt=""
-                        className="h-5 w-5 rounded object-contain bg-slate-50 p-0.5 shadow-sm border border-slate-100"
+                        className="h-5 w-5 rounded object-cover bg-slate-50 shadow-sm border border-slate-100"
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).style.display = "none";
                         }}

@@ -215,25 +215,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       {/* Hero header */}
       <header
         className="relative overflow-hidden rounded-3xl p-6 text-white md:p-8 flex flex-col justify-end"
-        style={
-          event.flyerUrl || event.bannerUrl
-            ? {
-                backgroundImage: `url(${event.flyerUrl || event.bannerUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                minHeight: "240px",
-              }
-            : { background: color }
-        }
+        style={{ background: color }}
       >
-        {(event.flyerUrl || event.bannerUrl) && (
-          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/35 to-transparent" />
-        )}
-        {!(event.flyerUrl || event.bannerUrl) && (
-          <div className="absolute -right-10 -bottom-12 select-none text-[180px] font-black leading-none text-white/10">
-            {initialsFor(organiser)}
-          </div>
-        )}
+        {/* The flyer moved into the body (below); the header is always the brand-colour
+            banner with the organiser's initials as a watermark. */}
+        <div className="absolute -right-10 -bottom-12 select-none text-[180px] font-black leading-none text-white/10">
+          {initialsFor(organiser)}
+        </div>
         <div className="relative space-y-4">
           <div className="flex items-center gap-2">
             <ModuleBadge module={event.eventType} solid />
@@ -308,6 +296,24 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* Event flyer — shown full and uncropped here in the body. The list cards crop the
+          flyer to fill their header (object-cover); this view uses object-contain + a capped
+          height so the whole poster stays visible whatever its aspect ratio. */}
+      {(event.flyerUrl || event.bannerUrl) && (
+        <section className="overflow-hidden rounded-3xl border border-border bg-muted/40">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={event.flyerUrl || event.bannerUrl || undefined}
+            alt={`${event.title} flyer`}
+            className="mx-auto max-h-[520px] w-full object-contain"
+            onError={(e) => {
+              const sec = (e.currentTarget as HTMLImageElement).closest("section");
+              if (sec) (sec as HTMLElement).style.display = "none";
+            }}
+          />
         </section>
       )}
 
