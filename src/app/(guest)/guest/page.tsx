@@ -270,9 +270,9 @@ function EventCard({
         {/* Top Card Bar: Logo & Status Badge */}
         <div className="flex items-start justify-between gap-3">
           {logoUrl ? (
-            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/20 p-1 flex items-center justify-center">
+            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/20 flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt={event.title} className="h-full w-full object-contain" />
+              <img src={logoUrl} alt={event.title} className="h-full w-full object-cover" />
             </div>
           ) : (
             <div

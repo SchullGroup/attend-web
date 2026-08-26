@@ -13,6 +13,8 @@ export interface EventCardData {
   // The register's logo from the event's branding payload. Often null — the admin
   // hasn't uploaded one — so every use has to degrade to the organiser name alone.
   logoUrl?: string | null;
+  // The event flyer (flyerUrl, falling back to bannerUrl). Fills the card header when
+  // present; otherwise the header falls back to the organiser's brand colour.
   image?: string;
   status: string;
   date: string;
@@ -41,19 +43,30 @@ export function EventCard({ event, href }: Props) {
       href={link}
       className="group block overflow-hidden rounded-2xl border border-border bg-white transition-all hover:-translate-y-0.5 hover:shadow-lg"
     >
+      {/* When the event has a flyer it fills the card header (cropped to fit); otherwise the
+          header falls back to the organiser's brand colour with their initials as a watermark.
+          The organiser's logo (if any) and name sit pinned along the bottom either way. */}
       <div className="relative h-44 overflow-hidden" style={{ background: bgColor }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={event.image ?? `/posters/${event.id}.jpg`}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = "none";
-          }}
-        />
-        <div className="absolute -right-6 -bottom-10 select-none text-[140px] font-black leading-none text-white/10">
-          {initialsFor(event.organiser)}
-        </div>
+        {event.image ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={event.image}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              // A broken flyer URL must fall back to the brand-colour header, not a torn image.
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+            {/* Keep the bottom-pinned organiser name/logo legible over any flyer. */}
+            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+          </>
+        ) : (
+          <div className="absolute -right-6 -bottom-10 select-none text-[140px] font-black leading-none text-white/10">
+            {initialsFor(event.organiser)}
+          </div>
+        )}
         <div className="relative flex h-full items-start justify-between p-4">
           <ModuleBadge module={event.module} solid />
           {(event.status === "live" || event.status === "LIVE") && (
@@ -68,7 +81,7 @@ export function EventCard({ event, href }: Props) {
             <img
               src={event.logoUrl}
               alt=""
-              className="h-7 w-7 shrink-0 rounded-md bg-white/95 object-contain p-0.5 shadow-sm"
+              className="h-7 w-7 shrink-0 rounded-md bg-white/95 object-cover shadow-sm"
               // A broken logo URL must not leave a torn-image icon over the banner.
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";

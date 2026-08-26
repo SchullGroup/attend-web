@@ -420,7 +420,7 @@ export default function HomePage() {
                   <img
                     src={e.logoUrl}
                     alt=""
-                    className="h-full w-full object-contain p-1 bg-white/95"
+                    className="h-full w-full object-cover bg-white/95"
                     onError={(ev) => {
                       (ev.currentTarget as HTMLImageElement).style.display = "none";
                     }}

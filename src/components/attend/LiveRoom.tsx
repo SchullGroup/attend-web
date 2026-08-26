@@ -608,7 +608,7 @@ export function LiveRoom({
           <img
             src={brandLogo}
             alt=""
-            className="h-11 w-11 shrink-0 rounded-xl bg-white object-contain p-1 ring-1 ring-border"
+            className="h-11 w-11 shrink-0 rounded-xl bg-white object-cover ring-1 ring-border"
             // A broken logo URL must not leave a torn-image icon in the header.
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
           />
