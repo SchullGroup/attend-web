@@ -4,13 +4,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, FileText, Download, Building2, ChevronRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { jsPDF } from "jspdf";
 import { useGetMinutes } from "@/api/agm/hooks";
 import { useGetEvents, useGetEvent } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { formatDate, parseApiDate } from "@/lib/utils";
-import { registerNotoSans } from "@/lib/pdf-fonts";
-import { sanitizeMinutesHtml, htmlToPlainText } from "@/lib/rich-content";
+import { sanitizeMinutesHtml, normalizeMinutesContent } from "@/lib/rich-content";
+import { downloadMinutesPdf } from "@/lib/minutes-pdf";
 
 function MinutesInner() {
   const router = useRouter();
@@ -75,47 +74,13 @@ function MinutesInner() {
     if (!minutes) return;
     setDownloading(true);
     try {
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
-      await registerNotoSans(doc);
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
-      const margin = 48;
-      let y = 64;
-
-      doc.setFont("NotoSans", "bold");
-      doc.setFontSize(18);
-      doc.text("AGM Minutes", margin, y);
-      y += 20;
-      if (organiser) {
-        doc.setFont("NotoSans", "normal");
-        doc.setFontSize(11);
-        doc.setTextColor(60);
-        doc.text(organiser, margin, y);
-        doc.setTextColor(20);
-        y += 18;
-      }
-      doc.setFont("NotoSans", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(120);
-      doc.text(`Finalised ${finalised}`, margin, y);
-      doc.setTextColor(20);
-      y += 28;
-
-      doc.setFontSize(11);
-      // As of 2026-08-18, finalised minutes have a "Resolutions" section appended as HTML
-      // markup — the PDF only ever draws plain lines, so strip it to readable text rather
-      // than printing literal tags.
-      const lines = doc.splitTextToSize(htmlToPlainText(minutes.content || ""), pageW - margin * 2);
-      lines.forEach((line: string) => {
-        if (y > pageH - margin) {
-          doc.addPage();
-          y = margin;
-        }
-        doc.text(line, margin, y);
-        y += 16;
+      await downloadMinutesPdf({
+        title: organiser || "AGM Minutes",
+        finalisedDate: finalised,
+        content: minutes.content || "",
+        organiser: event?.organizerName,
+        eventId: minutes.eventId || eventId,
       });
-
-      doc.save(`agm-minutes-${minutes.eventId || eventId}.pdf`);
     } finally {
       setDownloading(false);
     }
@@ -162,7 +127,7 @@ function MinutesInner() {
               Tailwind typography plugin for one page. */}
           <div
             className="space-y-2 text-sm leading-relaxed text-foreground/90 [&_h1]:mt-4 [&_h1]:text-base [&_h1]:font-bold [&_h1]:text-foreground [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-foreground [&_h3]:mt-4 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:uppercase [&_h3]:tracking-wide [&_h3]:text-muted-foreground [&_p]:mb-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5 [&_strong]:font-semibold [&_table]:mt-2 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-1.5 [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-1.5 [&_hr]:my-3 [&_hr]:border-border"
-            dangerouslySetInnerHTML={{ __html: sanitizeMinutesHtml(minutes.content || "") }}
+            dangerouslySetInnerHTML={{ __html: sanitizeMinutesHtml(normalizeMinutesContent(minutes.content || "")) }}
           />
 
           {/* Registrar credit — small and quiet on purpose, so it reads as an attribution

@@ -44,3 +44,40 @@ export function htmlToPlainText(html: string): string {
   // regex-only strip wouldn't — reuse it here instead of a second bespoke decoder.
   return sanitized.replace(/\n{3,}/g, "\n\n").trim();
 }
+
+/**
+ * The `minutes.content` field is a mix of **plain text** (admin-written body, newlines
+ * as `\n`) and **HTML** (resolutions section appended by the backend). Rendering the raw
+ * value via `dangerouslySetInnerHTML` collapses the plain-text newlines — this function
+ * converts the plain-text portion into proper `<p>`/`<br>` HTML while leaving the
+ * already-correct resolutions HTML untouched.
+ */
+export function normalizeMinutesContent(raw: string): string {
+  if (!raw) return "";
+
+  // If the content already opens with a block-level HTML element it's likely fully
+  // HTML-formatted (e.g. future rich-text editor output) — return as-is.
+  if (/^\s*<(p|div|h[1-6]|ul|ol|table)\b/i.test(raw)) return raw;
+
+  // Find the boundary: the backend appends resolutions starting with a heading tag.
+  const htmlMatch = raw.match(/<(h[1-6]|ol|ul|div|table)\b/i);
+
+  if (!htmlMatch || htmlMatch.index === undefined) {
+    // No HTML block elements → entire content is plain text.
+    return plainTextToHtml(raw);
+  }
+
+  const plainPart = raw.substring(0, htmlMatch.index);
+  const htmlPart = raw.substring(htmlMatch.index);
+
+  return plainTextToHtml(plainPart) + htmlPart;
+}
+
+/** Convert plain text with `\n` newlines into simple HTML paragraphs. */
+function plainTextToHtml(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .filter((p) => p.trim())
+    .map((para) => `<p>${para.replace(/\n/g, "<br>")}</p>`)
+    .join("\n");
+}
