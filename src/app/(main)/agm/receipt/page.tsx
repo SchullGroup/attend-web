@@ -1,11 +1,12 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Download, Copy, Check, Building2, ChevronRight, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { QRCodeSVG } from "qrcode.react";
-import { downloadVoteReceiptPdf, voteLabel } from "@/lib/vote-receipt-pdf";
+import { downloadNodeAsPdf } from "@/lib/dom-to-pdf";
+import { voteLabel } from "@/lib/agm-format";
 import { ProxyCastVotes } from "@/components/attend/ProxyCastVotes";
 import { useGetVoteReceipt, useGetProxy, useRevokeProxy } from "@/api/agm/hooks";
 import { useGetEvents } from "@/api/events/hooks";
@@ -21,6 +22,7 @@ function ReceiptInner() {
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const [revokeSuccess, setRevokeSuccess] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const docRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useGetVoteReceipt(eventId);
   const receipt = data?.data;
@@ -108,14 +110,10 @@ function ReceiptInner() {
   }
 
   async function downloadPdf() {
+    if (!docRef.current) return;
     setDownloading(true);
     try {
-      await downloadVoteReceiptPdf({
-        ...view,
-        proxy: proxy
-          ? { ...proxy, proxyCode: proxy.proxyCode || (receipt as any)?.proxyCode }
-          : null,
-      });
+      await downloadNodeAsPdf(docRef.current, `vote-receipt-${view.reference}.pdf`);
     } finally {
       setDownloading(false);
     }
@@ -131,7 +129,7 @@ function ReceiptInner() {
       </button>
 
       <div className="mx-auto max-w-2xl">
-        <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
+        <div ref={docRef} className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
           <div className="border-b border-border bg-linear-to-br from-emerald-500 to-emerald-700 p-6 text-white">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
@@ -226,6 +224,7 @@ function ReceiptInner() {
                     size="sm"
                     onClick={handleRevoke}
                     loading={revoking}
+                    data-pdf-hide
                     className="border-red-200 bg-white text-red-700 hover:bg-red-50 hover:text-red-800"
                   >
                     Revoke Proxy
@@ -293,7 +292,7 @@ function ReceiptInner() {
               participation and votes at the meeting.
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div data-pdf-hide className="flex flex-col gap-3 sm:flex-row">
               <Button fullWidth onClick={downloadPdf} loading={downloading} disabled={downloading}>
                 <Download className="h-4 w-4" /> Download receipt
               </Button>
