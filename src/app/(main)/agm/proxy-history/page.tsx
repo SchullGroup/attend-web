@@ -2,8 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserCheck, Mail, Phone, ChevronDown, ChevronUp, Download } from "lucide-react";
-import { downloadVoteReceiptPdf, voteLabel } from "@/lib/vote-receipt-pdf";
+import { ArrowLeft, UserCheck, Mail, Phone, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { useGetProxyHistory, useRevokeProxy, useGetVoteReceipt } from "@/api/agm/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -77,7 +76,6 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
   const [expanded, setExpanded] = useState(false);
   const { mutate: revoke, isPending: revoking } = useRevokeProxy(p.eventId);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
 
   // The proxy-history payload carries no vote outcomes — the only source of what a proxy
   // actually cast is the shareholder's vote receipt. Fetch it lazily, only once this row
@@ -93,40 +91,11 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
   const isLive = p.eventStatus?.toUpperCase() === "LIVE";
   const showRevoke = !isRevoked && !isEnded && !isLive;
 
-  // Downloads the SAME document as the vote-receipt page, via the shared builder — the
-  // record of what was voted, not a bespoke proxy card. Fed by the receipt fetched on
-  // expand plus this row's own proxy details.
+  // The downloadable record of what a proxy voted lives on the vote-receipt page — it
+  // owns the document and its PDF export. Rather than rebuild that document here from
+  // partial data, link straight to it for this event.
   const receipt = receiptResp?.data;
   const canDownload = !!receipt;
-
-  async function downloadReceipt() {
-    if (!receipt) return;
-    const votes = receipt.votes ?? [];
-    setDownloading(true);
-    try {
-      await downloadVoteReceiptPdf({
-        meeting: receipt.eventTitle || p.eventTitle,
-        date: votes[0]?.votedAt ? formatDate(votes[0].votedAt) : formatDate(p.eventDate),
-        reference: receiptResp?.referenceId ?? "—",
-        resolutions: votes.map((v, i) => ({
-          num: i + 1,
-          title: v.resolutionTitle,
-          vote: voteLabel(v.choice),
-          castByProxy: !!v.castByProxy,
-          proxyName: v.proxyName,
-        })),
-        proxy: {
-          proxyName: p.proxyName,
-          proxyEmail: p.proxyEmail,
-          proxyPhone: p.proxyPhone,
-          proxyCode: p.proxyCode,
-          assignedAt: p.assignedAt,
-        },
-      });
-    } finally {
-      setDownloading(false);
-    }
-  }
 
   function handleRevoke() {
     setErrorMsg(null);
@@ -256,17 +225,11 @@ function ProxyHistoryItemRow({ p }: { p: ProxyHistoryItem }) {
             )}
 
             {canDownload && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={downloadReceipt}
-                loading={downloading}
-                disabled={downloading}
-                className="bg-white"
-              >
-                <Download className="mr-1.5 h-4 w-4" /> Download vote receipt
-              </Button>
+              <Link href={`/agm/receipt?eventId=${p.eventId}`}>
+                <Button type="button" variant="outline" size="sm" className="bg-white">
+                  <FileText className="mr-1.5 h-4 w-4" /> View &amp; download vote receipt
+                </Button>
+              </Link>
             )}
 
             {/* Pre-set voting directions — only if the backend ever populates them. */}

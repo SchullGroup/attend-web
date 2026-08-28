@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, FileText, Download, Building2, ChevronRight, Clock } from "lucide-react";
@@ -9,7 +9,7 @@ import { useGetEvents, useGetEvent } from "@/api/events/hooks";
 import { EventListItem } from "@/types";
 import { formatDate, parseApiDate } from "@/lib/utils";
 import { sanitizeMinutesHtml, normalizeMinutesContent } from "@/lib/rich-content";
-import { downloadMinutesPdf } from "@/lib/minutes-pdf";
+import { downloadNodeAsPdf } from "@/lib/dom-to-pdf";
 
 function MinutesInner() {
   const router = useRouter();
@@ -19,6 +19,7 @@ function MinutesInner() {
   const { data, isLoading, error } = useGetMinutes(eventId);
   const minutes = data?.data ?? null;
   const [downloading, setDownloading] = useState(false);
+  const docRef = useRef<HTMLDivElement>(null);
   // The minutes payload itself has no organiser field; the event detail already does
   // (same registerName-over-organizerName precedence used on /agm and /events/[id]).
   const { data: eventResp } = useGetEvent(eventId);
@@ -71,16 +72,13 @@ function MinutesInner() {
     : "—";
 
   async function downloadPdf() {
-    if (!minutes) return;
+    if (!minutes || !docRef.current) return;
     setDownloading(true);
     try {
-      await downloadMinutesPdf({
-        title: organiser || "AGM Minutes",
-        finalisedDate: finalised,
-        content: minutes.content || "",
-        organiser: event?.organizerName,
-        eventId: minutes.eventId || eventId,
-      });
+      await downloadNodeAsPdf(
+        docRef.current,
+        `agm-minutes-${minutes.eventId || eventId}.pdf`,
+      );
     } finally {
       setDownloading(false);
     }
@@ -88,7 +86,7 @@ function MinutesInner() {
 
   return (
     <Shell>
-      <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
+      <div ref={docRef} className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
         <div className="border-b border-border bg-linear-to-br from-emerald-500 to-emerald-700 p-6 text-white">
           <div className="flex items-center gap-3">
             {/* Company's own logo (branding.logoUrl) when set — falls back to the generic
@@ -149,7 +147,7 @@ function MinutesInner() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div data-pdf-hide className="flex flex-col gap-3 sm:flex-row">
             <Button fullWidth onClick={downloadPdf} loading={downloading} disabled={downloading}>
               <Download className="h-4 w-4" /> Download minutes
             </Button>

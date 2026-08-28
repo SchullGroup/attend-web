@@ -1,15 +1,27 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, Award, Star, Check, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useGetCertificate } from "@/api/hackathon/hooks";
-import { formatDate } from "@/lib/utils";
+import { downloadNodeAsPdf } from "@/lib/dom-to-pdf";
 
 function CertificateInner() {
   const router = useRouter();
   const challengeId = useSearchParams().get("challengeId") ?? "";
   const [shared, setShared] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const certRef = useRef<HTMLDivElement>(null);
+
+  async function handleDownload() {
+    if (!certRef.current) return;
+    setDownloading(true);
+    try {
+      await downloadNodeAsPdf(certRef.current, `certificate-${challengeId}.pdf`);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   const { data, isLoading } = useGetCertificate(challengeId);
   const cert = data?.data;
@@ -89,7 +101,7 @@ function CertificateInner() {
       </header>
 
       <div className="mx-auto max-w-3xl">
-        <div className="relative overflow-hidden rounded-3xl border-[3px] border-purple-200 bg-linear-to-br from-white via-purple-50/40 to-white p-8 shadow-lg md:p-12">
+        <div ref={certRef} className="relative overflow-hidden rounded-3xl border-[3px] border-purple-200 bg-linear-to-br from-white via-purple-50/40 to-white p-8 shadow-lg md:p-12">
           <Corner className="left-3 top-3" />
           <Corner className="right-3 top-3 rotate-90" />
           <Corner className="bottom-3 left-3 -rotate-90" />
@@ -145,7 +157,7 @@ function CertificateInner() {
         </div>
 
         <div className="mt-4 flex justify-center gap-3">
-          <Button onClick={() => window.print()}>
+          <Button onClick={handleDownload} loading={downloading} disabled={downloading}>
             <Download className="h-4 w-4" /> Download PDF
           </Button>
           <Button variant="outline" onClick={handleShare}>
