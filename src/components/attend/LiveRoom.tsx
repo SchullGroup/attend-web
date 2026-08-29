@@ -699,7 +699,7 @@ export function LiveRoom({
                       {startsIn != null && startsIn > 0
                         ? `Starts in ${fmtCountdown(startsIn)}`
                         : isLive
-                        ? "Waiting for the live stream…"
+                        ? "The organiser hasn't posted a join link yet — check back shortly."
                         : "The live stream will appear here once the session begins"}
                     </p>
                   </div>

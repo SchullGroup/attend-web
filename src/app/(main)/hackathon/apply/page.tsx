@@ -104,8 +104,9 @@ function ApplyPageInner() {
 
   // A project field is only required if the admin asked for it (`show.*`); anything
   // not required is hidden, so it never blocks. Project now lives on the Idea step.
+  const projectDescriptionTooLong = show.projectDescription && projectDescription.trim().length > 3000;
   const projectComplete =
-    (!show.projectDescription || projectDescription.trim().length > 0) &&
+    (!show.projectDescription || (projectDescription.trim().length > 0 && !projectDescriptionTooLong)) &&
     (!show.sourceCode || sourceCodeUrl.trim().length > 0) &&
     (!show.liveDemo || liveDemoUrl.trim().length > 0) &&
     (!show.pitchVideo || pitchVideoUrl.trim().length > 0) &&
@@ -391,8 +392,11 @@ function ApplyPageInner() {
                   maxLength={3000}
                   rows={5}
                   placeholder="What you built, how it works, and what's done so far."
-                  className="w-full rounded-xl border border-input bg-white p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
+                  className={cn("w-full rounded-xl border bg-white p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary", projectDescriptionTooLong ? "border-red-400" : "border-input")}
                 />
+                {projectDescriptionTooLong && (
+                  <p className="text-xs text-red-500">Project description must not exceed 3,000 characters</p>
+                )}
                 <p className={`text-xs text-right ${projectDescription.length >= 2900 ? 'text-red-500' : 'text-muted-foreground'}`}>{projectDescription.length}/3,000</p>
               </div>
             )}
