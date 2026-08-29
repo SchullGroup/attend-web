@@ -135,7 +135,18 @@ export interface ChallengeCertificateData {
   participantName: string;
   teamName: string;
   applicationStatus: string;
+  /** Would qualify for a certificate — not the same as one existing. */
   eligible: boolean;
+  /** A certificate has actually been issued (an organiser ran the issuance). */
+  issued: boolean;
+  certificateId?: string;
+  certificateNumber?: string;
+  /** Winner shown first when a participant holds both. Missing → treat as PARTICIPATION. */
+  certificateType?: "WINNER" | "PARTICIPATION";
+  /** false → the PDF is still generating; poll again shortly. */
+  downloadReady?: boolean;
+  /** e.g. "/api/v1/public/certificates/{id}/download" */
+  downloadPath?: string;
   message: string;
 }
 

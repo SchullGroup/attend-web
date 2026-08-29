@@ -1,9 +1,10 @@
 "use client";
 import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Download, Award, Star, Check, Clock } from "lucide-react";
+import { ArrowLeft, Download, Award, Star, Check, Clock, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useGetCertificate } from "@/api/hackathon/hooks";
+import { hackathonClient } from "@/api/hackathon/client";
 import { downloadNodeAsPdf } from "@/lib/dom-to-pdf";
 
 function CertificateInner() {
@@ -13,18 +14,39 @@ function CertificateInner() {
   const [downloading, setDownloading] = useState(false);
   const certRef = useRef<HTMLDivElement>(null);
 
+  const { data, isLoading } = useGetCertificate(challengeId);
+  const cert = data?.data;
+
+  const isWinner = cert?.certificateType === "WINNER";
+  const fileName = `certificate-${cert?.certificateNumber || challengeId}.pdf`;
+
   async function handleDownload() {
-    if (!certRef.current) return;
     setDownloading(true);
     try {
-      await downloadNodeAsPdf(certRef.current, `certificate-${challengeId}.pdf`);
+      // Prefer the canonical server-rendered PDF (it carries the organiser's
+      // artwork and matches the verifier). Fall back to a snapshot of the on-page
+      // card only if that path is missing or fails, so the button is never dead.
+      if (cert?.downloadPath) {
+        try {
+          const blob = await hackathonClient.downloadCertificatePdf(cert.downloadPath);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          return;
+        } catch {
+          /* fall through to the DOM snapshot */
+        }
+      }
+      if (certRef.current) {
+        await downloadNodeAsPdf(certRef.current, fileName);
+      }
     } finally {
       setDownloading(false);
     }
   }
-
-  const { data, isLoading } = useGetCertificate(challengeId);
-  const cert = data?.data;
 
   async function handleShare() {
     const url = window.location.href;
@@ -58,8 +80,10 @@ function CertificateInner() {
     );
   }
 
-  // Not eligible yet → show the backend message instead of a certificate.
-  if (!cert.eligible) {
+  // No certificate issued yet. `eligible` means "would qualify" — issuance is an
+  // organiser-triggered run, so a qualifying entrant still waits for the file.
+  if (!cert.issued) {
+    const waiting = cert.eligible;
     return (
       <div className="space-y-6">
         <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -69,9 +93,14 @@ function CertificateInner() {
           <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
             <Clock className="h-8 w-8 text-amber-600" />
           </div>
-          <h1 className="mt-4 text-xl font-bold text-foreground">Certificate not available yet</h1>
+          <h1 className="mt-4 text-xl font-bold text-foreground">
+            {waiting ? "Your certificate is being prepared" : "Certificate not available yet"}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {cert.message || "Your certificate will be available once participation is confirmed."}
+            {cert.message ||
+              (waiting
+                ? "You qualify for a certificate. It will appear here once the organiser issues it."
+                : "Your certificate will be available once participation is confirmed.")}
           </p>
         </div>
       </div>
@@ -82,8 +111,10 @@ function CertificateInner() {
     name: cert.participantName,
     eventTitle: cert.eventTitle,
     subline: cert.teamName ? `Team ${cert.teamName}` : "",
-    verifyId: data?.referenceId ?? "—",
+    verifyId: cert.certificateNumber || data?.referenceId || "—",
   };
+
+  const pdfPending = cert.downloadReady === false;
 
   return (
     <div className="space-y-6">
@@ -95,7 +126,9 @@ function CertificateInner() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Your certificate</h1>
           <p className="text-sm text-muted-foreground">
-            Thank you for taking part — share your achievement.
+            {isWinner
+              ? "Congratulations on your achievement — share it."
+              : "Thank you for taking part — share your achievement."}
           </p>
         </div>
       </header>
@@ -116,14 +149,14 @@ function CertificateInner() {
 
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                Certificate of Participation
+                {isWinner ? "Certificate of Achievement" : "Certificate of Participation"}
               </p>
               <h2 className="mt-3 font-serif text-4xl font-bold text-foreground md:text-5xl">
                 {view.name}
               </h2>
               <div className="mx-auto mt-3 h-px w-32 bg-purple-200" />
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
-                successfully participated in the
+                {isWinner ? "was recognised as a winner of the" : "successfully participated in the"}
               </p>
               <p className="mt-1 text-lg font-semibold text-foreground md:text-xl">
                 {view.eventTitle}
@@ -135,7 +168,7 @@ function CertificateInner() {
 
             <div className="flex items-center justify-center gap-3 pt-2 text-purple-700">
               <Star className="h-4 w-4 fill-current" />
-              <Award className="h-8 w-8" />
+              {isWinner ? <Trophy className="h-8 w-8" /> : <Award className="h-8 w-8" />}
               <Star className="h-4 w-4 fill-current" />
             </div>
 
@@ -157,13 +190,18 @@ function CertificateInner() {
         </div>
 
         <div className="mt-4 flex justify-center gap-3">
-          <Button onClick={handleDownload} loading={downloading} disabled={downloading}>
-            <Download className="h-4 w-4" /> Download PDF
+          <Button onClick={handleDownload} loading={downloading} disabled={downloading || pdfPending}>
+            <Download className="h-4 w-4" /> {pdfPending ? "Preparing…" : "Download PDF"}
           </Button>
           <Button variant="outline" onClick={handleShare}>
             {shared ? <><Check className="h-4 w-4" /> Copied!</> : "Share"}
           </Button>
         </div>
+        {pdfPending && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            The PDF is still being generated — this will be ready shortly.
+          </p>
+        )}
       </div>
     </div>
   );

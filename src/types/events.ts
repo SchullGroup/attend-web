@@ -14,7 +14,12 @@ export interface EventListItem {
   date: string;
   startTime: string;
   venue: string;
-  streamUrl: string;
+  /**
+   * Null until the organiser sets a link. Since Zoom links are no longer created
+   * at event-creation time, a VIRTUAL/HYBRID event can legitimately have no join
+   * link right up to (and past) its start time — gate "Join" on this being set.
+   */
+  streamUrl: string | null;
   organizerName: string;
   organizerLogo: string;
   registerId?: string;
@@ -64,7 +69,8 @@ export interface EventDetail {
   date: string;
   startTime: string;
   venue: string;
-  streamUrl: string;
+  /** Null until the organiser sets a link — see the note on `EventListItem.streamUrl`. */
+  streamUrl: string | null;
   organizerName: string;
   organizerLogo: string;
   organizerPrimaryColor: string;

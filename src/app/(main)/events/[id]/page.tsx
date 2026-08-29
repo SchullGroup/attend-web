@@ -187,6 +187,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const isEnded = event.status === "ENDED";
   const isUpcoming = !isLive && !isEnded;
   const isVirtual = event.format === "VIRTUAL";
+  // A VIRTUAL/HYBRID event can now be LIVE with no join link yet — Zoom links are no
+  // longer minted at creation time. Show an unavailable state rather than a dead button.
+  const needsStreamLink = event.format === "VIRTUAL" || event.format === "HYBRID";
+  const missingStreamLink = needsStreamLink && !event.streamUrl;
   const FormatIcon = FORMAT_ICON[event.format] ?? MapPin;
   const fill = event.maximumCapacity
     ? Math.round((event.registeredCount / event.maximumCapacity) * 100)
@@ -652,16 +656,22 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       {/* Sticky bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur px-4 py-3 md:left-64">
         {isLive && hasRsvped ? (
-          <Button
-            className="w-full gap-2"
-            style={{ backgroundColor: color }}
-            onClick={() => {
-              if (mod === "AGM") router.push(`/agm/live?eventId=${id}`);
-              else router.push(`/events/live?eventId=${id}`);
-            }}
-          >
-            <Radio className="h-4 w-4" /> Join Live Session →
-          </Button>
+          missingStreamLink ? (
+            <Button className="w-full gap-2" variant="outline" disabled>
+              <Radio className="h-4 w-4" /> Join link not available yet
+            </Button>
+          ) : (
+            <Button
+              className="w-full gap-2"
+              style={{ backgroundColor: color }}
+              onClick={() => {
+                if (mod === "AGM") router.push(`/agm/live?eventId=${id}`);
+                else router.push(`/events/live?eventId=${id}`);
+              }}
+            >
+              <Radio className="h-4 w-4" /> Join Live Session →
+            </Button>
+          )
         ) : isLive && !hasRsvped ? (
           rsvpEligibility.allowed ? (
             <div className="space-y-2 w-full">

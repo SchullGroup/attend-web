@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronRight, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, CheckCircle2, Award } from "lucide-react";
 import { useGetMyApplications } from "@/api/innovation/hooks";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
@@ -30,6 +30,13 @@ const STATUS_LABEL: Record<string, string> = {
 
 const labelFor = (k: string) => STATUS_LABEL[k] ?? (k ? k.replace(/_/g, " ") : "—");
 const toneFor = (k: string): Tone => STATUS_TONE[k] ?? "muted";
+
+// A certificate (participation or winner) can only exist for an application that
+// actually took part — the withdrawn/rejected entrants never get one. The
+// certificate page itself resolves the precise not-yet / being-prepared / issued
+// state, so this gate can be a little optimistic.
+const CERT_EXCLUDED = new Set(["withdrawn", "rejected"]);
+const mayHaveCertificate = (statusKey: string) => !CERT_EXCLUDED.has(statusKey);
 
 export default function MyApplicationsPage() {
   const router = useRouter();
@@ -95,6 +102,7 @@ export default function MyApplicationsPage() {
                 <th className="px-4 py-3 text-left font-semibold">Pathway</th>
                 <th className="px-4 py-3 text-left font-semibold">Submitted</th>
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
+                <th className="px-4 py-3 text-right font-semibold" aria-label="Certificate" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -120,6 +128,16 @@ export default function MyApplicationsPage() {
                   <td className="px-4 py-3 text-muted-foreground">{a.submittedAt}</td>
                   <td className="px-4 py-3">
                     <Badge variant={toneFor(a.statusKey)}>{labelFor(a.statusKey)}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {mayHaveCertificate(a.statusKey) && (
+                      <Link
+                        href={`/hackathon/certificate?challengeId=${a.challengeId}`}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <Award className="h-3.5 w-3.5" /> Certificate
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -150,6 +168,14 @@ export default function MyApplicationsPage() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </Link>
+                {mayHaveCertificate(a.statusKey) && (
+                  <Link
+                    href={`/hackathon/certificate?challengeId=${a.challengeId}`}
+                    className="flex items-center gap-1 border-t border-border px-4 py-2.5 text-xs font-medium text-primary hover:bg-muted/30"
+                  >
+                    <Award className="h-3.5 w-3.5" /> View certificate
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
